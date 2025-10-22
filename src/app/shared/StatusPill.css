@@ -1,0 +1,59 @@
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 32px;
+  font-size: 14px;
+  font-weight:500;
+  line-height: 18px;
+  white-space: nowrap; 
+}
+
+.status-radio {
+  margin-right: 8px;
+}
+
+.variant-default {
+  background-color: #e0e0e0;
+  color: #424242;
+}
+
+.variant-success {
+  background-color:#2D2D2D ;
+  color: #EFFC76;
+}
+
+.variant-warning {
+  background-color: #2D2D2D;
+  color: #FFB52B;
+}
+
+.variant-error {
+  background-color: #2D2D2D;
+  color: #FF3F3F;
+}
+
+.variant-urgent {
+  background-color: #2D2D2D;
+  color: #f9b132;
+}
+
+.variant-info {
+  background-color: #2D2D2D;
+  color: #007bff;
+}
+
+.variant-purple {
+  background-color: #2D2D2D;
+  color: #d24aff;
+}
+
+.variant-flagged {
+  background-color: #ffa4241f;
+  color: #ffa424;
+}
+
+.variant-accurate {
+  background-color: #1eb8101f;
+  color: #00c851;
+}
