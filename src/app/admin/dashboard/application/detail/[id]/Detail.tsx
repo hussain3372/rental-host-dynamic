@@ -267,14 +267,14 @@ export default function ApplicationDetail() {
 
       {images.length > 0 && (
         <>
-          <div className="flex flex-col sm:flex-row gap-3 items-center">
+          <div className="flex flex-col sm:flex-row gap-3">
             <div className=" w-full flex flex-col">
               <div
                 className={`
                   relative w-full rounded-lg overflow-hidden bg-gray-900
                   ${thumbnailsHeight ? "hidden sm:block" : ""} 
                 `}
-                style={{ height: thumbnailsHeight || "auto" }}
+                style={{ height:  "300px" }}
               >
                 <Image
                   src={images[currentStep]}
@@ -284,7 +284,7 @@ export default function ApplicationDetail() {
                 />
               </div>
 
-              <div className="relative w-full aspect-[16/10] rounded-lg overflow-hidden bg-gray-900 sm:hidden">
+              <div className="relative w-full  rounded-lg overflow-hidden bg-gray-900 sm:hidden">
                 <Image
                   src={images[currentStep]}
                   alt={`Property view ${currentStep + 1}`}
@@ -296,7 +296,7 @@ export default function ApplicationDetail() {
 
             <div
               ref={thumbnailsContainerRef}
-              className="  w-full  sm:w-[145px] max-h-full flex flex-nowrap  gap-3 sm:flex-col justify-center items-center"
+              className=" relative aspect-[16/10] w-full sm:max-w-[145px] rounded-md max-h-[60px] max-w-[60px] sm:max-h-[300px]  overflow-y-auto scrollbar-hide "
             >
               {images.map((image: string, index: number) => (
                 <div

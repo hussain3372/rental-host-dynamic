@@ -46,7 +46,6 @@ export const VerifiedProperties: React.FC<VerifiedPropertiesProps> = ({ properti
           <p className="text-[18px] leading-[26px] text-[#FFFFFF99] font-medium max-w-[486px]">
             No verified properties match your search. Try adjusting filters or exploring other certified listings.
           </p>
-          
         </div>
       ) : (
         <>
@@ -66,9 +65,12 @@ export const VerifiedProperties: React.FC<VerifiedPropertiesProps> = ({ properti
 
           <div className="grid gap-x-10 gap-y-[80px] sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-[80px]">
             {displayedProperties.map((property, index) => {
-              const imageSrc =
-                Array.isArray(property.images) && property.images.length > 0
-                  ? property.images[0]
+              // ✅ FIX: Check for both 'image' (MappedProperty) and 'images' (Property)
+              const imageSrc = 
+                'image' in property && property.image 
+                  ? property.image // For MappedProperty
+                  : Array.isArray(property.images) && property.images.length > 0
+                  ? property.images[0] // For Property type
                   : "/images/empty.png";
 
               const title =
@@ -100,6 +102,10 @@ export const VerifiedProperties: React.FC<VerifiedPropertiesProps> = ({ properti
                           width={373}
                           height={300}
                           className="object-cover"
+                          onError={(e) => {
+                            // Fallback if image fails to load
+                            e.currentTarget.src = "/images/empty.png";
+                          }}
                         />
                       </div>
                     </div>

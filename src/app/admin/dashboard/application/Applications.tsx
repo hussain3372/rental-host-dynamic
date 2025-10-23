@@ -4,7 +4,6 @@ import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "../../tables-essentials/Filter";
 import { application } from "@/app/api/Admin/application";
-import type { Application } from "@/app/api/Admin/application/types";
 
 interface ApiParams {
   page: number;

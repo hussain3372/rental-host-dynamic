@@ -36,7 +36,7 @@ export default function EditProfileDrawer({
                                         hover:border-[#EFFC76]          
                                         focus:border-[#EFFC76]          
                                         bg-[radial-gradient(75%_81%_at_50%_18.4%,_#202020_0%,_#101010_100%)]
-                                        text-white placeholder:text-white/40
+                                         placeholder:text-white/40
                                         focus:outline-none
                                         transition duration-200 ease-in-out
                                         text-white `} />
@@ -54,10 +54,10 @@ export default function EditProfileDrawer({
                                         hover:border-[#EFFC76]          
                                         focus:border-[#EFFC76]          
                                         bg-[radial-gradient(75%_81%_at_50%_18.4%,_#202020_0%,_#101010_100%)]
-                                        text-white placeholder:text-white/40
+                                         placeholder:text-white/40
                                         focus:outline-none
                                         transition duration-200 ease-in-out
-                                        text-white `} />
+                                         `} />
                 </div>
             </div>
 

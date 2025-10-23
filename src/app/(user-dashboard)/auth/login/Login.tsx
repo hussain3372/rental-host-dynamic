@@ -8,14 +8,15 @@ import { useRouter } from "next/navigation";
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, isSupported } from "firebase/messaging";
 
+
 // Firebase Config
 const firebaseConfig = {
-  apiKey: "AIzaSyD8yzAsqcwv1IQC7hYmo1G45u8Z9tyPHtc",
-  authDomain: "rental-host-f33a1.firebaseapp.com",
-  projectId: "rental-host-f33a1",
-  storageBucket: "rental-host-f33a1.firebasestorage.app",
-  messagingSenderId: "985464173945",
-  appId: "1:985464173945:web:00c7f47440248a73ca2ba8",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
 // Initialize Firebase
@@ -94,6 +95,7 @@ export default function LoginPage() {
     generateFcmTokenSilently();
   }, []);
 
+
   const handleLogin = async (formData: LoginFormData) => {
     try {
       setLoading(true);
@@ -125,6 +127,8 @@ export default function LoginPage() {
         return;
       }
 
+     
+
       // 🧱 Safely store whatever exists — no undefined crashes
       if (user) {
         if (user.firstname) localStorage.setItem("firstname", user.firstname);
@@ -148,7 +152,8 @@ export default function LoginPage() {
           sameSite: "Lax",
           path: "/",
         });
-
+        Cookies.remove('adminAccessToken')
+        Cookies.remove('superAdminAccessToken')
         toast.success("Login successful!");
         // router.push("/dashboard");
         router.refresh();

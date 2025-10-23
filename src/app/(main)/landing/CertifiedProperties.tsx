@@ -92,7 +92,7 @@ const CertifiedProperties = () => {
             </p>
 
             <Link
-              href="/coming-soon"
+              href="/search-page"
               className="text-[#EFFC76] font-normal underline whitespace-nowrap text-[20px] leading-[24px] self-end sm:self-auto"
             >
               Explore More

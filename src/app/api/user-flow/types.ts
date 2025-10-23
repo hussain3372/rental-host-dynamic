@@ -75,3 +75,32 @@ export interface MappedProperty {
 
 
 }
+// In your types file
+export interface SearchParams {
+  search?: string;
+  location?: string;
+  status?: string;
+  expiry?: string;
+  // Add other potential filters
+  propertyType?: string;
+  amenities?: string[];
+  page?: number;
+  limit?: number;
+}
+
+export interface SearchResponse {
+  certifications: Certification[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  searchTime: number;
+  highlightedTerms: string[];
+  facets: {
+    propertyTypes: string[];
+    locations: string[];
+    amenities: string[];
+    guestCapacities: string[];
+  };
+  appliedFilters: Record<string, string>;
+}

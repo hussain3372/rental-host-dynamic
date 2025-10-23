@@ -169,7 +169,7 @@ export default function Step3({ errors, onFieldChange }: Step3Props) {
     } catch (err) {
       console.error("Error restoring documents from localStorage:", err);
     }
-  }, []);
+  }, [onFieldChange]);
 
   // helper to map documentType → key
   // const getKeyByDocumentType = (docType: string): DocumentKey | null => {

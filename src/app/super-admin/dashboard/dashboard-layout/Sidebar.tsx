@@ -6,6 +6,7 @@ import { Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
 import SearchDrawer from "@/app/shared/SearchDrawer";
 import SearchDrawerShortcut from "@/app/shared/SearchDrawerShortcut";
+import { useNotificationContext } from "@/app/shared/context/SuperAdminNotifications";
 // import { allProperties } from "@/app/(main)/search-page/data/properties";
 interface SidebarProps {
   onCollapseChange: (isCollapsed: boolean) => void;
@@ -26,6 +27,8 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
       onCollapseChange(newCollapsedState);
     }
   };
+
+  const { notificationCount } = useNotificationContext();
 
   const toggleMobileMenu = () => {
     setIsMobileOpen((prev) => !prev);
@@ -201,7 +204,10 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
                   isCollapsed ? "hidden" : "flex"
                 }`}
               >
-                <span className="text-white text-[10px] font-medium">8</span>
+                <span className="text-white text-[10px] font-medium">
+                  {" "}
+                  {notificationCount > 99 ? "99+" : notificationCount}
+                </span>
               </div>
             </Link>
           </div>
@@ -619,11 +625,11 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
           alt="Collapse"
           width={28}
           height={32}
-          className={`cursor-pointer hover:scale-110 h-auto w-auto transition-transform duration-500 top-[26px] fixed
-          ${isCollapsed ? "left-[88px] rotate-180" : "left-[224px]"}
-          ${isMobileOpen ? "lg:block block" : "lg:block hidden"}
-          ${isSearchOpen ? "hidden" : "z-[2000]"}
-          `}
+          className={`cursor-pointer hover:scale-110 h-auto  transition-transform duration-500 top-[26px] fixed
+                 ${isCollapsed ? "left-[88px] rotate-180" : "left-[224px]"}
+                 ${isMobileOpen ? "lg:block block" : "lg:block hidden"}
+                 ${isSearchOpen ? "hidden" : "z-[10000]"}
+                 `}
         />
         {/* Spacer */}
         <div

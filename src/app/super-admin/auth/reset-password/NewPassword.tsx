@@ -15,7 +15,6 @@ export default function NewPassword() {
   const [token, setToken] = useState<string>('');
 
   useEffect(() => {
-    // Get token from URL parameters using window.location
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get('token');
     if (urlToken) {
@@ -47,7 +46,7 @@ export default function NewPassword() {
       
       if (response.success) {
         toast.success(response.message || "Password reset successful!");
-        window.location.href = "/dashboard";
+        window.location.href = '/super-admin/auth/login';
       } else {
         toast.error(response.message || "Password reset failed");
       }

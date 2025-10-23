@@ -3,25 +3,33 @@ import React, { useMemo, useState, useEffect } from "react";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "../../tables-essentials/Filter";
+import { certificateApi } from "@/app/api/Admin/certificate";
+import { Certification } from "@/app/api/Admin/certificate/types";
 
 interface CertificationData {
   id: number;
   "Certificate ID": string;
   "Host ID": string;
   "Property Name": string;
+  "Host Name": string;
   "Issue Date": string;
   "Expiry Date": string;
   Status: "active" | "revoked" | "expired";
+  originalData?: Certification;
 }
 
-export default function Applications() {
+interface ApiFilters {
+  issuedAt?: string;
+  expiredAt?: string;
+  status?: "ACTIVE" | "REVOKED" | "EXPIRED";
+}
+
+export default function Certificates() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<"active" | "revoked" | "expired">(
-    "active"
-  );
-  const itemsPerPage = 6;
+  const [activeTab, setActiveTab] = useState<"active" | "revoked" | "expired">("active");
+  // const itemsPerPage = 6;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -31,171 +39,114 @@ export default function Applications() {
   } | null>(null);
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
 
-  const [showOwnershipDropdown, setShowOwnershipDropdown] = useState(false);
-  const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
-  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [issueDate, setIssueDate] = useState<Date | null>(null);
   const [expiryDate, setExpiryDate] = useState<Date | null>(null);
 
-  const [certificationFilters, setCertificationFilters] = useState({
-    issueDate: "",
-    expiryDate: "",
-  });
+  const [apiFilters, setApiFilters] = useState<ApiFilters>({});
+  const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const [allCertificationData, setAllCertificationData] = useState<
-    CertificationData[]
-  >([
-    {
-      id: 1,
-      "Certificate ID": "CER-8765",
-      "Property Name": "Coastal Hillside Estate",
-      "Host ID": "76890",
-      "Issue Date": "Aug 12, 2024",
-      "Expiry Date": "Aug 12, 2025",
-      Status: "expired",
-    },
-    {
-      id: 2,
-      "Certificate ID": "CER-8766",
-      "Host ID": "76891",
-      "Property Name": "Coastal Hillside Estate",
-      "Issue Date": "Jul 15, 2024",
-      "Expiry Date": "Jul 15, 2025",
-      Status: "active",
-    },
-    {
-      id: 3,
-      "Certificate ID": "CER-8767",
-      "Host ID": "76892",
-      "Property Name": "Coastal Hillside Estate",
-      "Issue Date": "Jun 20, 2024",
-      "Expiry Date": "Jun 20, 2025",
-      Status: "active",
-    },
-    {
-      id: 4,
-      "Certificate ID": "CER-8768",
-      "Host ID": "76893",
-      "Property Name": "Coastal Hillside Estate",
-      "Issue Date": "May 10, 2024",
-      "Expiry Date": "May 10, 2025",
-      Status: "active",
-    },
-    {
-      id: 5,
-      "Certificate ID": "CER-8769",
-      "Host ID": "76894",
-      "Property Name": "Coastal Hillside Estate",
-      "Issue Date": "Apr 05, 2024",
-      "Expiry Date": "Apr 05, 2025",
-      Status: "active",
-    },
-    {
-      id: 6,
-      "Certificate ID": "CER-8770",
-      "Host ID": "76895",
-      "Property Name": "Coastal Hillside Estate",
-      "Issue Date": "Mar 18, 2024",
-      "Expiry Date": "Mar 18, 2025",
-      Status: "active",
-    },
-    {
-      id: 7,
-      "Certificate ID": "CER-8771",
-      "Host ID": "76896",
-      "Property Name": "Mountain View Complex",
-      "Issue Date": "Feb 22, 2024",
-      "Expiry Date": "Feb 22, 2025",
-      Status: "active",
-    },
-    {
-      id: 8,
-      "Certificate ID": "CER-8772",
-      "Host ID": "76897",
-      "Property Name": "Skyline Residences",
-      "Issue Date": "Jan 30, 2024",
-      "Expiry Date": "Jan 30, 2025",
-      Status: "active",
-    },
-    {
-      id: 9,
-      "Certificate ID": "CER-8773",
-      "Host ID": "76898",
-      "Property Name": "Coastal Hillside Estate",
-      "Issue Date": "Dec 15, 2023",
-      "Expiry Date": "Dec 15, 2024",
-      Status: "expired",
-    },
-    {
-      id: 10,
-      "Certificate ID": "CER-8774",
-      "Host ID": "76899",
-      "Property Name": "Coastal Hillside Estate",
-      "Issue Date": "Nov 10, 2023",
-      "Expiry Date": "Nov 10, 2024",
-      Status: "expired",
-    },
-    {
-      id: 11,
-      "Certificate ID": "CER-8775",
-      "Host ID": "76900",
-      "Property Name": "Coastal Hillside Estate",
-      "Issue Date": "Oct 05, 2023",
-      "Expiry Date": "Oct 05, 2024",
-      Status: "expired",
-    },
-    {
-      id: 12,
-      "Certificate ID": "CER-8776",
-      "Host ID": "76901",
-      "Property Name": "Coastal Hillside Estate",
-      "Issue Date": "Sep 01, 2023",
-      "Expiry Date": "Sep 01, 2024",
-      Status: "expired",
-    },
-    {
-      id: 13,
-      "Certificate ID": "CER-8777",
-      "Host ID": "76902",
-      "Property Name": "Mountain View Complex",
-      "Issue Date": "Aug 15, 2023",
-      "Expiry Date": "Aug 15, 2024",
-      Status: "expired",
-    },
-    {
-      id: 14,
-      "Certificate ID": "CER-8778",
-      "Host ID": "76903",
-      "Property Name": "Skyline Residences",
-      "Issue Date": "Jul 20, 2024",
-      "Expiry Date": "Jul 20, 2025",
-      Status: "revoked",
-    },
-    {
-      id: 15,
-      "Certificate ID": "CER-8779",
-      "Host ID": "76904",
-      "Property Name": "Coastal Hillside Estate",
-      "Issue Date": "Jun 10, 2024",
-      "Expiry Date": "Jun 10, 2025",
-      Status: "revoked",
-    },
-    {
-      id: 16,
-      "Certificate ID": "CER-8780",
-      "Host ID": "76905",
-      "Property Name": "Mountain View Complex",
-      "Issue Date": "May 05, 2024",
-      "Expiry Date": "May 05, 2025",
-      Status: "revoked",
-    },
-  ]);
+  // Track if we're using date filters
+  const [usingDateFilters, setUsingDateFilters] = useState(false);
 
+  // Fetch certificates from API whenever filters or activeTab changes
+  useEffect(() => {
+    fetchCertificates();
+  }, [apiFilters, activeTab]);
+
+  const fetchCertificates = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Build query parameters - only include specific filters
+      const queryParams: ApiFilters = {};
+
+      // If we have ANY date filters, ONLY send date filters (no status, no pagination)
+      if (apiFilters.issuedAt || apiFilters.expiredAt) {
+        // Send both date filters if they exist
+        if (apiFilters.issuedAt) {
+          queryParams.issuedAt = apiFilters.issuedAt;
+        }
+        if (apiFilters.expiredAt) {
+          queryParams.expiredAt = apiFilters.expiredAt;
+        }
+        // Don't send status when using date filters
+      } else {
+        // Only send status when no date filters are active
+        if (activeTab === "active") {
+          queryParams.status = "ACTIVE";
+        } else if (activeTab === "revoked") {
+          queryParams.status = "REVOKED";
+        } else if (activeTab === "expired") {
+          queryParams.status = "EXPIRED";
+        }
+      }
+
+      console.log('API Call with filters:', queryParams);
+
+      const response = await certificateApi.getCertificates(queryParams);
+      
+      if (response.data && response.data.certifications) {
+        const formattedData: CertificationData[] = response.data.certifications.map((cert) => {
+          // Use the API status directly instead of calculating client-side
+          let status: "active" | "revoked" | "expired" = "active";
+          
+          // Map API status to our client status
+          if (cert.status === "REVOKED") {
+            status = "revoked";
+          } else if (cert.status === "EXPIRED") {
+            status = "expired";
+          } else {
+            status = "active";
+          }
+
+          const formatDate = (dateString: string) => {
+            const date = new Date(dateString);
+            return date.toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            });
+          };
+
+          return {
+            id: parseInt(cert.id.replace(/\D/g, '')) || Date.now(),
+            "Certificate ID": cert.certificateNumber,
+            "Host ID": cert.hostId.toString(),
+            "Property Name": cert.application.propertyDetails.propertyName,
+            "Host Name": cert.host.name,
+            "Issue Date": formatDate(cert.issuedAt),
+            "Expiry Date": formatDate(cert.expiresAt),
+            Status: status,
+            originalData: cert
+          };
+        });
+
+        setAllCertificationData(formattedData);
+      } else {
+        throw new Error('No certification data received');
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch certificates');
+      console.error('Error fetching certificates:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Filter data based on active tab and search term
   const filteredCertificationData = useMemo(() => {
-    let filtered = allCertificationData.filter(
-      (item) => item.Status === activeTab
-    );
+    let filtered = allCertificationData;
 
+    // If using date filters, show all returned data
+    // If not using date filters, filter by active tab (as backup)
+    if (!usingDateFilters) {
+      filtered = filtered.filter(item => item.Status === activeTab);
+    }
+
+    // Apply client-side search filter
     if (searchTerm) {
       filtered = filtered.filter(
         (item) =>
@@ -206,27 +157,14 @@ export default function Applications() {
             .toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
           item["Host ID"].toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item["Host Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
           item["Issue Date"].toLowerCase().includes(searchTerm.toLowerCase()) ||
           item["Expiry Date"].toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
-    // Apply Issue Date filter
-    if (certificationFilters.issueDate) {
-      filtered = filtered.filter(
-        (item) => item["Issue Date"] === certificationFilters.issueDate
-      );
-    }
-
-    // Apply Expiry Date filter
-    if (certificationFilters.expiryDate) {
-      filtered = filtered.filter(
-        (item) => item["Expiry Date"] === certificationFilters.expiryDate
-      );
-    }
-
     return filtered;
-  }, [searchTerm, certificationFilters, allCertificationData, activeTab]);
+  }, [searchTerm, allCertificationData, activeTab, usingDateFilters]);
 
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set<string>();
@@ -265,34 +203,40 @@ export default function Applications() {
     );
   }, [filteredCertificationData, selectedRows, isAllDisplayedSelected]);
 
-  const handleDeleteApplications = (selectedRowIds: Set<string>) => {
-    const idsToDelete = Array.from(selectedRowIds).map((id) => parseInt(id));
-    const updatedData = allCertificationData.filter(
-      (item) => !idsToDelete.includes(item.id)
-    );
-    setAllCertificationData(updatedData);
-    setIsModalOpen(false);
-    setSelectedRows(new Set());
-  };
+  // const handleDeleteCertificates = async (selectedRowIds: Set<string>) => {
+  //   try {
+  //     const idsToDelete = Array.from(selectedRowIds).map((id) => {
+  //       const certData = allCertificationData.find(item => item.id.toString() === id);
+  //       return certData?.originalData?.id;
+  //     }).filter(Boolean);
 
-  const handleDeleteSingleApplication = (
-    row: Record<string, string>,
-    id: number
-  ) => {
-    const updatedData = allCertificationData.filter((item) => item.id !== id);
-    setAllCertificationData(updatedData);
-    setIsModalOpen(false);
-    setSingleRowToDelete(null);
+  //     // for (const certId of idsToDelete) {
+  //     //   await certificateApi.deleteCertificate(certId!);
+  //     // }
 
-    // Remove this line completely:
-    // const newSelected = new Set(selectedRows);
-    // newSelected.delete(id);
-    // setSelectedRows(newSelected);
+  //     await fetchCertificates();
+      
+  //     setIsModalOpen(false);
+  //     setSelectedRows(new Set());
+  //   } catch (err) {
+  //     console.error('Error deleting certificates:', err);
+  //     setError('Failed to delete certificates');
+  //   }
+  // };
 
-    const remainingDataCount = updatedData.length;
-    const maxPageAfterDeletion = Math.ceil(remainingDataCount / itemsPerPage);
-    if (currentPage > maxPageAfterDeletion) {
-      setCurrentPage(Math.max(1, maxPageAfterDeletion));
+  const handleDeleteSingleCertificate = async (id: number) => {
+    try {
+      const certData = allCertificationData.find(item => item.id === id);
+      if (certData?.originalData?.id) {
+        // await certificateApi.deleteCertificate(certData.originalData.id);
+        await fetchCertificates();
+      }
+      
+      setIsModalOpen(false);
+      setSingleRowToDelete(null);
+    } catch (err) {
+      console.error('Error deleting certificate:', err);
+      setError('Failed to delete certificate');
     }
   };
 
@@ -311,78 +255,139 @@ export default function Applications() {
 
   const handleModalConfirm = () => {
     if (modalType === "multiple" && selectedRows.size > 0) {
-      handleDeleteApplications(selectedRows);
+      // handleDeleteCertificates(selectedRows);
     } else if (modalType === "single" && singleRowToDelete) {
-      handleDeleteSingleApplication(
-        singleRowToDelete.row,
-        singleRowToDelete.id
-      );
+      handleDeleteSingleCertificate(singleRowToDelete.id);
     }
   };
 
   const displayData = useMemo(() => {
-    return filteredCertificationData.map(({ id, Status, ...rest }) => {
-      console.log(id, Status);
+    return filteredCertificationData.map(({ id, Status, originalData, ...rest }) => {
       return rest;
     });
   }, [filteredCertificationData]);
 
   useEffect(() => {
-    setCurrentPage(1);
     setSelectedRows(new Set());
-  }, [searchTerm, certificationFilters, activeTab]);
+  }, [searchTerm, apiFilters, activeTab, currentPage]);
 
   const handleResetFilter = () => {
-    setCertificationFilters({
-      issueDate: "",
-      expiryDate: "",
-    });
+    setApiFilters({});
+    setUsingDateFilters(false);
     setSearchTerm("");
     setIssueDate(null);
     setExpiryDate(null);
+    setCurrentPage(1);
   };
 
   const handleApplyFilter = () => {
-    const newFilters = { ...certificationFilters };
+    const newFilters: ApiFilters = {};
 
+    // Send BOTH date filters if both are selected
     if (issueDate) {
-      newFilters.issueDate = issueDate.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+      // Fix date issue - use local date without timezone conversion
+      const year = issueDate.getFullYear();
+      const month = String(issueDate.getMonth() + 1).padStart(2, '0');
+      const day = String(issueDate.getDate()).padStart(2, '0');
+      newFilters.issuedAt = `${year}-${month}-${day}`;
     }
 
     if (expiryDate) {
-      newFilters.expiryDate = expiryDate.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+      // Fix date issue - use local date without timezone conversion
+      const year = expiryDate.getFullYear();
+      const month = String(expiryDate.getMonth() + 1).padStart(2, '0');
+      const day = String(expiryDate.getDate()).padStart(2, '0');
+      newFilters.expiredAt = `${year}-${month}-${day}`;
     }
 
-    setCertificationFilters(newFilters);
+    // Only set usingDateFilters if at least one date is selected
+    setUsingDateFilters(!!(issueDate || expiryDate));
+
+    setApiFilters(newFilters);
     setIsFilterOpen(false);
+    setCurrentPage(1);
+  };
+
+  const handleDownloadCertificate = (certificateData: Certification) => {
+    try {
+      if (certificateData.badgeUrl) {
+        const link = document.createElement('a');
+        link.href = certificateData.badgeUrl;
+        link.download = `certificate-${certificateData.certificateNumber}.png`;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else {
+        console.warn('No badge URL available for this certificate');
+      }
+    } catch (error) {
+      console.error('Error downloading certificate:', error);
+      if (certificateData.badgeUrl) {
+        window.open(certificateData.badgeUrl, '_blank');
+      }
+    }
+  };
+
+  // Handle tab change - reset date filters when switching tabs
+  const handleTabChange = (tab: "active" | "revoked" | "expired") => {
+    setActiveTab(tab);
+    setUsingDateFilters(false);
+    setApiFilters({});
+    setIssueDate(null);
+    setExpiryDate(null);
+    setCurrentPage(1);
   };
 
   const dropdownItems = [
     {
       label: "View Details",
       onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (currentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredCertificationData[globalIndex];
-        window.location.href = `/admin/dashboard/certificates/detail/${originalRow.id}`;
+        const originalRow = filteredCertificationData[index];
+        if (originalRow.originalData) {
+          window.location.href = `/admin/dashboard/certificates/detail/${originalRow.originalData.id}`;
+        }
       },
     },
     {
-      label: "Delete Application",
+      label: "Download Certificate",
       onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (currentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredCertificationData[globalIndex];
+        const originalRow = filteredCertificationData[index];
+        if (originalRow.originalData) {
+          handleDownloadCertificate(originalRow.originalData);
+        }
+      },
+    },
+    {
+      label: "Delete Certificate",
+      onClick: (row: Record<string, string>, index: number) => {
+        const originalRow = filteredCertificationData[index];
         openDeleteSingleModal(row, originalRow.id);
       },
     },
   ];
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="text-white">Loading certificates...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col justify-center items-center h-64">
+        <div className="text-red-400 mb-4">Error: {error}</div>
+        <button 
+          onClick={fetchCertificates}
+          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+        >
+          Retry
+        </button>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -395,14 +400,13 @@ export default function Applications() {
             setSingleRowToDelete(null);
           }}
           onConfirm={handleModalConfirm}
-          title="Confirm Application Deletion"
-          description="Deleting this application means it will no longer appear in your requests."
+          title="Confirm Certificate Deletion"
+          description="Deleting this certificate means it will no longer appear in your records."
           image="/images/delete-modal.png"
           confirmText="Delete"
         />
       )}
 
-      {/* Responsive Header and Tabs */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 lg:gap-0">
         <div className="lg:flex-1">
           <h2 className="font-semibold text-[18px] sm:text-[20px] leading-[20px]">
@@ -413,7 +417,6 @@ export default function Applications() {
           </p>
         </div>
 
-        {/* Tabs */}
         <div className="flex p-[6px] items-center gap-2 sm:gap-4 rounded-[12px] bg-[#121315] w-fit mx-auto lg:mx-0 mb-3 lg:mb-0 md:mb-3">
           <button
             className={`py-2 px-3 sm:px-4 font-medium cursor-pointer text-xs sm:text-sm rounded-lg transition-colors ${
@@ -421,7 +424,7 @@ export default function Applications() {
                 ? "bg-[#EFFC761F] text-[#EFFC76]"
                 : "text-[#FFFFFFCC] hover:text-white"
             }`}
-            onClick={() => setActiveTab("active")}
+            onClick={() => handleTabChange("active")}
           >
             Active
           </button>
@@ -431,7 +434,7 @@ export default function Applications() {
                 ? "bg-[#EFFC761F] text-[#EFFC76]"
                 : "text-[#FFFFFFCC] hover:text-white"
             }`}
-            onClick={() => setActiveTab("revoked")}
+            onClick={() => handleTabChange("revoked")}
           >
             Revoked
           </button>
@@ -441,7 +444,7 @@ export default function Applications() {
                 ? "bg-[#EFFC761F] text-[#EFFC76]"
                 : "text-[#FFFFFFCC] hover:text-white"
             }`}
-            onClick={() => setActiveTab("expired")}
+            onClick={() => handleTabChange("expired")}
           >
             Expired
           </button>
@@ -454,11 +457,13 @@ export default function Applications() {
           title="Certificates"
           showDeleteButton={true}
           onDeleteSingle={(row, index) => {
-            const globalIndex = (currentPage - 1) * itemsPerPage + index;
-            const originalRow = filteredCertificationData[globalIndex];
+            const originalRow = filteredCertificationData[index];
             openDeleteSingleModal(row, originalRow.id);
           }}
-          showPagination={false}
+          showPagination={true}
+          currentPage={currentPage}
+          // totalPages={Math.ceil(filteredCertificationData.length / itemsPerPage)}
+          onPageChange={setCurrentPage}
           clickable={true}
           selectedRows={selectedRows}
           setSelectedRows={setSelectedRows}
@@ -474,9 +479,7 @@ export default function Applications() {
           showFilter={true}
           onFilterToggle={setIsFilterOpen}
           onDeleteAll={handleDeleteSelected}
-          isDeleteAllDisabled={
-            selectedRows.size === 0 || selectedRows.size < displayData.length
-          }
+          isDeleteAllDisabled={selectedRows.size === 0}
         />
       </div>
 
@@ -502,15 +505,11 @@ export default function Applications() {
           }
         }}
         dropdownStates={{
-          ownership: showOwnershipDropdown,
-          property: showPropertyDropdown,
-          status: showStatusDropdown,
+          ownership: false,
+          property: false,
+          status: false,
         }}
-        onDropdownToggle={(key, value) => {
-          if (key === "ownership") setShowOwnershipDropdown(value);
-          if (key === "property") setShowPropertyDropdown(value);
-          if (key === "status") setShowStatusDropdown(value);
-        }}
+        onDropdownToggle={() => {}}
         fields={[
           {
             label: "Issue Date",

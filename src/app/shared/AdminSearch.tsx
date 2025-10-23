@@ -27,17 +27,7 @@ type ApiApplication = {
   thumbnail: string | null;
 };
 
-type ApiResponse = {
-  data: ApiApplication[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-  };
-};
+
 
 export default function SearchDrawer({ isOpen, onClose }: SearchDrawerProps) {
   const [searchQuery, setSearchQuery] = useState("");

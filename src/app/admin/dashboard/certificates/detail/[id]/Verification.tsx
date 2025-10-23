@@ -1,36 +1,53 @@
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Certification } from '@/app/api/Admin/certificate/types';
 
-export default function Verification() {
+interface VerificationProps {
+  certificate: Certification;
+}
+
+export default function Verification({ certificate }: VerificationProps) {
+  if (!certificate) {
+    return null;
+  }
+
   const verification = [
     {
       id: "0",
-      value: "Active",
+      value: certificate.status,
       title: "Status",
     },
     {
       id: "1",
-      value: "CER - 8765",
+      value: certificate.certificateNumber,
       title: "Certificate ID",
     },
     {
       id: "2",
-      value: "Aug 12, 2024",
+      value: new Date(certificate.issuedAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
       title: "Issue Date",
     },
     {
       id: "3",
-      value: "Aug 12, 2024",
+      value: new Date(certificate.expiresAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
       title: "Expiry Date",
     },
-  ]
+  ];
 
   return (
     <div className="pt-[40px] pb-[41px]">
       <div className="flex justify-between items-center ">
         <h2 className='font-semibold text-[16px] leading-5'>Certificate Details</h2>
-        <p className='font-medium text-[18px]leading-[22px] text-[#EFFC76CC] underline'>Add Note</p>
+        <p className='font-medium text-[18px] leading-[22px] text-[#EFFC76CC] underline'>Add Note</p>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-12 gap-[20px] max-w-[100%] pt-5">
         <div className="col-span-12 lg:col-span-7 sm:mr-[25px] mr-0">
@@ -48,7 +65,7 @@ export default function Verification() {
               <div className='flex flex-col items-center justify-center pt-[28px] gap-[28px]'>
               <div className='w-full max-w-[280px] sm:max-w-[350px] lg:max-w-[420px]'>
                 <Image
-                  src="/images/qr1.png"
+                  src={certificate.qrCodeUrl || "/images/qr1.png"}
                   alt='QR code'
                   width={331}
                   height={237}
@@ -56,7 +73,7 @@ export default function Verification() {
                 />
               </div>
 
-              <Link href="/docs/certificates.pdf" target='_blank'>
+              <Link href={certificate.badgeUrl} target='_blank'>
                 <p className='text-[#EFFC76] font-regular underline text-[20px] leading-[24px]'>View Certificate</p>
               </Link>
           </div>
@@ -84,5 +101,5 @@ export default function Verification() {
         </div>
       </div>
     </div>
-  )
+  );
 }

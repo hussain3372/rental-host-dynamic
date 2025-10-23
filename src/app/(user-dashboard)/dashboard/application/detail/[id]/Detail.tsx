@@ -76,7 +76,7 @@ export default function ApplicationDetail({ application }: DetailProps) {
         {application.propertyDetails?.address || "Address not available"}
       </p>
 
-      <div className="flex flex-col sm:flex-row gap-3 items-center">
+      <div className="flex flex-col sm:flex-row !items-start gap-3 ">
         <div className="w-full flex flex-col">
           {/* Main Image - Desktop */}
           <div
@@ -84,7 +84,7 @@ export default function ApplicationDetail({ application }: DetailProps) {
               relative w-full rounded-lg overflow-hidden bg-gray-900
               ${thumbnailsHeight ? "hidden sm:block" : ""} 
             `}
-            style={{ height: thumbnailsHeight || "auto" }}
+            style={{ height: "300px" }}
           >
             <Image
               src={images[currentStep]}
@@ -115,7 +115,7 @@ export default function ApplicationDetail({ application }: DetailProps) {
           {images.map((image, index) => (
             <div
               key={index}
-              className={`relative aspect-[16/10] w-full sm:max-w-[145px] rounded-md overflow-hidden cursor-pointer border-2 ${
+              className={`relative aspect-[16/10] w-full sm:max-w-[145px] rounded-md max-h-[60px] max-w-[60px] sm:max-h-[300px]  overflow-y-auto scrollbar-hide  cursor-pointer border-2 ${
                 currentStep === index ? "border-[#EFFC76]" : "border-transparent"
               }`}
             >

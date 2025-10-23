@@ -9,7 +9,7 @@ import Step4b from "./Step4b";
 import Step5 from "./Step5";
 import toast from "react-hot-toast";
 import { application } from "@/app/api/Host/application";
-// import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 
 interface ChecklistItem {
   id: string;
@@ -109,7 +109,7 @@ export default function MultiStepForm() {
     UploadedDocument[]
   >([]);
 
-  // const router = useRouter();
+  const router = useRouter();
 
   // Fetch property types
   useEffect(() => {
@@ -317,42 +317,7 @@ export default function MultiStepForm() {
     }
   };
 
-  //   const uploadDocuments = async (files: FileData[]): Promise<UploadedDocument[]> => {
-  //   if (files.length === 0) return [];
-
-  //   try {
-  //     const formData = new FormData();
-
-  //     files.forEach((fileData) => {
-  //       formData.append('files', fileData.file);
-  //       formData.append('documentType', fileData.documentType);
-  //       formData.append('originalNames', fileData.originalName); // Add originalName
-  //     });
-
-  //     const response = await application.uploadDocuments(formData);
-
-  //     if (!response.data) {
-  //       throw new Error("No response data received from document upload");
-  //     }
-
-  //     const documentsData = response.data.documents || response.data;
-  //     // Store the uploaded documents in state
-  //     const uploadedDocs = Array.isArray(documentsData) ? documentsData as UploadedDocument[] : [];
-  //     setUploadedDocuments(uploadedDocs);
-
-  //     return uploadedDocs;
-
-  //   } catch (error) {
-  //     console.error("Document upload error:", error);
-  //     throw new Error(
-  //       error instanceof Error
-  //         ? `Failed to upload documents: ${error.message}`
-  //         : "Failed to upload documents due to server error"
-  //     );
-  //   }
-  // };
-
-  const uploadDocuments = async (
+    const uploadDocuments = async (
     files: FileData[]
   ): Promise<UploadedDocument[]> => {
     if (files.length === 0) return [];
@@ -712,6 +677,8 @@ export default function MultiStepForm() {
       const stored = localStorage.getItem("applicationData");
       const localApplicationData = stored ? JSON.parse(stored) : null;
 
+
+
       if (!localApplicationData?.id) {
         throw new Error(
           "No application data found. Please complete all previous steps."
@@ -736,7 +703,7 @@ export default function MultiStepForm() {
         localStorage.removeItem("propertyType");
         setCurrentApplicationData(null);
         setUploadedDocuments([]);
-
+        router.push('/dashboard/applications')
         return true;
       } else {
         const errorMsg = response.message || "Submission failed";

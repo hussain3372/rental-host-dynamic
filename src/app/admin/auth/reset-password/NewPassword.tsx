@@ -46,12 +46,12 @@ export default function NewPassword() {
       
       if (response.success) {
         toast.success(response.message || "Password reset successful!");
-        window.location.href = '/admin/dashboard';
+        window.location.href = '/admin/auth/login';
       } else {
         toast.error(response.message || "Password reset failed");
       }
 
-    } catch (error) {
+    } catch  {
       toast.error("Network error. Please try again.");
     } finally {
       setLoading(false);

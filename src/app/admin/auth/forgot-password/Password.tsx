@@ -50,7 +50,7 @@ export default function Password() {
         showAlter={true}
         alterText="Remember your password?"
         linktext=" Login"
-        link="/auth/login"
+        link="/admin/auth/login"
         mode="forgot"
         loading={loading}
         onSubmit={handleForgot}
