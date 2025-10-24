@@ -234,14 +234,16 @@ interface AuthFormProps<T = FormData> {
                 isPasswordVisible={showPassword}
                 onTogglePassword={() => setShowPassword(!showPassword)}
               />
+              <div className="flex justify-end w-[103%] 2xl:w-full">
               <Link
                 href={forgotlink || "/auth/forgot-password"}
-                className="flex justify-end w-[103%] 2xl:w-full"
+                
               >
                 <p className="text-white opacity-80 text-[14px] leading-[18px] font-medium pt-[10px] pr-5">
                   Forgot Password?
                 </p>
               </Link>
+              </div>
             </>
           );
 

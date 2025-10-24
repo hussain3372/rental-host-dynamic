@@ -5,22 +5,10 @@ import { useSearchParams } from "next/navigation";
 import Searchsection from "./Searchsection";
 import VerifiedProperties from "./VerifiedProperties";
 import { propertyAPI } from "../../api/user-flow/index";
-import { MappedProperty , ApiProperty} from "@/app/api/user-flow/types";
+import { MappedProperty} from "@/app/api/user-flow/types";
 
 // Define the actual API response type based on your response
 
-
-interface ApiResponse {
-  data: ApiProperty[];
-  pagination: {
-    page: number;
-    limit: number;
-    total: number;
-    totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
-  };
-}
 
 export default function SearchPageClient() {
   const searchParams = useSearchParams();
@@ -91,7 +79,7 @@ export default function SearchPageClient() {
     console.log("Initial mount with queryFromUrl:", queryFromUrl);
     const initialQuery = queryFromUrl.length >= 3 ? queryFromUrl : "";
     fetchProperties(initialQuery);
-  }, []); // Only run once on mount
+  }, [queryFromUrl]); // Only run once on mount
 
   // ✅ Handle search button click
   const handleSearch = () => {

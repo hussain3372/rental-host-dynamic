@@ -35,6 +35,9 @@ export interface OTPRes {
   message: string;
   data?: string;
   accessToken:string
+  user : {
+    role : string
+  }
 }
 export interface SignUpRequest {
   email: string;

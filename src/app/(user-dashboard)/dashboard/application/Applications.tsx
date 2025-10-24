@@ -66,7 +66,7 @@ export default function Applications() {
   // State for filter options
   const [allStatuses, setAllStatuses] = useState<string[]>([]);
   const [allOwnerships, setAllOwnerships] = useState<string[]>([]);
-  const [allPropertyNames, setAllPropertyNames] = useState<string[]>([]);
+  const [, setAllPropertyNames] = useState<string[]>([]);
 
   const hasActiveFilters = useMemo(() => {
     return (

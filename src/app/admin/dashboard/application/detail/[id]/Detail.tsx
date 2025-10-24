@@ -272,7 +272,7 @@ export default function ApplicationDetail() {
               <div
                 className={`
                   relative w-full rounded-lg overflow-hidden bg-gray-900
-                  ${thumbnailsHeight ? "hidden sm:block" : ""} 
+                  ${thumbnailsHeight ? "" : ""} 
                 `}
                 style={{ height:  "300px" }}
               >
@@ -296,7 +296,7 @@ export default function ApplicationDetail() {
 
             <div
               ref={thumbnailsContainerRef}
-              className=" relative aspect-[16/10] w-full sm:max-w-[145px] rounded-md max-h-[60px] max-w-[60px] sm:max-h-[300px]  overflow-y-auto scrollbar-hide "
+              className=" relative flex sm:flex-col gap-3 aspect-[16/10] w-full sm:max-w-[145px] rounded-md max-h-[60px]  sm:max-h-[300px]  overflow-y-auto scrollbar-hide "
             >
               {images.map((image: string, index: number) => (
                 <div

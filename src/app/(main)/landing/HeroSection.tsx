@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState ,useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import FilterTab from "@/app/shared/FilterTab";
 import Button from "@/app/shared/Button";
@@ -29,11 +29,17 @@ const HeroSection = () => {
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
- 
-
   const filters = [
-    { id: "verified", label: "Verified Property", icon: "/images/search-by-property.png" },
-    { id: "host", label: "Host Excellence", icon: "/images/search-by-exellence.png" },
+    {
+      id: "verified",
+      label: "Verified Property",
+      icon: "/images/search-by-property.png",
+    },
+    {
+      id: "host",
+      label: "Host Excellence",
+      icon: "/images/search-by-exellence.png",
+    },
     { id: "green", label: "Green Stay", icon: "/images/search-by-stay.png" },
   ];
 
@@ -134,7 +140,8 @@ const HeroSection = () => {
             />
           </div>
           <span className="leading-[20px] text-[14px] sm:text-[16px] font-medium text-[#FFFFFF99]">
-            Trusted by <span className="text-white font-semibold">1600+</span> Hosts
+            Trusted by <span className="text-white font-semibold">1600+</span>{" "}
+            Hosts
           </span>
         </div>
 
@@ -167,19 +174,13 @@ const HeroSection = () => {
           pb-[100px] ps-[16px] !pt-[16px]"
           />
 
-
           <div className="mt-4 sm:mt-0 sm:absolute sm:bottom-4 sm:left-4 flex flex-wrap gap-2 sm:gap-3">
             {filters.map((f) => (
               <div key={f.id} className="w-full sm:w-auto">
-
-                <FilterTab
-                  label={f.label}
-                  icon={f.icon}
-                  className="w-full"
-                />              </div>
+                <FilterTab label={f.label} icon={f.icon} className="w-full" />{" "}
+              </div>
             ))}
           </div>
-
 
           {/* Button */}
           <div
@@ -193,10 +194,9 @@ const HeroSection = () => {
             <Button
               text="Search Certified Host"
               onClick={handleSearchClick}
-              className=" sm:w-auto w-[204px] h-[44px]"
+              className="w-full md:w-auto h-[44px]"
             />
           </div>
-
         </div>
 
         {/* Carousel */}

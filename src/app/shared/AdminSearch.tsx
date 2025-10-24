@@ -11,21 +11,6 @@ type SearchDrawerProps = {
   onClose: () => void;
 };
 
-// Define the actual API response type based on your data
-type ApiApplication = {
-  id: string;
-  type: string;
-  propertyName: string;
-  propertyType: string;
-  hostName: string;
-  hostEmail: string;
-  hostCompany: string;
-  status: string;
-  currentStep: string;
-  submittedAt: string | null;
-  createdAt: string;
-  thumbnail: string | null;
-};
 
 
 

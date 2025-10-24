@@ -7,10 +7,10 @@ function Footer() {
       id: 1,
       title: "Pages",
       routes: [
-        { name: "Home", href: "/coming-soon" },
-        { name: "How It Works", href: "/coming-soon" },
-        { name: "About Us", href: "/coming-soon" },
-        { name: "Our Hosts", href: "/coming-soon" },
+        { name: "Home", href: "/" },
+        { name: "How It Works", href: "/#how-it-works" },
+        { name: "About Us", href: "/" },
+        { name: "Our Hosts", href: "/#hosts" },
       ],
     },
     {

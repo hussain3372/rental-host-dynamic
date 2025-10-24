@@ -12,7 +12,6 @@ import {
   SubmitResponse,
   ApplicationsListResponse,
   ApiPayload,
-  ApiChecklistItem,
   CheckListApiResponse
 } from "./types";
 import Cookies from "js-cookie";

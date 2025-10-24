@@ -35,18 +35,18 @@
 //   // ✅ Apply dropdown filters to properties from parent
 //   useEffect(() => {
 //     console.log("Applying filters to properties:", properties.length);
-    
+
 //     const filtered = properties.filter((property) => {
 //       // Location filter
-//       const matchesLocation = selectedLocation === "All Locations" || 
+//       const matchesLocation = selectedLocation === "All Locations" ||
 //         (property.location && property.location.toLowerCase().includes(selectedLocation.toLowerCase()));
 
 //       // Status filter
-//       const matchesStatus = selectedStatus === "Status" || 
+//       const matchesStatus = selectedStatus === "Status" ||
 //         (property.status && property.status === selectedStatus);
 
 //       // Expiry filter
-//       const matchesExpiry = selectedExpiry === "Expiry Date" || 
+//       const matchesExpiry = selectedExpiry === "Expiry Date" ||
 //         (property.expiry && property.expiry === selectedExpiry);
 
 //       return matchesLocation && matchesStatus && matchesExpiry;
@@ -186,18 +186,24 @@ const Searchsection: React.FC<SearchsectionProps> = ({
   // ✅ Apply dropdown filters to properties from parent
   useEffect(() => {
     console.log("Applying filters to properties:", properties.length);
-    
+
     const filtered = properties.filter((property) => {
       // Location filter
-      const matchesLocation = selectedLocation === "All Locations" || 
-        (property.location && property.location.toLowerCase().includes(selectedLocation.toLowerCase()));
+      const matchesLocation =
+        selectedLocation === "All Locations" ||
+        (property.location &&
+          property.location
+            .toLowerCase()
+            .includes(selectedLocation.toLowerCase()));
 
       // Status filter
-      const matchesStatus = selectedStatus === "Status" || 
+      const matchesStatus =
+        selectedStatus === "Status" ||
         (property.status && property.status === selectedStatus);
 
       // Expiry filter
-      const matchesExpiry = selectedExpiry === "Expiry Date" || 
+      const matchesExpiry =
+        selectedExpiry === "Expiry Date" ||
         (property.expiry && property.expiry === selectedExpiry);
 
       return matchesLocation && matchesStatus && matchesExpiry;
@@ -230,13 +236,51 @@ const Searchsection: React.FC<SearchsectionProps> = ({
 
   return (
     <div className="text-white container-class w-full">
-      <div className="inset-0 hidden sm:block z-0 overflow-hidden">
+      <div className="inset-0 hidden sm:block pointer-events-none container-class">
         <Image
-          src="/images/search-bg3.svg"
+          src="/images/gar1.png"
+          alt="gradient"
+          width={400}
+          height={902}
+          className="absolute top-0 left-12 transform-3d !h-[585px] !w-[400px]"
+        />
+        <Image
+          src="/images/gar2.png"
+          alt="gradient"
+          width={350}
+          height={902}
+          className="absolute top-0 left-[30%] !h-[585px]  -translate-x-1/2"
+        />
+        <Image
+          src="/images/gar3.png"
+          alt="gradient"
+          width={300}
+          height={902}
+          className="absolute top-0 left-1/2 !h-[585px]  -translate-x-1/2"
+        />
+        <Image
+          src="/images/gar4.png"
+          alt="gradient"
+          width={350}
+          height={902}
+          className="absolute top-0 right-[30%] !h-[585px]  translate-x-1/2"
+        />
+        <Image
+          src="/images/gar5.png"
+          alt="gradient"
+          width={400}
+          height={902}
+          className="absolute top-0 right-12 !h-[585px] !w-[400px]"
+        />
+      </div>
+
+      <div className="inset-0 hidden sm:block z-10  overflow-hidden">
+        <Image
+          src="/images/search-bg.png"
           alt="Background"
-          className="inset-0 absolute !top-[-34px] !h-[calc(100%+50px)] object-contain"
+          className="inset-0 absolute !top-2 "
           fill
-          style={{ transform: "translateY(-37px)" }}
+          style={{ transform: "translateY(-7px)" }}
         />
       </div>
 
@@ -297,7 +341,12 @@ const Searchsection: React.FC<SearchsectionProps> = ({
           <DropdownField
             icon="/images/expiry-date.png"
             label={selectedExpiry}
-            options={["Expiry Date", "Mar 12, 2025", "Aug 12, 2025", "Jul 12, 2025"]}
+            options={[
+              "Expiry Date",
+              "Mar 12, 2025",
+              "Aug 12, 2025",
+              "Jul 12, 2025",
+            ]}
             onSelect={setSelectedExpiry}
           />
         </div>

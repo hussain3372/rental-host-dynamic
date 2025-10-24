@@ -6,28 +6,56 @@ import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "@/app/admin/tables-essentials/Filter";
 import TicketDrawer from "./Drawer";
-
-interface CertificationData {
-  id: number;
-  "Host Name": string;
-  Email: string;
-  "Listed Properties": number;
-  "Certified Properties": number;
-  "Account Created": string;
-  Status: string;
-}
-
-interface AdminData {
-  id: number;
-  "Admin Name": string;
-  Email: string;
-  Status: string;
-}
+import { managementApi, GetUsersParams } from "@/app/api/super-admin/user-management/index";
 
 type ViewMode = "hosts" | "admins";
-
-// Define proper types for table rows
 type TableRowData = Record<string, string | number>;
+type DropdownStates = {
+  "Listed Properties": boolean;
+  "status": boolean;
+};
+
+// Match the UsersResponse data structure exactly
+interface UserData {
+  id: number;
+  email: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  companyName: string | null;
+  phone: string | null;
+  role: string;
+  status: string;
+  emailVerified: boolean;
+  lastLoginAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  _count: {
+    applications: number;
+    certifications: number;
+    supportTickets: number;
+  };
+}
+
+// Normalize status for display (convert API status to display format)
+const normalizeStatus = (status: string): string => {
+  const statusMap: Record<string, string> = {
+    'ACTIVE': 'Active',
+    'SUSPENDED': 'Suspended',
+    'PENDING_VERIFICATION': 'Pending Verification'
+  };
+  return statusMap[status] || status;
+};
+
+// Convert display status to API status
+const getApiStatus = (displayStatus: string): string => {
+  const statusMap: Record<string, string> = {
+    'Active': 'ACTIVE',
+    'Suspended': 'SUSPENDED',
+    'Pending Verification': 'PENDING_VERIFICATION'
+  };
+  return statusMap[displayStatus] || displayStatus;
+};
 
 export default function Applications() {
   const [viewMode, setViewMode] = useState<ViewMode>("hosts");
@@ -35,89 +63,203 @@ export default function Applications() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
-// Change the selectedRows state to use string IDs
-const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [singleRowToDelete, setSingleRowToDelete] = useState<{ row: TableRowData; id: number } | null>(null);
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
   const [isAddAdminDrawerOpen, setIsAddAdminDrawerOpen] = useState(false);
-  const [dropdownStates, setDropdownStates] = useState({ property: false, ownership: false, status: false, permissions: false });
-
-  const [certificationFilters, setCertificationFilters] = useState({
-    "Certified Properties": "", "Listed Properties": "", status: "", submittedDate: "",
+  const [dropdownStates, setDropdownStates] = useState({ property: false, status: false });
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // API data state for both hosts and admins
+  const [hostsData, setHostsData] = useState<UserData[]>([]);
+  const [adminsData, setAdminsData] = useState<UserData[]>([]);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1
   });
 
-  const [adminFilters, setAdminFilters] = useState({
-    role: "", status: "", "Properties verified": "", "Pending applications": "", "Rejected applications": "",
+  // Temporary filter states (before Apply is clicked)
+  const [tempCertificationFilters, setTempCertificationFilters] = useState({
+    "Listed Properties": "", 
+    status: "", 
   });
 
-  const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([
-    { id: 1, "Host Name": "Sarah Kim", Email: "sarah.kim@example.com", "Listed Properties": 15, "Certified Properties": 12, "Account Created": "Aug 12, 2025", Status: "Active" },
-    { id: 2, "Host Name": "Mike Johnson", Email: "mike.j@example.com", "Listed Properties": 8, "Certified Properties": 7, "Account Created": "Aug 12, 2025", Status: "Active" },
-    { id: 3, "Host Name": "Emily Chen", Email: "emily.chen@example.com", "Listed Properties": 22, "Certified Properties": 10, "Account Created": "Aug 12, 2025", Status: "Active" },
-    { id: 4, "Host Name": "David Wilson", Email: "david.w@example.com", "Listed Properties": 5, "Certified Properties": 10, "Account Created": "Aug 12, 2025", Status: "Active" },
-    { id: 5, "Host Name": "Sarah Kim", Email: "sarah.kim@example.com", "Listed Properties": 15, "Certified Properties": 12, "Account Created": "Aug 12, 2025", Status: "Active" },
-    { id: 6, "Host Name": "Mike Johnson", Email: "mike.j@example.com", "Listed Properties": 8, "Certified Properties": 7, "Account Created": "Aug 12, 2025", Status: "Active" },
-    { id: 7, "Host Name": "Emily Chen", Email: "emily.chen@example.com", "Listed Properties": 22, "Certified Properties": 10, "Account Created": "Aug 12, 2025", Status: "Active" },
-    { id: 8, "Host Name": "David Wilson", Email: "david.w@example.com", "Listed Properties": 5, "Certified Properties": 10, "Account Created": "Aug 12, 2025", Status: "Active" },
-    { id: 9, "Host Name": "Lisa Brown", Email: "lisa.b@example.com", "Listed Properties": 18, "Certified Properties": 10, "Account Created": "Aug 12, 2025", Status: "Suspended" },
-    { id: 10, "Host Name": "Alex Garcia", Email: "alex.g@example.com", "Listed Properties": 12, "Certified Properties": 10, "Account Created": "Aug 12, 2025", Status: "Active" },
-  ]);
+  const [tempAdminFilters, setTempAdminFilters] = useState({
+    status: "", 
+  });
 
-  const [allAdminData, setAllAdminData] = useState<AdminData[]>([
-    { id: 1, "Admin Name": "John Smith", Email: "john.smith@company.com", Status: "Active" },
-    { id: 2, "Admin Name": "Maria Rodriguez", Email: "maria.r@company.com", Status: "Active" },
-    { id: 3, "Admin Name": "Robert Chen", Email: "robert.c@company.com", Status: "Suspended" },
-    { id: 4, "Admin Name": "John Smith", Email: "john.smith@company.com", Status: "Active" },
-    { id: 5, "Admin Name": "Maria Rodriguez", Email: "maria.r@company.com", Status: "Active" },
-    { id: 6, "Admin Name": "Robert Chen", Email: "robert.c@company.com", Status: "Suspended" },
-    { id: 7, "Admin Name": "John Smith", Email: "john.smith@company.com", Status: "Active" },
-    { id: 8, "Admin Name": "Maria Rodriguez", Email: "maria.r@company.com", Status: "Active" },
-    { id: 9, "Admin Name": "Robert Chen", Email: "robert.c@company.com", Status: "Suspended" },
-  ]);
+  // Applied filter states (after Apply is clicked)
+  const [appliedCertificationFilters, setAppliedCertificationFilters] = useState({
+    "Listed Properties": "", 
+    status: "", 
+  });
 
-  const itemsPerPage = 6;
+  const [appliedAdminFilters, setAppliedAdminFilters] = useState({
+    status: "", 
+  });
 
-  const handleAddAdminNote = () => {
-    const newAdmin: AdminData = {
-      id: allAdminData.length + 1,
-      "Admin Name": `New Admin ${allAdminData.length + 1}`,
-      Email: `newadmin${allAdminData.length + 1}@company.com`,
-      Status: "Active",
-    };
-    setAllAdminData(prev => [...prev, newAdmin]);
+  // Fetch data based on view mode
+  const fetchData = async (params?: GetUsersParams) => {
+    setIsLoading(true);
+    try {
+      let response;
+      
+      if (viewMode === "hosts") {
+        response = await managementApi.getUsers({
+          ...params,
+          page: currentPage,
+          limit: 10
+        });
+      } else {
+        response = await managementApi.getAdmins({
+          ...params,
+          page: currentPage,
+          limit: 10
+        });
+      }
+      
+      if (response.data) {
+        if (viewMode === "hosts") {
+          setHostsData(response.data.data);
+        } else {
+          setAdminsData(response.data.data);
+        }
+        setPagination(response.data.pagination);
+      }
+    } catch (error) {
+      console.error(`Error fetching ${viewMode}:`, error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleDeleteApplications = (selectedRowIds: Set<string>) => {
-  const idsToDelete = Array.from(selectedRowIds).map(id => parseInt(id));
+  // Delete user/admin API call
+  const deleteItem = async (itemId: number) => {
+    try {
+      if (viewMode === "hosts") {
+        await managementApi.deleteUser(itemId);
+      } else {
+        await managementApi.deleteAdmin(itemId);
+      }
+      return true;
+    } catch (error) {
+      console.error(`Error deleting ${viewMode.slice(0, -1)}:`, error);
+      return false;
+    }
+  };
 
-  if (viewMode === "hosts") {
-    setAllCertificationData(prev => prev.filter(item => !idsToDelete.includes(item.id)));
-  } else {
-    setAllAdminData(prev => prev.filter(item => !idsToDelete.includes(item.id)));
-  }
+  // Convert API data to table format (COMPLETELY REMOVE ID from table data)
+  const convertToTableData = (users: UserData[]): TableRowData[] => {
+    if (viewMode === "hosts") {
+      return users.map(user => ({
+        // ID is completely removed from the table data
+        "Host Name": user.name,
+        "Email": user.email,
+        "Listed Properties": user._count.applications,
+        "Certified Properties": user._count.certifications,
+        "Account Created": new Date(user.createdAt).toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: '2-digit', 
+          year: 'numeric' 
+        }),
+        "Status": normalizeStatus(user.status),
+      }));
+    } else {
+      return users.map(user => ({
+        // ID is completely removed from the table data
+        "Admin Name": user.name,
+        "Email": user.email,
+        "Status": normalizeStatus(user.status),
+      }));
+    }
+  };
 
-  setIsModalOpen(false);
-  setSelectedRows(new Set());
-};
+  // Handle search and applied filter changes
+  // Handle search and applied filter changes
+useEffect(() => {
+  const timeoutId = setTimeout(() => {
+    // Don't fetch any data if search term has 1-3 characters
+    if (searchTerm && searchTerm.length <= 3) {
+      return;
+    }
+    
+    const params: GetUsersParams = {};
+    
+    if (searchTerm && searchTerm.length > 3) {
+      params.search = searchTerm;
+    }
+    
+    if (viewMode === "hosts") {
+      // Apply all certification filters cumulatively
+      if (appliedCertificationFilters.status) {
+        params.status = getApiStatus(appliedCertificationFilters.status);
+      }
+      
+      // Convert Listed Properties filter to min/max
+      if (appliedCertificationFilters["Listed Properties"]) {
+        const [min, max] = appliedCertificationFilters["Listed Properties"].split("-").map(Number);
+        if (!isNaN(min)) params.minListedProperties = min;
+        if (!isNaN(max)) params.maxListedProperties = max;
+      }
+    } else {
+      // Apply all admin filters cumulatively
+      if (appliedAdminFilters.status) {
+        params.status = getApiStatus(appliedAdminFilters.status);
+      }
+    }
+    
+    fetchData(params);
+  }, 500); // Debounce search
 
-  const handleDeleteSingleApplication = (row: TableRowData, id: number) => {
-  if (viewMode === "hosts") {
-    setAllCertificationData(prev => prev.filter(item => item.id !== id));
-  } else {
-    setAllAdminData(prev => prev.filter(item => item.id !== id));
-  }
+  return () => clearTimeout(timeoutId);
+}, [searchTerm, appliedCertificationFilters, appliedAdminFilters, viewMode, currentPage,fetchData]);
 
-  setIsModalOpen(false);
-  setSingleRowToDelete(null);
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, appliedCertificationFilters, appliedAdminFilters, viewMode]);
 
-  const newSelected = new Set(selectedRows);
-  newSelected.delete(id.toString()); // Convert to string for deletion
-  setSelectedRows(newSelected);
+  // Fetch data when view mode changes
+  useEffect(() => {
+    fetchData();
+    setSelectedRows(new Set());
+  }, [viewMode,fetchData]);
 
-  const remainingDataCount = currentData.length - 1;
-  const maxPageAfterDeletion = Math.ceil(remainingDataCount / itemsPerPage);
-  if (currentPage > maxPageAfterDeletion) setCurrentPage(Math.max(1, maxPageAfterDeletion));
-};
+  const handleAddAdminNote = () => {
+    setIsAddAdminDrawerOpen(true);
+  };
+
+  const handleDeleteApplications = async (selectedRowIds: Set<string>) => {
+    const idsToDelete = Array.from(selectedRowIds).map(id => parseInt(id));
+    
+    // Delete from API
+    const deletePromises = idsToDelete.map(id => deleteItem(id));
+    const results = await Promise.all(deletePromises);
+    
+    // Refresh the data after deletion
+    if (results.every(result => result)) {
+      fetchData();
+    }
+
+    setIsModalOpen(false);
+    setSelectedRows(new Set());
+  };
+
+  const handleDeleteSingleApplication = async (row: TableRowData, id: number) => {
+    const success = await deleteItem(id);
+    if (success) {
+      fetchData(); // Refresh data
+    }
+
+    setIsModalOpen(false);
+    setSingleRowToDelete(null);
+
+    const newSelected = new Set(selectedRows);
+    newSelected.delete(id.toString());
+    setSelectedRows(newSelected);
+  };
 
   const openDeleteSingleModal = (row: TableRowData, id: number) => {
     setSingleRowToDelete({ row, id });
@@ -142,88 +284,99 @@ const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
   const handleResetFilter = () => {
     if (viewMode === "hosts") {
-      setCertificationFilters({ "Certified Properties": "", "Listed Properties": "", status: "", submittedDate: "" });
+      setTempCertificationFilters({ 
+        "Listed Properties": "", 
+        status: "", 
+      });
+      setAppliedCertificationFilters({ 
+        "Listed Properties": "", 
+        status: "", 
+      });
     } else {
-      setAdminFilters({ role: "", status: "", "Properties verified": "", "Pending applications": "", "Rejected applications": "" });
+      setTempAdminFilters({ 
+        status: "", 
+      });
+      setAppliedAdminFilters({ 
+        status: "", 
+      });
     }
     setSearchTerm("");
+    setCurrentPage(1);
   };
 
-  const filteredCertificationData = useMemo(() => {
-    let filtered = allCertificationData.filter(item =>
-      item["Host Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.Email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.Status.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    if (certificationFilters["Listed Properties"]) {
-      const [min, max] = certificationFilters["Listed Properties"].split("-").map(Number);
-      filtered = filtered.filter(item => item["Listed Properties"] >= min && item["Listed Properties"] <= max);
+  const handleApplyFilter = () => {
+    if (viewMode === "hosts") {
+      setAppliedCertificationFilters(prev => ({...prev, ...tempCertificationFilters}));
+    } else {
+      setAppliedAdminFilters(prev => ({...prev, ...tempAdminFilters}));
     }
+    setIsFilterOpen(false);
+  };
 
-    if (certificationFilters["Certified Properties"]) {
-      const [min, max] = certificationFilters["Certified Properties"].split("-").map(Number);
-      filtered = filtered.filter(item => item["Certified Properties"] >= min && item["Certified Properties"] <= max);
-    }
+  // Get current data based on view mode
+  const currentData = useMemo(() => {
+    const data = viewMode === "hosts" ? hostsData : adminsData;
+    return convertToTableData(data);
+  }, [viewMode, hostsData, adminsData,convertToTableData]);
 
-    if (certificationFilters.status) {
-      filtered = filtered.filter(item => item.Status === certificationFilters.status);
-    }
-
-    return filtered;
-  }, [searchTerm, certificationFilters, allCertificationData]);
-
-  const filteredAdminData = useMemo(() => {
-    let filtered = allAdminData.filter(item =>
-      item["Admin Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.Email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.Status.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-
-    if (adminFilters.status) filtered = filtered.filter(item => item.Status === adminFilters.status);
-
-    return filtered;
-  }, [searchTerm, adminFilters, allAdminData]);
-
-  const currentData = viewMode === "hosts" ? filteredCertificationData : filteredAdminData;
-  const displayData = useMemo(() =>
-    currentData.map((item) => {
-      const { id, ...rest } = item;
-      console.log(id)
-      return rest;
-    }), [currentData]
-  );
+  const currentApiData = useMemo(() => {
+    return viewMode === "hosts" ? hostsData : adminsData;
+  }, [viewMode, hostsData, adminsData]);
 
   const handleSelectAll = (checked: boolean) => {
-  setSelectedRows(new Set(checked ? currentData.map(item => item.id.toString()) : []));
-};
+    const rowIds = currentApiData.map(item => item.id.toString());
+    setSelectedRows(new Set(checked ? rowIds : []));
+  };
 
- const handleSelectRow = (id: string, checked: boolean) => {
-  const newSelected = new Set(selectedRows);
-  if (checked) {
-    newSelected.add(id);
-  } else {
-    newSelected.delete(id);
-  }
-  setSelectedRows(newSelected);
-};
+  const handleSelectRow = (rowId: string, checked: boolean) => {
+    const newSelected = new Set(selectedRows);
+    if (checked) {
+      newSelected.add(rowId);
+    } else {
+      newSelected.delete(rowId);
+    }
+    setSelectedRows(newSelected);
+  };
 
+  const isAllDisplayedSelected = currentData.length > 0 && 
+    currentApiData.every(item => selectedRows.has(item.id.toString()));
+  const isSomeDisplayedSelected = currentApiData.some(item => selectedRows.has(item.id.toString())) && !isAllDisplayedSelected;
 
- const isAllDisplayedSelected = currentData.length > 0 && currentData.every(item => selectedRows.has(item.id.toString()));
-const isSomeDisplayedSelected = currentData.some(item => selectedRows.has(item.id.toString())) && !isAllDisplayedSelected;
+  const getRowIds = () => {
+    return currentApiData.map(item => item.id.toString());
+  };
 
-  const getFilterFields = () => viewMode === "hosts" ? [
-    { label: "Listed Properties", key: "Listed Properties", type: "dropdown" as const, placeholder: "Select Properties", options: ["0-50", "50-100", "100-200"] },
-    { label: "Certified Properties", key: "Certified Properties", type: "dropdown" as const, placeholder: "Select Applications", options: ["0-5", "5-10", "10-15", "15-20"] },
-    { label: "Status", key: "status", type: "dropdown" as const, placeholder: "Select status", options: [...new Set(allCertificationData.map(item => item.Status))] },
-  ] : [
-    { label: "Properties verified", key: "Properties verified", type: "dropdown" as const, placeholder: "Select Properties", options: ["0-50", "50-100", "100-200"] },
-    { label: "Pending applications", key: "Pending applications", type: "dropdown" as const, placeholder: "Select applications", options: ["3", "8", "15", "18", "25"] },
-    { label: "Rejected applications", key: "Rejected applications", type: "dropdown" as const, placeholder: "Select applications", options: ["5", "7", "12", "20", "30", "45"] },
-    { label: "Status", key: "status", type: "dropdown" as const, placeholder: "Select status", options: ["Active", "Suspended"] },
-  ];
+  const getFilterFields = () => {
+    if (viewMode === "hosts") {
+      return [
+        { 
+          label: "Listed Properties", 
+          key: "Listed Properties", 
+          type: "dropdown" as const, 
+          placeholder: "Select Properties", 
+          options: ["0-50", "50-100", "100-200"] 
+        },
+        { 
+          label: "Status", 
+          key: "status", 
+          type: "dropdown" as const, 
+          placeholder: "Select status", 
+          options: ["Active", "Suspended", "Pending Verification"] 
+        },
+      ];
+    } else {
+      return [
+        { 
+          label: "Status", 
+          key: "status", 
+          type: "dropdown" as const, 
+          placeholder: "Select Status", 
+          options: ["Active", "Suspended", "Pending Verification"] 
+        },
+      ];
+    }
+  };
 
-  // Define proper type for dropdown item onClick
   type DropdownItemOnClick = (row: TableRowData, index: number) => void;
 
   interface DropdownItem {
@@ -235,19 +388,15 @@ const isSomeDisplayedSelected = currentData.some(item => selectedRows.has(item.i
     {
       label: "View Details",
       onClick: (row: TableRowData, index: number) => {
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const originalIndex = startIndex + index;
-        const originalRow = currentData[originalIndex];
-        window.location.href = `/super-admin/dashboard/user-management/${viewMode.slice(0, -1)}/detail/${originalRow.id}`;
+        const originalId = currentApiData[index].id;
+        window.location.href = `/super-admin/dashboard/user-management/${viewMode.slice(0, -1)}/detail/${originalId}`;
       },
     },
     {
       label: `Delete ${viewMode === "hosts" ? "Host" : "Admin"}`,
       onClick: (row: TableRowData, index: number) => {
-        const startIndex = (currentPage - 1) * itemsPerPage;
-        const originalIndex = startIndex + index;
-        const originalRow = currentData[originalIndex];
-        openDeleteSingleModal(row, originalRow.id);
+        const originalId = currentApiData[index].id;
+        openDeleteSingleModal(row, originalId);
       },
     },
   ];
@@ -255,38 +404,23 @@ const isSomeDisplayedSelected = currentData.some(item => selectedRows.has(item.i
   const handleDropdownToggle = (key: string, value: boolean) => {
     setDropdownStates(prev => ({
       ...prev,
-      [key === "Listed Properties" || key === "Properties verified" ? "property" :
-        key === "Certified Properties" || key === "Rejected applications" ? "ownership" :
-          key === "Pending applications" ? "permissions" : "status"]: value
+      [key === "Listed Properties" ? "property" : "status"]: value
     }));
   };
 
-  const getDropdownStates = () => {
+  const getDropdownStates = (): DropdownStates => {
     if (viewMode === "hosts") {
       return {
         "Listed Properties": dropdownStates.property,
-        "Certified Properties": dropdownStates.ownership,
         "status": dropdownStates.status,
-        "Properties verified": false,
-        "Pending applications": false,
-        "Rejected applications": false,
       };
     } else {
       return {
-        "Properties verified": dropdownStates.property,
-        "Pending applications": dropdownStates.permissions,
-        "Rejected applications": dropdownStates.ownership,
+        "Listed Properties": false, // Always include all properties for consistent type
         "status": dropdownStates.status,
-        "Listed Properties": false,
-        "Certified Properties": false,
       };
     }
   };
-
-  useEffect(() => {
-    setCurrentPage(1);
-    setSelectedRows(new Set());
-  }, [searchTerm, certificationFilters, adminFilters, viewMode]);
 
   return (
     <>
@@ -332,14 +466,14 @@ const isSomeDisplayedSelected = currentData.some(item => selectedRows.has(item.i
 
       <Tabs selectedIndex={viewMode === "hosts" ? 0 : 1} onSelect={(index) => setViewMode(index === 0 ? "hosts" : "admins")}>
         <TabList className="inline-flex p-[6px] rounded-xl bg-[#121315] space-x-4 mb-6 border-0">
-          <Tab className="px-4 py-2  text-[14px] cursor-pointer font-medium transition-colors text-[#FFFFFFCC] border-0 outline-none">Hosts</Tab>
-          <Tab className="px-4 py-2  text-[14px] cursor-pointer font-medium transition-colors text-[#FFFFFFCC] border-0 outline-none">Admins</Tab>
+          <Tab className="px-4 py-2 text-[14px] cursor-pointer font-medium transition-colors text-[#FFFFFFCC] border-0 outline-none">Hosts</Tab>
+          <Tab className="px-4 py-2 text-[14px] cursor-pointer font-medium transition-colors text-[#FFFFFFCC] border-0 outline-none">Admins</Tab>
         </TabList>
 
         <TabPanel>
           <div className="flex flex-col justify-between">
             <Table
-              data={displayData}
+              data={currentData}
               title="Registered Hosts"
               showDeleteButton={true}
               onDeleteSingle={openDeleteSingleModal}
@@ -351,18 +485,19 @@ const isSomeDisplayedSelected = currentData.some(item => selectedRows.has(item.i
               onSelectRow={handleSelectRow}
               isAllSelected={isAllDisplayedSelected}
               isSomeSelected={isSomeDisplayedSelected}
-rowIds={currentData.map(item => item.id.toString())}
+              rowIds={getRowIds()}
               dropdownItems={getDropdownItems()}
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
               currentPage={currentPage}
               onPageChange={setCurrentPage}
-              itemsPerPage={itemsPerPage}
-              totalItems={currentData.length}
+              itemsPerPage={pagination.limit}
+              totalItems={pagination.total}
               showFilter={true}
               onFilterToggle={setIsFilterOpen}
               onDeleteAll={handleDeleteSelected}
               isDeleteAllDisabled={selectedRows.size === 0}
+              isLoading={isLoading}
             />
           </div>
         </TabPanel>
@@ -370,7 +505,7 @@ rowIds={currentData.map(item => item.id.toString())}
         <TabPanel>
           <div className="flex flex-col justify-between">
             <Table
-              data={displayData}
+              data={currentData}
               title="Registered Admins"
               showDeleteButton={true}
               onDeleteSingle={openDeleteSingleModal}
@@ -382,18 +517,19 @@ rowIds={currentData.map(item => item.id.toString())}
               onSelectRow={handleSelectRow}
               isAllSelected={isAllDisplayedSelected}
               isSomeSelected={isSomeDisplayedSelected}
-              rowIds={currentData.map(item => item.id.toString())}
+              rowIds={getRowIds()}
               dropdownItems={getDropdownItems()}
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
               currentPage={currentPage}
               onPageChange={setCurrentPage}
-              itemsPerPage={itemsPerPage}
-              totalItems={currentData.length}
+              itemsPerPage={pagination.limit}
+              totalItems={pagination.total}
               showFilter={true}
               onFilterToggle={setIsFilterOpen}
               onDeleteAll={handleDeleteSelected}
               isDeleteAllDisabled={selectedRows.size === 0}
+              isLoading={isLoading}
             />
           </div>
         </TabPanel>
@@ -407,13 +543,13 @@ rowIds={currentData.map(item => item.id.toString())}
         resetLabel="Reset"
         onReset={handleResetFilter}
         buttonLabel="Apply Filter"
-        onApply={() => setIsFilterOpen(false)}
-        filterValues={viewMode === "hosts" ? certificationFilters : adminFilters}
+        onApply={handleApplyFilter}
+        filterValues={viewMode === "hosts" ? tempCertificationFilters : tempAdminFilters}
         onFilterChange={(filters) => {
           if (viewMode === "hosts") {
-            setCertificationFilters(prev => ({ ...prev, ...filters }));
+            setTempCertificationFilters(prev => ({ ...prev, ...filters }));
           } else {
-            setAdminFilters(prev => ({ ...prev, ...filters }));
+            setTempAdminFilters(prev => ({ ...prev, ...filters }));
           }
         }}
         dropdownStates={getDropdownStates()}

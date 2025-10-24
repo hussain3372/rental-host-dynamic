@@ -32,6 +32,7 @@ export default function LoginPage() {
       console.log(response);
 
       if (response.success && response.data?.accessToken) {
+        
         if (response.data.user.role !== "ADMIN") {
           toast.error("Access restricted - Admin access required");
           return;

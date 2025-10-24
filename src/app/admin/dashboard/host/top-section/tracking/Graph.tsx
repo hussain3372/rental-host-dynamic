@@ -27,15 +27,6 @@ interface Application {
   daysWaiting: number;
 }
 
-interface ApplicationsResponse {
-  applications: Application[];
-  total: number;
-  period: {
-    type: string;
-    startDate: string;
-    endDate: string;
-  };
-}
 
 interface ApplicationStats {
   labels: string[];

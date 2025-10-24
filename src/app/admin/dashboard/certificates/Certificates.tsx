@@ -47,10 +47,7 @@ export default function Certificates() {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch certificates from API whenever filters or activeTab changes
-  useEffect(() => {
-    fetchCertificates();
-  }, [apiFilters, activeTab]);
-
+  
   const fetchCertificates = async () => {
     try {
       setLoading(true);
@@ -58,7 +55,7 @@ export default function Certificates() {
       
       // Build query parameters - ALWAYS include status from active tab
       const queryParams: ApiFilters = {};
-
+      
       // Always add status based on active tab
       if (activeTab === "active") {
         queryParams.status = "ACTIVE";
@@ -67,7 +64,7 @@ export default function Certificates() {
       } else if (activeTab === "expired") {
         queryParams.status = "EXPIRED";
       }
-
+      
       // Add date filters if they exist (along with status)
       if (apiFilters.issuedAt) {
         queryParams.issuedAt = apiFilters.issuedAt;
@@ -75,9 +72,9 @@ export default function Certificates() {
       if (apiFilters.expiredAt) {
         queryParams.expiredAt = apiFilters.expiredAt;
       }
-
+      
       console.log('API Call with filters:', queryParams);
-
+      
       const response = await certificateApi.getCertificates(queryParams);
       
       if (response.data && response.data.certifications) {
@@ -93,7 +90,7 @@ export default function Certificates() {
           } else {
             status = "active";
           }
-
+          
           const formatDate = (dateString: string) => {
             const date = new Date(dateString);
             return date.toLocaleDateString("en-US", {
@@ -102,7 +99,7 @@ export default function Certificates() {
               year: "numeric",
             });
           };
-
+          
           return {
             id: parseInt(cert.id.replace(/\D/g, '')) || Date.now(),
             "Certificate ID": cert.certificateNumber,
@@ -115,7 +112,7 @@ export default function Certificates() {
             originalData: cert
           };
         });
-
+        
         setAllCertificationData(formattedData);
       } else {
         throw new Error('No certification data received');
@@ -127,6 +124,10 @@ export default function Certificates() {
       setLoading(false);
     }
   };
+  
+  useEffect(() => {
+    fetchCertificates();
+  }, [apiFilters, activeTab,fetchCertificates]);
 
   // Filter data based on search term only (status filtering is done server-side)
   const filteredCertificationData = useMemo(() => {
@@ -250,6 +251,7 @@ export default function Certificates() {
 
   const displayData = useMemo(() => {
     return filteredCertificationData.map(({ id, Status, originalData, ...rest }) => {
+      
       return rest;
     });
   }, [filteredCertificationData]);

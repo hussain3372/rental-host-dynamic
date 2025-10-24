@@ -1,188 +1,184 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "@/app/admin/tables-essentials/Filter";
+import { managementApi, GetUsersParams } from "@/app/api/super-admin/user-management/index";
 
-interface CertificationData {
+interface AdminData {
   id: number;
   "Admin Name": string;
   "Email": string;
-  "Properties Verified": string;
-  "Pending Applications": string;
-  "Rejected Applications": string;
   Status: string;
 }
+
+// Normalize status for display (convert API status to display format)
+const normalizeStatus = (status: string): string => {
+  const statusMap: Record<string, string> = {
+    'ACTIVE': 'Active',
+    'SUSPENDED': 'Suspended',
+    'PENDING_VERIFICATION': 'PENDING_VERIFICATION'
+  };
+  return statusMap[status] || status;
+};
+
+// Static status options for filter dropdown
+const STATIC_STATUS_OPTIONS = ["Active", "Suspended", "PENDING_VERIFICATION"];
 
 export default function Applications() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
   const [isModalOpen, setIsModalOpen] = useState(false);
-// Change from Set<number> to Set<string>
-const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [singleRowToDelete, setSingleRowToDelete] = useState<{
     row: Record<string, string>;
     id: number;
   } | null>(null);
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
+  const [isLoading, setIsLoading] = useState(false);
 
-  const [showPropertiesVerifiedDropdown, setShowPropertiesVerifiedDropdown] = useState(false);
-  const [showPendingApplicationsDropdown, setShowPendingApplicationsDropdown] = useState(false);
-  const [showRejectedApplicationsDropdown, setShowRejectedApplicationsDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
-  const [certificationFilters, setCertificationFilters] = useState({
-    propertiesVerified: "",
-    pendingApplications: "",
-    rejectedApplications: "",
+  // Separate state for applied filters and temporary filter selections
+  const [appliedFilters, setAppliedFilters] = useState({
     status: "",
   });
 
-  const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([
-    {
-      id: 1,
-      "Admin Name": "Sarah Kim",
-      "Email": "jsarah@gmail.com",
-      "Properties Verified": "45",
-      "Pending Applications": "12",
-      "Rejected Applications": "3",
-      Status: "Active",
-    },
-    {
-      id: 2,
-      "Admin Name": "Sarah Kim",
-      "Email": "sarah@gmail.com",
-      "Properties Verified": "28",
-      "Pending Applications": "8",
-      "Rejected Applications": "5",
-      Status: "Suspended",
-    },
-    {
-      id: 3,
-      "Admin Name": "Sarah Kim",
-      "Email": "sarah@gmail.com",
-      "Properties Verified": "67",
-      "Pending Applications": "15",
-      "Rejected Applications": "2",
-      Status: "Active",
-    },
-    {
-      id: 4,
-      "Admin Name": "Sarah Kim",
-      "Email": "sarah@gmail.com",
-      "Properties Verified": "32",
-      "Pending Applications": "6",
-      "Rejected Applications": "7",
-      Status: "Active",
-    },
-    {
-      id: 5,
-      "Admin Name": "Sarah Kim",
-      "Email": "sarah@gmail.com",
-      "Properties Verified": "32",
-      "Pending Applications": "6",
-      "Rejected Applications": "7",
-      Status: "Active",
-    },
-    
-  ]);
+  const [tempFilters, setTempFilters] = useState({
+    status: "",
+  });
 
-  // ✅ Filtering logic
-  const filteredCertificationData = useMemo(() => {
-    let filtered = allCertificationData;
+  // API data state
+  const [adminData, setAdminData] = useState<AdminData[]>([]);
+  const [pagination, setPagination] = useState({
+    total: 0,
+    page: 1,
+    limit: 10,
+    totalPages: 1
+  });
 
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (item) =>
-          item["Admin Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item["Email"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item["Properties Verified"].toLowerCase().includes(searchTerm.toLowerCase())
-      );
+  // Fetch data from API
+  const fetchData = async (params?: GetUsersParams) => {
+    setIsLoading(true);
+    try {
+      const response = await managementApi.getAdmins({
+        ...params,
+        page: currentPage,
+        limit: 10
+      });
+      
+      if (response.data) {
+        // Convert API data to match our table format (simplified to match image)
+        const convertedData: AdminData[] = response.data.data.map(admin => ({
+          id: admin.id,
+          "Admin Name": admin.name,
+          "Email": admin.email,
+          Status: normalizeStatus(admin.status),
+        }));
+        
+        setAdminData(convertedData);
+        setPagination(response.data.pagination);
+      }
+    } catch (error) {
+      console.error('Error fetching admins:', error);
+    } finally {
+      setIsLoading(false);
     }
+  };
 
-    if (certificationFilters.propertiesVerified) {
-      filtered = filtered.filter(
-        (item) => item["Properties Verified"] === certificationFilters.propertiesVerified
-      );
+  // Handle search changes (still works in real-time)
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      // Don't fetch any data if search term has 1-3 characters
+      if (searchTerm && searchTerm.length <= 3) {
+        return;
+      }
+      
+      const params: GetUsersParams = {};
+      
+      if (searchTerm && searchTerm.length > 3) {
+        params.search = searchTerm;
+      }
+      
+      // Apply status filter from applied filters
+      if (appliedFilters.status) {
+        params.status = appliedFilters.status.toUpperCase();
+      }
+      
+      fetchData(params);
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, appliedFilters, currentPage,fetchData]);
+
+  // Initial data fetch
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, appliedFilters]);
+
+  const handleSelectAll = (checked: boolean) => {
+    const newSelected = new Set<string>();
+    if (checked) {
+      adminData.forEach((item) => newSelected.add(item.id.toString()));
     }
+    setSelectedRows(newSelected);
+  };
 
-    if (certificationFilters.pendingApplications) {
-      filtered = filtered.filter(
-        (item) => item["Pending Applications"] === certificationFilters.pendingApplications
-      );
+  const handleSelectRow = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedRows);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
     }
+    setSelectedRows(newSelected);
+  };
 
-    if (certificationFilters.rejectedApplications) {
-      filtered = filtered.filter(
-        (item) => item["Rejected Applications"] === certificationFilters.rejectedApplications
-      );
-    }
-
-    if (certificationFilters.status) {
-      filtered = filtered.filter(
-        (item) => item["Status"] === certificationFilters.status
-      );
-    }
-
-    return filtered;
-  }, [searchTerm, certificationFilters, allCertificationData]);
-
- const handleSelectAll = (checked: boolean) => {
-  const newSelected = new Set<string>();
-  if (checked) {
-    filteredCertificationData.forEach((item) => newSelected.add(item.id.toString()));
-  }
-  setSelectedRows(newSelected);
-};
-
- const handleSelectRow = (id: string, checked: boolean) => {
-  const newSelected = new Set(selectedRows);
-  if (checked) {
-    newSelected.add(id);
-  } else {
-    newSelected.delete(id);
-  }
-  setSelectedRows(newSelected);
-};
- const isAllDisplayedSelected = useMemo(() => {
-  return (
-    filteredCertificationData.length > 0 &&
-    filteredCertificationData.every((item) => selectedRows.has(item.id.toString()))
-  );
-}, [filteredCertificationData, selectedRows]);
+  const isAllDisplayedSelected = useMemo(() => {
+    return (
+      adminData.length > 0 &&
+      adminData.every((item) => selectedRows.has(item.id.toString()))
+    );
+  }, [adminData, selectedRows]);
 
   const isSomeDisplayedSelected = useMemo(() => {
-  return (
-    filteredCertificationData.some((item) => selectedRows.has(item.id.toString())) &&
-    !isAllDisplayedSelected
-  );
-}, [filteredCertificationData, selectedRows, isAllDisplayedSelected]);
+    return (
+      adminData.some((item) => selectedRows.has(item.id.toString())) &&
+      !isAllDisplayedSelected
+    );
+  }, [adminData, selectedRows, isAllDisplayedSelected]);
 
- const handleDeleteApplications = (selectedRowIds: Set<string>) => {
-  const idsToDelete = Array.from(selectedRowIds).map(id => parseInt(id));
-  const updatedData = allCertificationData.filter(
-    (item) => !idsToDelete.includes(item.id)
-  );
-  setAllCertificationData(updatedData);
-  setIsModalOpen(false);
-  setSelectedRows(new Set());
-};
+  const handleDeleteApplications = async (selectedRowIds: Set<string>) => {
+    const idsToDelete = Array.from(selectedRowIds).map(id => parseInt(id));
+    
+    // Delete from API
+    const deletePromises = idsToDelete.map(id => managementApi.deleteAdmin(id));
+    const results = await Promise.all(deletePromises);
+    
+    // Refresh data if all deletions were successful
+    if (results.every(result => result)) {
+      fetchData();
+    }
+    
+    setIsModalOpen(false);
+    setSelectedRows(new Set());
+  };
 
-
- const handleDeleteSingleApplication = (
-  row: Record<string, string>,
-  id: number
-) => {
-  const updatedData = allCertificationData.filter((item) => item.id !== id);
-  setAllCertificationData(updatedData);
-  setIsModalOpen(false);
-  setSingleRowToDelete(null);
-
-  // Remove these 3 lines:
-  // const newSelected = new Set(selectedRows);
-  // newSelected.delete(id);
-  // setSelectedRows(newSelected);
-};
+  const handleDeleteSingleApplication = async (row: Record<string, string>, id: number) => {
+    const success = await managementApi.deleteAdmin(id);
+    if (success) {
+      fetchData(); // Refresh data
+    }
+    
+    setIsModalOpen(false);
+    setSingleRowToDelete(null);
+  };
 
   const openDeleteSingleModal = (row: Record<string, string>, id: number) => {
     setSingleRowToDelete({ row, id });
@@ -208,6 +204,32 @@ const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     }
   };
 
+  const handleResetFilter = () => {
+    // Reset both temporary and applied filters
+    const resetFilters = {
+      status: "",
+    };
+    
+    setTempFilters(resetFilters);
+    setAppliedFilters(resetFilters); // This will trigger the useEffect to fetch data without filters
+    setCurrentPage(1);
+    
+    // Close the filter drawer
+    setIsFilterOpen(false);
+  };
+
+  const handleApplyFilter = () => {
+    setAppliedFilters(tempFilters);
+    setIsFilterOpen(false);
+    setCurrentPage(1); // Reset to first page when applying new filters
+  };
+
+  const handleFilterOpen = () => {
+    // When opening filter, sync the current applied filters to temp filters
+    setTempFilters(appliedFilters);
+    setIsFilterOpen(true);
+  };
+
   const tableControl = {
     hover: true,
     striped: false,
@@ -228,46 +250,22 @@ const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     highlightRowOnHover: true,
   };
 
-  const uniquePendingApplications = [
-    ...new Set(allCertificationData.map((item) => item["Pending Applications"])),
-  ];
-  const uniqueRejectedApplications = [
-    ...new Set(allCertificationData.map((item) => item["Rejected Applications"])),
-  ];
-  const uniqueStatuses = [
-    ...new Set(allCertificationData.map((item) => item["Status"])),
-  ];
-
   const displayData = useMemo(() => {
-    return filteredCertificationData.map(({ id: _id, ...rest }) => rest); // eslint-disable-line @typescript-eslint/no-unused-vars
-  }, [filteredCertificationData]);
-
-  const handleResetFilter = () => {
-    setCertificationFilters({
-      propertiesVerified: "",
-      pendingApplications: "",
-      rejectedApplications: "",
-      status: "",
-    });
-    setSearchTerm("");
-  };
-
-  const handleApplyFilter = () => {
-    setIsFilterOpen(false);
-  };
+    return adminData.map(({ id: _id, ...rest }) => rest);
+  }, [adminData]);
 
   const dropdownItems = [
     {
       label: "View Details",
       onClick: (row: Record<string, string>, index: number) => {
-        const originalRow = filteredCertificationData[index];
-        window.location.href = `/super-admin/dashboard/applications/detail/${originalRow.id}`;
+        const originalRow = adminData[index];
+        window.location.href = `/super-admin/dashboard/user-management/admin/detail/${originalRow.id}`;
       },
     },
     {
-      label: "Delete Application",
+      label: "Delete Admin",
       onClick: (row: Record<string, string>, index: number) => {
-        const originalRow = filteredCertificationData[index];
+        const originalRow = adminData[index];
         openDeleteSingleModal(row, originalRow.id);
       },
     },
@@ -293,13 +291,13 @@ const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
 
       <div className="flex flex-col justify-between pt-5">
         <Table
-          setHeight = {false}
+          setHeight={false}
           data={displayData}
           title="Registered Admins"
           control={tableControl}
           showDeleteButton={true}
           onDeleteSingle={(row, index) => {
-            const originalRow = filteredCertificationData[index];
+            const originalRow = adminData[index];
             openDeleteSingleModal(row, originalRow.id);
           }}
           clickable={true}
@@ -309,17 +307,19 @@ const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
           onSelectRow={handleSelectRow}
           isAllSelected={isAllDisplayedSelected}
           isSomeSelected={isSomeDisplayedSelected}
-          rowIds={filteredCertificationData.map((item) => item.id.toString())}
+          rowIds={adminData.map((item) => item.id.toString())}
           dropdownItems={dropdownItems}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
-          totalItems={filteredCertificationData.length}
+          currentPage={currentPage}
+          onPageChange={setCurrentPage}
+          itemsPerPage={pagination.limit}
+          totalItems={pagination.total}
           showFilter={true}
-          onFilterToggle={setIsFilterOpen}
+          onFilterToggle={handleFilterOpen}
           onDeleteAll={handleDeleteSelected}
-          isDeleteAllDisabled={
-            selectedRows.size === 0 || selectedRows.size < displayData.length
-          }
+          isDeleteAllDisabled={selectedRows.size === 0}
+          isLoading={isLoading}
         />
       </div>
 
@@ -327,59 +327,31 @@ const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
         title="Apply Filter"
-        description="Referring to find the right property faster."
+        description="Refine admin listings to find the right admin faster."
         resetLabel="Reset"
         onReset={handleResetFilter}
         buttonLabel="Apply Filter"
         onApply={handleApplyFilter}
-        filterValues={certificationFilters}
+        filterValues={tempFilters}
         onFilterChange={(filters) => {
-          setCertificationFilters((prev) => ({
+          setTempFilters((prev) => ({
             ...prev,
             ...filters,
           }));
         }}
-        
         dropdownStates={{
-          propertiesVerified: showPropertiesVerifiedDropdown,
-          pendingApplications: showPendingApplicationsDropdown,
-          rejectedApplications: showRejectedApplicationsDropdown,
           status: showStatusDropdown,
         }}
         onDropdownToggle={(key, value) => {
-          if (key === "propertiesVerified") setShowPropertiesVerifiedDropdown(value);
-          if (key === "pendingApplications") setShowPendingApplicationsDropdown(value);
-          if (key === "rejectedApplications") setShowRejectedApplicationsDropdown(value);
           if (key === "status") setShowStatusDropdown(value);
         }}
         fields={[
-          {
-            label: "Properties verified",
-            key: "propertiesVerified",
-            type: "dropdown",
-            placeholder: "Select Properties",
-            options: ["0 - 50", "50 - 100", "100 - 200"]
-          },
-          {
-            label: "Pending applications",
-            key: "pendingApplications",
-            type: "dropdown",
-            placeholder: "Select applications",
-            options: uniquePendingApplications
-          },
-          {
-            label: "Rejected applications",
-            key: "rejectedApplications",
-            type: "dropdown",
-            placeholder: "Select applications",
-            options: uniqueRejectedApplications
-          },
           {
             label: "Status",
             key: "status",
             type: "dropdown",
             placeholder: "Select status",
-            options: uniqueStatuses
+            options: STATIC_STATUS_OPTIONS
           },
         ]}
       />

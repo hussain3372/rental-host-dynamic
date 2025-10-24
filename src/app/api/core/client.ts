@@ -40,6 +40,7 @@ export interface ApiResponse<T = unknown> {
   message: string;
   errors: string[] | null;
   meta: unknown;
+  
 }
 
 export interface ApiConfig {

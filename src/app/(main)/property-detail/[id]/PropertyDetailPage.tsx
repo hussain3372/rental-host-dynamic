@@ -42,13 +42,13 @@ export default function PropertyDetailPage({ property }: PropertyDetailPageProps
     }
   };
 
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric'
-    });
-  };
+  // const formatDate = (dateString: string) => {
+  //   return new Date(dateString).toLocaleDateString('en-US', {
+  //     year: 'numeric',
+  //     month: 'short',
+  //     day: 'numeric'
+  //   });
+  // };
 
   return (
     <div className="sm:pt-[80px] pt-0  px-4 sm:px-6 lg:px-[120px]">
@@ -81,7 +81,7 @@ export default function PropertyDetailPage({ property }: PropertyDetailPageProps
               />
             </svg>
             <Link
-              href="/search"
+              href="/search-page"
               className="text-[14px] sm:text-[16px] font-normal text-[#FFFFFF99] hover:text-[#EFFC76] transition-colors whitespace-nowrap"
             >
               Certified Properties

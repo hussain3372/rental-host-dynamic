@@ -65,6 +65,7 @@ interface TableProps<T> {
   onDeleteAll?: () => void;
   isDeleteAllDisabled?: boolean;
   disableClientSidePagination?: boolean;
+    isLoading?: boolean;
 
 
 }
