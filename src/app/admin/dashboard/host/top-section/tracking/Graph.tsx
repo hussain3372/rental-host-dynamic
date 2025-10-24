@@ -6,8 +6,35 @@ import { dashboard } from "@/app/api/Admin/dashboard-stats";
 
 // Define types for the application data
 interface Application {
-  submittedAt: string;
+  id: string;
+  hostName: string;
+  hostEmail: string;
+  hostCompany: string;
+  propertyName: string;
+  propertyType: string;
+  propertyAddress: string;
+  propertyCity: string;
   status: string;
+  currentStep: string;
+  submittedAt: string;
+  createdAt: string;
+  updatedAt: string;
+  reviewedBy?: string;
+  reviewedAt?: string;
+  documentsCount: number;
+  paymentStatus: string;
+  priority: string;
+  daysWaiting: number;
+}
+
+interface ApplicationsResponse {
+  applications: Application[];
+  total: number;
+  period: {
+    type: string;
+    startDate: string;
+    endDate: string;
+  };
 }
 
 interface ApplicationStats {
@@ -46,71 +73,48 @@ export default function Graph() {
       underReview: 0,
       approved: 0,
       rejected: 0,
-      moreInfoRequested: 0
+      moreInfoRequested: 0,
     },
     certifications: {
       active: 0,
       expired: 0,
       revoked: 0,
       expiring: 0,
-      total: 0
+      total: 0,
     },
     recentActivity: {
-      applications: []
-    }
+      applications: [],
+    },
   });
 
-useEffect(() => {
-  const getStats = async () => {
-    try {
-      const response = await dashboard.getStats();
-      
-      // Direct mapping from your API response structure
-      setData({
-        applications: {
-          total: response.data.applications.total,
-          pending: response.data.applications.pending,
-          underReview: response.data.applications.underReview,
-          approved: response.data.applications.approved,
-          rejected: response.data.applications.rejected,
-          moreInfoRequested: response.data.applications.moreInfoRequested
-        },
-        certifications: {
-          active: response.data.certifications.active,
-          expired: response.data.certifications.expired,
-          revoked: response.data.certifications.revoked,
-          expiring: response.data.certifications.expiringSoon, 
-          total: response.data.certifications.total
-        },
-        recentActivity: {
-          applications: response.data.recentActivity.applications
-        }
-      });
-      
-    } catch (error) {
-      console.error("Failed to fetch dashboard stats:", error);
-    }
-  };
-  
-  getStats();
-}, []);
+  const [graphData, setGraphData] = useState<ApplicationStats>({
+    labels: [],
+    submitted: [],
+    approved: [],
+  });
+  const [loading, setLoading] = useState(false);
 
-  // Generate application statistics by status over time
-  const generateApplicationStats = (range: "weekly" | "monthly" | "yearly"): ApplicationStats => {
-    const recentApps = data.recentActivity.applications;
-    
-    if (range === "weekly") {
+  // Process applications data to generate graph data
+  const processApplicationsData = (
+    applications: Application[],
+    period: "weekly" | "monthly" | "yearly"
+  ): ApplicationStats => {
+    const filteredApplications = applications.filter(
+      (app) => app.submittedAt && app.submittedAt !== "2025-10-23T10:18:34.494Z" // Filter out placeholder dates
+    );
+
+    if (period === "weekly") {
       // Group by day of week for weekly view
       const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
       const submitted = new Array(7).fill(0);
       const approved = new Array(7).fill(0);
-      
-      recentApps.forEach((app: Application) => {
+
+      filteredApplications.forEach((app: Application) => {
         const date = new Date(app.submittedAt);
         const dayIndex = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
         // Adjust to make Monday (1) the first day
         const adjustedIndex = dayIndex === 0 ? 6 : dayIndex - 1;
-        
+
         if (adjustedIndex >= 0 && adjustedIndex < 7) {
           submitted[adjustedIndex]++;
           if (app.status === "APPROVED") {
@@ -118,47 +122,60 @@ useEffect(() => {
           }
         }
       });
-      
+
       return {
         labels: days,
         submitted,
-        approved
+        approved,
       };
     }
-    
-    if (range === "monthly") {
+
+    if (period === "monthly") {
       // Group by week for monthly view
       const weeks = ["Week 1", "Week 2", "Week 3", "Week 4"];
       const submitted = new Array(4).fill(0);
       const approved = new Array(4).fill(0);
-      
-      recentApps.forEach((app: Application) => {
+
+      filteredApplications.forEach((app: Application) => {
         const date = new Date(app.submittedAt);
         const dayOfMonth = date.getDate();
         const weekIndex = Math.min(Math.floor((dayOfMonth - 1) / 7), 3);
-        
+
         submitted[weekIndex]++;
         if (app.status === "APPROVED") {
           approved[weekIndex]++;
         }
       });
-      
+
       return {
         labels: weeks,
         submitted,
-        approved
+        approved,
       };
     }
-    
+
     // Yearly view - group by month
-    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const months = [
+      "Jan",
+      "Feb",
+      "Mar",
+      "Apr",
+      "May",
+      "Jun",
+      "Jul",
+      "Aug",
+      "Sep",
+      "Oct",
+      "Nov",
+      "Dec",
+    ];
     const submitted = new Array(12).fill(0);
     const approved = new Array(12).fill(0);
-    
-    recentApps.forEach((app: Application) => {
+
+    filteredApplications.forEach((app: Application) => {
       const date = new Date(app.submittedAt);
       const monthIndex = date.getMonth(); // 0 = January, 11 = December
-      
+
       if (monthIndex >= 0 && monthIndex < 12) {
         submitted[monthIndex]++;
         if (app.status === "APPROVED") {
@@ -166,32 +183,119 @@ useEffect(() => {
         }
       }
     });
-    
+
     return {
       labels: months,
       submitted,
-      approved
+      approved,
     };
   };
 
+  // Fetch dashboard stats (for certifications and general data)
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const [statsResponse, graphResponse] = await Promise.all([
+          dashboard.getStats(),
+          dashboard.getDashboard(range), // Pass the current range to the API
+        ]);
+
+        // Set main dashboard data
+        setData({
+          applications: {
+            total: statsResponse.data.applications.total,
+            pending: statsResponse.data.applications.pending,
+            underReview: statsResponse.data.applications.underReview,
+            approved: statsResponse.data.applications.approved,
+            rejected: statsResponse.data.applications.rejected,
+            moreInfoRequested:
+              statsResponse.data.applications.moreInfoRequested,
+          },
+          certifications: {
+            active: statsResponse.data.certifications.active,
+            expired: statsResponse.data.certifications.expired,
+            revoked: statsResponse.data.certifications.revoked,
+            expiring: statsResponse.data.certifications.expiringSoon,
+            total: statsResponse.data.certifications.total,
+          },
+          recentActivity: {
+            applications: statsResponse.data.recentActivity
+              .applications as Application[],
+          },
+        });
+
+        // Process the applications data to generate graph data
+        const processedGraphData = processApplicationsData(
+          graphResponse.data.applications,
+          range
+        );
+        setGraphData(processedGraphData);
+      } catch (error) {
+        console.error("Failed to fetch dashboard data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []); // Initial load
+
+  // Fetch graph data when range changes
+  useEffect(() => {
+    const fetchGraphData = async () => {
+      try {
+        setLoading(true);
+        const graphResponse = await dashboard.getDashboard(range);
+
+        // Process the applications data to generate graph data
+        const processedGraphData = processApplicationsData(
+          graphResponse.data.applications,
+          range
+        );
+        setGraphData(processedGraphData);
+      } catch (error) {
+        console.error("Failed to fetch graph data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGraphData();
+  }, [range]); // Re-fetch when range changes
+
+  // Handle range change
+  const handleRangeChange = (newRange: "weekly" | "monthly" | "yearly") => {
+    setRange(newRange);
+  };
+
   // Add this debug code before return
-console.log('Current certifications data:', {
-  total: data.certifications.total,
-  active: data.certifications.active,
-  expiring: data.certifications.expiring,
-  revoked: data.certifications.revoked,
-  expired: data.certifications.expired
-});
+  console.log("Current certifications data:", {
+    total: data.certifications.total,
+    active: data.certifications.active,
+    expiring: data.certifications.expiring,
+    revoked: data.certifications.revoked,
+    expired: data.certifications.expired,
+  });
 
+  console.log("Current graph data:", {
+    labels: graphData.labels,
+    submitted: graphData.submitted,
+    approved: graphData.approved,
+    range: range,
+  });
 
-  const applicationData = generateApplicationStats(range);
-
-  
+  console.log("Graph data arrays:", {
+    submittedLength: graphData.submitted.length,
+    approvedLength: graphData.approved.length,
+    labelsLength: graphData.labels.length,
+    submittedSum: graphData.submitted.reduce((a, b) => a + b, 0),
+    approvedSum: graphData.approved.reduce((a, b) => a + b, 0),
+  });
 
   return (
     <div className="pt-5 text-white">
       <div className="flex flex-col md:flex-col lg:flex-row gap-6 w-full">
-
         {/* Applications Over Time - Stacked Bar Chart */}
         <div className="w-full lg:flex-1 bg-[#121315] p-5 rounded-2xl shadow-lg overflow-visible">
           <div className="flex flex-col sm:flex-row justify-between sm:items-start mb-6 gap-4 sm:gap-0">
@@ -202,7 +306,9 @@ console.log('Current certifications data:', {
               <div className="flex gap-8 items-center mt-4 text-sm">
                 <div className="flex items-center gap-2">
                   <span className="w-[1.5px] h-5 bg-[#EFFC76] rounded-full" />
-                  <span className="text-[#FFFFFFCC] text-[14px] leading-[18px] font-medium">Submitted</span>
+                  <span className="text-[#FFFFFFCC] text-[14px] leading-[18px] font-medium">
+                    Submitted
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-[1.5px] h-5 bg-[#52525b] rounded-full" />
@@ -214,36 +320,54 @@ console.log('Current certifications data:', {
               {(["weekly", "monthly", "yearly"] as const).map((r) => (
                 <button
                   key={r}
-                  onClick={() => setRange(r)}
-                  className={`px-4 py-2 cursor-pointer font-regular text-[12px] leading-4 rounded-lg transition ${range === r
-                    ? "bg-[#EFFC76] text-black"
-                    : "border border-[#FFFFFF1F] text-[#FFFFFFCC] hover:bg-[#252525]"
-                    }`}
+                  onClick={() => handleRangeChange(r)}
+                  disabled={loading}
+                  className={`px-4 py-2 cursor-pointer font-regular text-[12px] leading-4 rounded-lg transition ${
+                    range === r
+                      ? "bg-[#EFFC76] text-black"
+                      : "border border-[#FFFFFF1F] text-[#FFFFFFCC] hover:bg-[#252525]"
+                  } ${loading ? "opacity-50 cursor-not-allowed" : ""}`}
                 >
-                  {r.charAt(0).toUpperCase() + r.slice(1)}
+                  {loading && range === r ? (
+                    <span>Loading...</span>
+                  ) : (
+                    r.charAt(0).toUpperCase() + r.slice(1)
+                  )}
                 </button>
               ))}
             </div>
           </div>
 
           <div style={{ height: 280 }}>
-            <GlobalGraph
-              type="bar"
-              stacked
-              labels={applicationData.labels}
-              datasets={[
-                {
-                  label: "Submitted",
-                  data: applicationData.submitted,
-                  backgroundColor: "#EFFC76",
-                },
-                {
-                  label: "Approved",
-                  data: applicationData.approved,
-                  backgroundColor: "#52525b",
-                },
-              ]}
-            />
+            {loading ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-white">Loading chart data...</div>
+              </div>
+            ) : graphData.labels.length > 0 ? (
+              <GlobalGraph
+                type="bar"
+                stacked
+                labels={graphData.labels}
+                datasets={[
+                  {
+                    label: "Submitted",
+                    data: graphData.submitted,
+                    backgroundColor: "#EFFC76",
+                  },
+                  {
+                    label: "Approved",
+                    data: graphData.approved,
+                    backgroundColor: "#52525b",
+                  },
+                ]}
+              />
+            ) : (
+              <div className="flex items-center justify-center h-full">
+                <div className="text-white">
+                  No data available for the selected period
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
@@ -253,8 +377,15 @@ console.log('Current certifications data:', {
             Certification Distribution
           </h2>
 
-         <div className="flex-1 flex items-center w-full h-full justify-center relative overflow-visible">
-            <div style={{ height: 220, width: "100%", position: "relative", overflow: "visible" }}>
+          <div className="flex-1 flex items-center w-full h-full justify-center relative overflow-visible">
+            <div
+              style={{
+                height: 220,
+                width: "100%",
+                position: "relative",
+                overflow: "visible",
+              }}
+            >
               <GlobalGraph
                 key={data.certifications.total}
                 type="doughnut"
@@ -266,13 +397,18 @@ console.log('Current certifications data:', {
                       data.certifications.active,
                       data.certifications.expiring,
                       data.certifications.revoked,
-                      data.certifications.expired
+                      data.certifications.expired,
                     ],
-                    backgroundColor: ["#EFFC76", "#52525b", "#fb923c", "#22c55e"],
+                    backgroundColor: [
+                      "#EFFC76",
+                      "#52525b",
+                      "#fb923c",
+                      "#22c55e",
+                    ],
                   },
                 ]}
-                centerText={{ 
-                  label: "Total", 
+                centerText={{
+                  label: "Total",
                   value: String(data.certifications.total),
                 }}
               />

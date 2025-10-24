@@ -1,37 +1,50 @@
+"use client";
 import React from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Property } from '@/app/api/user-flow/types';
 
-export default function Verification() {
+interface VerificationProps {
+  property: Property;
+}
+
+export default function Verification({ property }: VerificationProps) {
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   const verification = [
     {
       id: "0",
-      value: "Premium Verified Badge",
+      value: property.certificateNumber || "Premium Verified Badge",
       title: "Certificate Type",
     },
     {
       id: "1",
-      value: "239876",
+      value: property.certificateNumber || "N/A",
       title: "Certificate ID",
     },
     {
       id: "2",
-      value: "Aug 12, 2024",
+      value: formatDate(property.issuedAt),
       title: "Issue Date",
     },
     {
       id: "3",
-      value: "Aug 12, 2024",
+      value: formatDate(property.expiresAt),
       title: "Expiry Date",
     },
-  ]
+  ];
 
   return (
     <div className="pt-[120px] sm:pt-[150px] lg:pt-[200px] pb-[60px] sm:pb-[80px] container-class px-4 md:px-10 lg:px-[120px]">
       <div className="grid grid-cols-1 md:grid-cols-12 gap-[24px] sm:gap-[32px] lg:gap-[40px] max-w-[100%]">
         <div className="col-span-12 lg:col-span-7 sm:mr-[25px] mr-0">
-
-          <div className='bg-[#0a0c0b] rounded-2xl sm:rounded-3xl lg:rounded-4xl max-h-none lg:max-h-[594px] pb-[24px] sm:pb-[32px] w-full '>
+          <div className='bg-[#0a0c0b] rounded-2xl sm:rounded-3xl lg:rounded-4xl max-h-none  pb-[24px] sm:pb-[32px] w-full '>
             <div className='relative flex flex-col items-center'>
               {/* Star positioning - responsive */}
               <Image
@@ -60,7 +73,6 @@ export default function Verification() {
                 <span className="hidden sm:inline">Verify This Property</span>
                 <span className="sm:hidden">Verify Property</span>
               </button>
-
             </div>
 
             <div className='flex flex-col items-center gap-[24px] sm:gap-[32px] lg:gap-[40px] justify-center px-4 sm:px-6 lg:px-0'>
@@ -71,22 +83,25 @@ export default function Verification() {
               {/* QR Code - responsive */}
               <div className='w-full max-w-[280px] sm:max-w-[350px] lg:max-w-[420px]'>
                 <Image
-                  src="/images/qr.png"
+                  src={property.qrCodeUrl || "/images/qr.png"}
                   alt='QR code'
                   width={420}
                   height={301}
                   className='w-full h-auto'
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = "/images/qr.png";
+                  }}
                 />
               </div>
 
-              <Link href="/coming-soon">
+              <Link target='_blank' href={property.badgeUrl || ""}>
                 <p className='text-[#EFFC76] font-regular border-b border-b-[#EFFC76] text-[14px] sm:text-[16px]'>View Certificate</p>
               </Link>
             </div>
           </div>
         </div>
         <div className="col-span-12 lg:col-span-5">
-
           {/* Verification Details Section */}
           <div className='flex flex-col gap-[32px] sm:gap-[38px] lg:gap-[45px] w-full lg:w-auto'>
             {verification.map((item, index) => (
@@ -107,5 +122,5 @@ export default function Verification() {
         </div>
       </div>
     </div>
-  )
+  );
 }

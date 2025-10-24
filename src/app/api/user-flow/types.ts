@@ -1,20 +1,47 @@
-// src/modules/properties/types.ts
 
+// Core Property Interfaces
 export interface Property {
+  id: string;
   name: string;
   address: string;
-  city?: string;
+  city: string;
+  propertyType: string;
+  description: string;
+  propertyDetails: PropertyDetails;
+  images: string[];
+  certificateStatus: "ACTIVE" | "EXPIRED" | "PENDING";
+  certificateNumber: string;
+  issuedAt: string;
+  expiresAt: string;
+  qrCodeUrl: string;
+  verificationUrl: string;
+  badgeUrl: string;
+  hostName: string;
+  hostCompany: string;
+  // Optional fields for backward compatibility
   state?: string;
   zipCode?: string;
   country?: string;
-  propertyType?: string;
   numberOfGuests?: number;
   numberOfBedrooms?: number;
   numberOfBeds?: number;
   numberOfBathrooms?: number;
-  description?: string;
   amenities?: string[];
-  images?: string[];
+  certifications?:string
+}
+
+export interface PropertyDetails {
+  rent: number;
+  images: string[];
+  address: string;
+  bedrooms: number;
+  currency: string;
+  bathrooms: number;
+  maxGuests: number;
+  ownership: string;
+  description: string;
+  propertyName: string;
+  propertyType: string;
 }
 
 export interface Host {
@@ -22,6 +49,7 @@ export interface Host {
   name: string;
 }
 
+// Certification Interface (for search responses)
 export interface Certification {
   id: string;
   certificateNumber: string;
@@ -33,6 +61,18 @@ export interface Certification {
   badgeUrl?: string;
   qrCodeUrl?: string;
   verificationUrl?: string;
+}
+
+// Search Related Interfaces
+export interface SearchParams {
+  search?: string;
+  location?: string;
+  status?: string;
+  expiry?: string;
+  page?: number;
+  limit?: number;
+  propertyType?: string;
+  amenities?: string[];
 }
 
 export interface Facets {
@@ -51,56 +91,77 @@ export interface SearchData {
   searchTime: number;
   highlightedTerms: string[];
   facets: Facets;
-  appliedFilters: Record<
-    string,
-    string | number | boolean | string[] | number[]
-  >;
+  appliedFilters: Record<string, string | number | boolean | string[] | number[]>;
 }
 
+// Main Search Response Interface
 export interface SearchResponse {
+  data: Property[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+  
+}
+
+// For backward compatibility with legacy search responses
+export interface LegacySearchResponse {
   status: string;
   message: string;
   data: SearchData;
 }
+
+// Mapped Property Interface (for frontend display)
 export interface MappedProperty {
   id: string;
   title: string;
   address: string;
   image: string;
-  status?: string;
-  expiry?: string;
-  location?: string;
+  status: string;
+  expiry: string;
+  location: string;
+  // Optional fields for different use cases
   images?: string[];
   author?: string;
-
-
 }
-// In your types file
-export interface SearchParams {
-  search?: string;
-  location?: string;
+
+// Single Property Response
+export interface PropertyResponse {
+  data: Property;
+  id : string
+}
+
+// API Response wrapper
+export interface ApiResponse<T> {
+  data: T;
   status?: string;
-  expiry?: string;
-  // Add other potential filters
-  propertyType?: string;
-  amenities?: string[];
-  page?: number;
-  limit?: number;
+  message?: string;
 }
-
-export interface SearchResponse {
-  certifications: Certification[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-  searchTime: number;
-  highlightedTerms: string[];
-  facets: {
-    propertyTypes: string[];
-    locations: string[];
-    amenities: string[];
-    guestCapacities: string[];
+export interface ApiProperty {
+  id: string;
+  name: string;
+  address: string;
+  city: string;
+  images: string[];
+  certificateStatus: "ACTIVE" | "EXPIRED" | "PENDING";
+  expiresAt: string;
+  badgeUrl: string;
+  qrcode: string;
+  propertyType?: {
+    rent: number;
+    images: string[];
+    address: string;
+    bedrooms: number;
+    currency: string;
+    bathrooms: number;
+    maxGuests: number;
+    ownership: string;
+    description: string;
+    propertyName: string;
+    propertyType: string;
   };
-  appliedFilters: Record<string, string>;
 }

@@ -703,7 +703,7 @@ export default function MultiStepForm() {
         localStorage.removeItem("propertyType");
         setCurrentApplicationData(null);
         setUploadedDocuments([]);
-        router.push('/dashboard/applications')
+        router.push('/dashboard/application')
         return true;
       } else {
         const errorMsg = response.message || "Submission failed";

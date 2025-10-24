@@ -10,30 +10,20 @@ import {
   PaymentPayload,
   PaymentResponse,
   SubmitResponse,
-  // getApplicationByIdResponse,
   ApplicationsListResponse,
   ApiPayload,
+  ApiChecklistItem,
+  CheckListApiResponse
 } from "./types";
 import Cookies from "js-cookie";
-// Remove token from module level - get it fresh for each request
+
 const getToken = (): string => {
   return Cookies.get("accessToken") || "";
 };
-const token = getToken();
+
 // Define proper checklist interfaces
-interface ApiChecklistItem {
-  id: string | number;
-  name: string;
-  description?: string;
-  isActive?: boolean;
-  // Add other fields your API returns
-}
-interface CheckListApiResponse {
-  data: ApiChecklistItem[];
-  success: boolean;
-  message?: string;
-  status?: number;
-}
+
+
 export const application = {
   getApplications: async (
     params?: Partial<{
@@ -48,6 +38,35 @@ export const application = {
   ): Promise<ApiResponse<ApplicationsListResponse>> => {
     const token = getToken();
 
+    // Clean up parameters - only include defined values
+    const cleanParams: Record<string, string | number> = {};
+    
+    // Check if any filters are applied (excluding pagination)
+    const hasFilters = params && Object.entries(params).some(([key, value]) => 
+      key !== 'page' && key !== 'pageSize' && 
+      value !== undefined && value !== null && value !== ''
+    );
+
+    // Only include pagination if no filters are applied or explicitly requested
+    if (!hasFilters || params?.page) {
+      cleanParams.page = params?.page || 1;
+    }
+    if (!hasFilters || params?.pageSize) {
+      cleanParams.pageSize = params?.pageSize || 10;
+    }
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        // Only include non-pagination parameters that have values
+        if (key !== 'page' && key !== 'pageSize' && 
+            value !== undefined && value !== null && value !== '') {
+          cleanParams[key] = value;
+        }
+      });
+    }
+
+    console.log("📡 API Request Params:", cleanParams);
+
     const res = await apiClient.get<ApiResponse<ApplicationsListResponse>>(
       "/applications",
       {
@@ -55,7 +74,7 @@ export const application = {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        params: params as Record<string, string | number | boolean | undefined>,
+        params: cleanParams,
       }
     );
 
@@ -82,7 +101,7 @@ export const application = {
       total: payload.data?.pagination?.total ?? payload.data?.total ?? 0,
       status: payload.status ?? "SUCCESS",
       message: payload.message ?? "",
-      pagination: payload.data?.pagination // Include pagination info
+      pagination: payload.data?.pagination
     };
 
     return {
@@ -93,9 +112,11 @@ export const application = {
       meta: null,
     };
   },
+
   getApplicationById: async (
     id: string
   ): Promise<ApiResponse<{ application: ApplicationData }>> => {
+    const token = getToken();
     return apiClient.get<{ application: ApplicationData }>(
       `/applications/${id}`,
       {
@@ -105,7 +126,7 @@ export const application = {
       }
     );
   },
-  // Existing methods
+
   getPropertyType: async (): Promise<ApiResponse<ApplicationData>> => {
     const token = getToken();
     return apiClient.get<ApplicationData>("/property-types", {
@@ -114,14 +135,12 @@ export const application = {
       },
     });
   },
+
   createApplication: async (
     payload: ApplicationData
   ): Promise<ApiResponse<ApplicationResponse>> => {
     const token = getToken();
-    console.log(
-      ":outbox_tray: Sending JSON payload to /applications:",
-      payload
-    );
+    console.log(":outbox_tray: Sending JSON payload to /applications:", payload);
     return apiClient.post<ApplicationResponse>("/applications", payload, {
       headers: {
         "Content-Type": "application/json",
@@ -129,6 +148,7 @@ export const application = {
       },
     });
   },
+
   uploadImage: async (
     payload: FormData
   ): Promise<ApiResponse<FileUploadResponse>> => {
@@ -146,6 +166,7 @@ export const application = {
       }
     );
   },
+
   uploadDocuments: async (
     payload: FormData
   ): Promise<ApiResponse<{ documents: UploadedDocument[] }>> => {
@@ -163,6 +184,7 @@ export const application = {
       }
     );
   },
+
   updateStep: async (
     payload: UpdatePayload
   ): Promise<ApiResponse<UpdateResponse>> => {
@@ -176,6 +198,7 @@ export const application = {
       },
     });
   },
+
   getCheckList: async (): Promise<ApiResponse<CheckListApiResponse>> => {
     const token = getToken();
     // More robust property type retrieval
@@ -248,6 +271,7 @@ export const application = {
       throw error;
     }
   },
+
   mockPay: async (): Promise<ApiResponse<PaymentResponse>> => {
     const token = getToken();
     const stored = localStorage.getItem("applicationData");
@@ -269,16 +293,7 @@ export const application = {
       },
     });
   },
-  // getApplicationById: async (): Promise<ApiResponse<getApplicationByIdResponse>> => {
-  //   const token = getToken();
-  //   const stored = localStorage.getItem("applicationData");
-  //   const applicationId = stored ? JSON.parse(stored).id : null;
-  //   return apiClient.get<getApplicationByIdResponse>(`/applications/${ applicationId }`, {
-  //     headers: {
-  //       Authorization: `Bearer ${token}`,
-  //     },
-  //   });
-  // },
+
   submitApplication: async (): Promise<ApiResponse<SubmitResponse>> => {
     const token = getToken();
     const stored = localStorage.getItem("applicationData");
@@ -300,6 +315,7 @@ export const application = {
       }
     );
   },
+
   updateApplication: async (
     payload: ApiPayload
   ): Promise<ApiResponse<UpdateResponse>> => {

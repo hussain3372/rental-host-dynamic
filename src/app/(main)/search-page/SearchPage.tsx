@@ -5,80 +5,113 @@ import { useSearchParams } from "next/navigation";
 import Searchsection from "./Searchsection";
 import VerifiedProperties from "./VerifiedProperties";
 import { propertyAPI } from "../../api/user-flow/index";
-import { Certification } from "../../api/user-flow/types";
-import { MappedProperty } from "@/app/api/user-flow/types";
+import { MappedProperty , ApiProperty} from "@/app/api/user-flow/types";
+
+// Define the actual API response type based on your response
+
+
+interface ApiResponse {
+  data: ApiProperty[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+    hasNext: boolean;
+    hasPrev: boolean;
+  };
+}
 
 export default function SearchPageClient() {
   const searchParams = useSearchParams();
   const queryFromUrl = searchParams.get("query") || "";
 
-  // ✅ single state hooks
-  const [searchText] = useState(queryFromUrl);
-  const [filteredProperties, setFilteredProperties] = useState<
-    MappedProperty[]
-  >([]);
+  const [searchText, setSearchText] = useState(queryFromUrl);
+  const [allProperties, setAllProperties] = useState<MappedProperty[]>([]);
+  const [filteredProperties, setFilteredProperties] = useState<MappedProperty[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Fetch data from API and map to MappedProperty
-  useEffect(() => {
-    const fetchCertifiedProperties = async () => {
-      try {
-        const response = await propertyAPI.getCertifiedProperties();
-        const certifications: Certification[] =
-          response?.data?.data?.certifications || [];
-
-        const mapped: MappedProperty[] = certifications.map((item) => ({
-          id: String(item.id),
-          title: item.property?.name || "Unnamed Property",
-          address: item.property?.address || "Unknown Address",
-          image: item.property?.images?.[0] || "/images/empty.png",
-          status:
-            item.status === "ACTIVE"
-              ? "Verified"
-              : item.status === "EXPIRED"
-              ? "Expired"
-              : "Pending",
-          expiry: item.expiresAt
-            ? new Date(item.expiresAt).toLocaleDateString()
-            : "N/A",
-        }));
-
-        setFilteredProperties(mapped);
-      } catch (error) {
-        console.error("Error fetching certified properties:", error);
-        setFilteredProperties([]);
-      } finally {
-        setLoading(false);
+  // ✅ Function to fetch properties from API
+  const fetchProperties = async (query: string = "") => {
+    setLoading(true);
+    try {
+      console.log("Fetching properties with query:", query);
+      
+      let response;
+      
+      if (query.trim() && query.length >= 3) {
+        // ✅ If there's a search query, use /search/properties WITH search param
+        console.log("Using search/properties endpoint WITH query:", query);
+        response = await propertyAPI.searchProperties(query.trim());
+      } else {
+        // ✅ If no search query, use /search/properties WITHOUT any params
+        console.log("Using search/properties endpoint WITHOUT params (get all properties)");
+        response = await propertyAPI.searchProperties(""); // Empty string = no search param
       }
-    };
+      
+      console.log("Full API Response:", response);
+      
+      // ✅ FIX: Correct response structure mapping
+      // const apiData = response?.data as ApiResponse;
+      const propertiesData = response?.data?.data || [];      
+      console.log("Properties data:", propertiesData);
 
-    fetchCertifiedProperties();
-  }, []);
+      const mapped: MappedProperty[] = propertiesData.map((item) => ({
+        id: item.id,
+        title: item.name || "Unnamed Property",
+        address: item.address || "Unknown Address",
+        image: item.images?.[0] || "/images/empty.png",
+        status:
+          item.certificateStatus === "ACTIVE"
+            ? "Verified"
+            : item.certificateStatus === "EXPIRED"
+            ? "Expired"
+            : "Pending",
+        expiry: item.expiresAt
+          ? new Date(item.expiresAt).toLocaleDateString()
+          : "N/A",
+        location: item.address || "Unknown",
+      }));
 
-  // ✅ Filter properties when user types or selects filters
+      console.log("Mapped properties:", mapped);
+      
+      setAllProperties(mapped);
+      setFilteredProperties(mapped);
+    } catch (error) {
+      console.error("Error fetching certified properties:", error);
+      setAllProperties([]);
+      setFilteredProperties([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ✅ Initial fetch on mount
   useEffect(() => {
-    if (!searchText) return;
-    setFilteredProperties((prev) =>
-      prev.filter((p) => {
-        const titleMatch = p.title
-          ?.toLowerCase()
-          .includes(searchText.toLowerCase());
-        const addressMatch = p.address
-          ?.toLowerCase()
-          .includes(searchText.toLowerCase());
-        const statusMatch = p.status
-          ?.toLowerCase()
-          .includes(searchText.toLowerCase());
-        return titleMatch || addressMatch || statusMatch;
-      })
-    );
-  }, [searchText]);
+    console.log("Initial mount with queryFromUrl:", queryFromUrl);
+    const initialQuery = queryFromUrl.length >= 3 ? queryFromUrl : "";
+    fetchProperties(initialQuery);
+  }, []); // Only run once on mount
+
+  // ✅ Handle search button click
+  const handleSearch = () => {
+    console.log("Search button clicked with text:", searchText);
+    
+    // Fetch from API - logic inside fetchProperties will choose the right endpoint
+    fetchProperties(searchText);
+  };
+
+  // ✅ Handle input text change
+  const handleSearchTextChange = (value: string) => {
+    console.log("Search text changed:", value);
+    setSearchText(value);
+  };
 
   if (loading) {
     return (
-      <p className="text-center text-white py-10">
-        Loading Certified Properties...
-      </p>
+      <div className="text-center text-white py-10">
+        <p>Loading Certified Properties...</p>
+      </div>
     );
   }
 
@@ -87,10 +120,11 @@ export default function SearchPageClient() {
       <Searchsection
         onSearch={setFilteredProperties}
         initialValue={searchText}
-        properties={filteredProperties}
+        properties={allProperties}
+        onSearchTextChange={handleSearchTextChange}
+        onSearchClick={handleSearch}
       />
       <div className="pt-[80px]">
-        {/* ✅ VerifiedProperties expects Property[], but we’ll pass compatible MappedProperty[] */}
         <VerifiedProperties properties={filteredProperties} />
       </div>
     </>

@@ -110,10 +110,12 @@ export default function LoginPage() {
 
       const response: AuthResponse = await auth.Login(loginPayload);
       const user = response?.data?.user;
-
-      if (user?.role !== "SUPER_ADMIN") {
-        toast.error("Access restricted — super admin only.")
-        return 
+      
+      if (response.success) {
+        if (user?.role !== "SUPER_ADMIN") {
+          toast.error("Access restricted — super admin only.")
+          return 
+        }
       }
       
       if (!response?.success) {
@@ -142,8 +144,7 @@ export default function LoginPage() {
         });
 
         toast.success("Login successful!");
-        Cookies.remove('accessToken')
-        Cookies.remove('adminAccessToken')
+        
         router.push("/super-admin/dashboard");
         router.refresh();
         return;

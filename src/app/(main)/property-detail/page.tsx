@@ -8,7 +8,7 @@ export default function page() {
     <div className='bg-[#121315]'>
       <div className=' px-[20px] md:px-[120px]'>
       <Detail/>
-      <Verification/>
+      {/* <Verification/> */}
       </div>
     </div>
   )

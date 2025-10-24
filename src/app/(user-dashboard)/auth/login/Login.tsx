@@ -114,11 +114,11 @@ export default function LoginPage() {
 
       const response: AuthResponse = await auth.Login(loginPayload);
       const user = response?.data?.user;
-
+      
       if (response.success) {
         if (user?.role !== "HOST") {
-          toast.error("Access restricted — hosts only.");
-          return;
+          toast.error("Access restricted — hosts only.")
+          return 
         }
       }
 

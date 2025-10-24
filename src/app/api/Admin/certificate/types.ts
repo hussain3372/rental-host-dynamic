@@ -30,7 +30,7 @@ export interface Certification {
   applicationId: string;
   hostId: number;
   certificateNumber: string;
-  status: "ACTIVE" | "EXPIRED" | "REVOKED";
+  status: "ACTIVE" | "EXPIRED" | "REVOKED"|"RENEW";
   issuedAt: string;
   expiresAt: string;
   revokedAt: string | null;
@@ -99,4 +99,11 @@ export interface CertificateDetail {
     name: string;
     email: string;
   } | null;
+}
+export interface CertificateFilters {
+  issuedAt?: string;
+  expiredAt?: string;
+  status?: "ACTIVE" | "REVOKED" | "EXPIRED";
+  take?: number;
+  skip?: number;
 }

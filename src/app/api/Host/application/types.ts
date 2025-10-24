@@ -247,3 +247,23 @@ interface DocumentPayload {
 export interface ApiPayload {
   documents: DocumentPayload[];
 }
+export interface ApiChecklistItem {
+  id: string | number;
+  name: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface CheckListApiResponse {
+  data: ApiChecklistItem[];
+  success: boolean;
+  message?: string;
+  status?: number;
+}
+export interface ApiChecklistItem {
+  id: string | number;
+  name: string;
+  description?: string;
+  isActive?: boolean;
+}
+

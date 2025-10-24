@@ -6,8 +6,8 @@ import FilterDrawer from "../../tables-essentials/Filter";
 import { application } from "@/app/api/Admin/application";
 
 interface ApiParams {
-  page: number;
-  pageSize: number;
+  page?: number;
+  pageSize?: number;
   search?: string;
   ownership?: string;
   status?: string;
@@ -39,7 +39,7 @@ export default function Applications() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(6); // This should match your desired page size
+  const [itemsPerPage] = useState(6);
   const [isLoading, setIsLoading] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -79,6 +79,45 @@ export default function Applications() {
     hasPrevPage: false
   });
 
+  const [allStatuses, setAllStatuses] = useState<string[]>([]);
+  const [allOwnerships, setAllOwnerships] = useState<string[]>([]);
+
+  const hasActiveFilters = useMemo(() => {
+    return (
+      searchTerm.trim() !== "" ||
+      appliedFilters.ownership.trim() !== "" ||
+      appliedFilters.status.trim() !== "" ||
+      appliedFilters.submittedDate !== ""
+    );
+  }, [searchTerm, appliedFilters]);
+
+  const fetchFilterOptions = useCallback(async () => {
+    try {
+      const response = await application.getAllApplicationsForFilters();
+
+      if (response.success && response.data) {
+        const applications = response.data.applications;
+        
+        const statuses = [...new Set(applications.map((app) => 
+          app.status ? app.status.toUpperCase() : ''
+        ))].filter(Boolean);
+        
+        const ownerships = [...new Set(applications.map((app) => 
+          app.propertyDetails?.ownership || ''
+        ))].filter(Boolean);
+
+        setAllStatuses(statuses);
+        setAllOwnerships(ownerships);
+      }
+    } catch (error) {
+      console.error("Error fetching filter options:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFilterOptions();
+  }, [fetchFilterOptions]);
+
   useEffect(() => {
     if (isFilterOpen) {
       setTempFilters(appliedFilters);
@@ -99,52 +138,78 @@ export default function Applications() {
     });
   };
 
-  const capitalizeStatus = (status: string): string => {
+  const formatDateForAPI = (date: Date | null): string => {
+    if (!date) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const capitalizeStatusForDisplay = (status: string): string => {
+    if (!status) return "";
     return status.charAt(0) + status.slice(1).toLowerCase();
+  };
+
+  const getStatusForAPI = (status: string): string => {
+    if (!status) return "";
+    return status.toUpperCase();
   };
 
   const fetchApplications = useCallback(async () => {
     try {
       setIsLoading(true);
 
-      const apiParams: ApiParams = {
-        page: currentPage, // Use current page from state
-        pageSize: itemsPerPage, // Use itemsPerPage from state
-      };
+      const queryParams: ApiParams = {};
 
-      if (searchTerm) apiParams.search = searchTerm.trim();
-      if (appliedFilters.ownership)
-        apiParams.ownership = appliedFilters.ownership.trim();
-      if (appliedFilters.status)
-        apiParams.status = appliedFilters.status.trim();
-      if (appliedFilters.submittedDate)
-        apiParams.submittedAt = appliedFilters.submittedDate;
+      if (!hasActiveFilters) {
+        queryParams.page = currentPage;
+        queryParams.pageSize = itemsPerPage;
+      } else {
+        if (currentPage > 1) {
+          queryParams.page = currentPage;
+        }
+        if (itemsPerPage !== 6) {
+          queryParams.pageSize = itemsPerPage;
+        }
+      }
 
-      console.log("🔹 API Parameters:", apiParams);
+      if (searchTerm.trim()) {
+        queryParams.search = searchTerm.trim();
+      }
 
-      const response = await application.getApplication(apiParams);
-      console.log("🔹 API Response:", response);
+      if (appliedFilters.ownership.trim()) {
+        queryParams.ownership = appliedFilters.ownership.trim();
+      }
+      
+      if (appliedFilters.status.trim()) {
+        queryParams.status = getStatusForAPI(appliedFilters.status.trim());
+      }
+      
+      if (appliedFilters.submittedDate) {
+        queryParams.submittedAt = appliedFilters.submittedDate;
+      }
+
+      console.log("🚀 HITTING API WITH PARAMS:", queryParams);
+
+      const response = await application.getApplication(queryParams);
 
       if (response.success && response.data) {
-        // Transform API response into table data
         const transformedData: CertificationData[] = response.data.applications.map((app: unknown) => ({
-  id: (app as { id: string }).id,
-  "Application ID": (app as { id: string }).id.substring(0, 8) + "...",
-  "Property Name": (app as { propertyDetails?: { propertyName?: string } }).propertyDetails?.propertyName || "N/A",
-  Address: (app as { propertyDetails?: { address?: string } }).propertyDetails?.address || "N/A", 
-  Ownership: (app as { propertyDetails?: { ownership?: string } }).propertyDetails?.ownership || "N/A",
-  "Current Step": (app as { currentStep?: string }).currentStep || "N/A",
-  Status: capitalizeStatus((app as { status: string }).status),
-  "Submitted Date": (app as { submittedAt?: string }).submittedAt ? formatDate((app as { submittedAt?: string }).submittedAt!) : "—",
-}));
-        console.log("🔹 Transformed data count:", transformedData.length);
+          id: (app as { id: string }).id,
+          "Application ID": (app as { id: string }).id.substring(0, 8) + "...",
+          "Property Name": (app as { propertyDetails?: { propertyName?: string } }).propertyDetails?.propertyName || "N/A",
+          Address: (app as { propertyDetails?: { address?: string } }).propertyDetails?.address || "N/A", 
+          Ownership: (app as { propertyDetails?: { ownership?: string } }).propertyDetails?.ownership || "N/A",
+          "Current Step": (app as { currentStep?: string }).currentStep || "N/A",
+          Status: capitalizeStatusForDisplay((app as { status: string }).status),
+          "Submitted Date": (app as { submittedAt?: string }).submittedAt ? formatDate((app as { submittedAt?: string }).submittedAt!) : "—",
+        }));
 
-        // Set the data and pagination from API response
         setAllCertificationData(transformedData);
 
         if (response.data.pagination) {
           setPaginationData(response.data.pagination);
-          console.log("🔹 Pagination data:", response.data.pagination);
         }
       } else {
         console.error("❌ Unexpected response:", response);
@@ -183,6 +248,7 @@ export default function Applications() {
     appliedFilters.submittedDate,
     currentPage,
     itemsPerPage,
+    hasActiveFilters,
   ]);
 
   useEffect(() => {
@@ -191,10 +257,10 @@ export default function Applications() {
 
   const displayData = useMemo(() => {
     return allCertificationData.map(({ id, ...rest }) => {
-      console.log("🆔 Certification ID:", id);
       return rest;
     });
   }, [allCertificationData]);
+
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set(selectedRows);
     if (checked) {
@@ -236,9 +302,7 @@ export default function Applications() {
       );
 
       await Promise.all(deletePromises);
-
       await fetchApplications();
-
       setIsModalOpen(false);
       setSelectedRows(new Set());
     } catch (error) {
@@ -252,12 +316,9 @@ export default function Applications() {
   ) => {
     try {
       await application.deleteApplication(id);
-
       await fetchApplications();
-
       setIsModalOpen(false);
       setSingleRowToDelete(null);
-
       const newSelected = new Set(selectedRows);
       newSelected.delete(id);
       setSelectedRows(newSelected);
@@ -310,14 +371,6 @@ export default function Applications() {
     highlightRowOnHover: true,
   };
 
-  const uniqueStatuses = [
-    ...new Set(allCertificationData.map((item) => item["Status"])),
-  ];
-  const uniqueOwnerships = [
-    ...new Set(allCertificationData.map((item) => item["Ownership"])),
-  ];
-
-  // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [
@@ -337,19 +390,24 @@ export default function Applications() {
     setTempFilters(resetFilters);
     setAppliedFilters(resetFilters);
     setSubmittedDate(null);
+    setSearchTerm("");
+    setCurrentPage(1);
     setIsFilterOpen(false);
   };
 
   const handleApplyFilter = () => {
+    const dateString = formatDateForAPI(submittedDate);
+    
     const filtersToApply = {
-      ...tempFilters,
-      submittedDate: submittedDate
-        ? submittedDate.toISOString().split("T")[0]
-        : "",
+      ownership: tempFilters.ownership,
+      status: tempFilters.status,
+      submittedDate: dateString,
     };
 
-    console.log("Applying filters:", filtersToApply);
+    console.log("🟢 APPLYING FILTERS:", filtersToApply);
+
     setAppliedFilters(filtersToApply);
+    setCurrentPage(1);
     setIsFilterOpen(false);
   };
 
@@ -453,7 +511,6 @@ export default function Applications() {
             selectedRows.size === 0 || selectedRows.size < displayData.length
           }
           disableClientSidePagination={true}
-
         />
       </div>
 
@@ -466,12 +523,21 @@ export default function Applications() {
         onReset={handleResetFilter}
         buttonLabel="Apply Filter"
         onApply={handleApplyFilter}
-        filterValues={tempFilters}
-        onFilterChange={(filters) => {
-          setTempFilters((prev) => ({
-            ...prev,
-            ...filters,
-          }));
+        filterValues={{
+          ownership: tempFilters.ownership,
+          status: tempFilters.status,
+          "Submitted On": submittedDate,
+        }}
+        onFilterChange={(newValues) => {
+          if (newValues.ownership !== undefined) {
+            setTempFilters(prev => ({ ...prev, ownership: newValues.ownership as string }));
+          }
+          if (newValues.status !== undefined) {
+            setTempFilters(prev => ({ ...prev, status: newValues.status as string }));
+          }
+          if (newValues["Submitted On"] !== undefined) {
+            setSubmittedDate(newValues["Submitted On"] as Date | null);
+          }
         }}
         dropdownStates={{
           ownership: showOwnershipDropdown,
@@ -487,18 +553,18 @@ export default function Applications() {
             key: "ownership",
             type: "dropdown",
             placeholder: "Select ownership",
-            options: uniqueOwnerships,
+            options: allOwnerships,
           },
           {
             label: "Status",
             key: "status",
             type: "dropdown",
             placeholder: "Select status",
-            options: uniqueStatuses,
+            options: allStatuses.map(status => capitalizeStatusForDisplay(status)),
           },
           {
             label: "Submitted On",
-            key: "submittedDate",
+            key: "Submitted On",
             type: "date",
             placeholder: "Select date",
           },

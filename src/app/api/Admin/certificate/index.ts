@@ -1,27 +1,24 @@
 // api/certificateApi.ts
 import { apiClient, ApiResponse } from "../../core/client";
 import Cookies from "js-cookie";
-import { CertificationResponse, Certification } from "./types";
+import { CertificationResponse, Certification , CertificateFilters } from "./types";
 
+const token = Cookies.get("adminAccessToken");
 const getAuthHeaders = () => {
-  const token = Cookies.get("adminAccessToken");
   return {
     "Content-Type": "application/json",
     Authorization: `Bearer ${token}`,
   };
 };
 
-interface CertificateFilters {
-  issuedAt?: string;
-  expiredAt?: string;
-  status?: "ACTIVE" | "REVOKED" | "EXPIRED";
-  take?: number;
-  skip?: number;
+
+interface DeleteCertificatesPayload {
+  certificationIds: string[];
 }
 
 export const certificateApi = {
   getCertificates: async (filters?: CertificateFilters): Promise<ApiResponse<CertificationResponse>> => {
-    // Build query parameters - only include defined values
+    // Build query parameters - include all defined values
     const queryParams = new URLSearchParams();
     
     if (filters) {
@@ -47,10 +44,29 @@ export const certificateApi = {
     });
   },
 
-  // deleteCertificate: async (id: number): Promise<ApiResponse<void>> => {
-  //   return apiClient.delete<void>(`/certifications/${id}`, {
-  //     headers: getAuthHeaders(),
-  //     requiresAuth: false,
-  //   });
-  // },
+  deleteCertificate: async (id: string): Promise<ApiResponse<void>> => {
+    return apiClient.delete<void>(`/certificates/${id}/delete`, {
+      headers: getAuthHeaders(),
+      requiresAuth: false,
+    });
+  },
+
+  deleteCertificates: async (certificationIds: string[]): Promise<ApiResponse<void>> => {
+    const payload: DeleteCertificatesPayload = {
+      certificationIds,
+    };
+    
+    return apiClient.delete<void>('/certificate/delete', {
+      headers: getAuthHeaders(),
+      requiresAuth: false,
+      body: JSON.stringify(payload),
+    });
+  },
+
+    updateCertificateStatus: async (id: string, action:  'revoke' | 'active' | 'expire'): Promise<ApiResponse<Certification>> => {
+      return apiClient.post<Certification>(`/certifications/${id}/${action}`,undefined, {
+        headers: getAuthHeaders(),
+        requiresAuth: false,
+      });
+    },
 };

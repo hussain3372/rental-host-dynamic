@@ -29,7 +29,6 @@ export default function Certificates() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState<"active" | "revoked" | "expired">("active");
-  // const itemsPerPage = 6;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -47,9 +46,6 @@ export default function Certificates() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Track if we're using date filters
-  const [usingDateFilters, setUsingDateFilters] = useState(false);
-
   // Fetch certificates from API whenever filters or activeTab changes
   useEffect(() => {
     fetchCertificates();
@@ -60,28 +56,24 @@ export default function Certificates() {
       setLoading(true);
       setError(null);
       
-      // Build query parameters - only include specific filters
+      // Build query parameters - ALWAYS include status from active tab
       const queryParams: ApiFilters = {};
 
-      // If we have ANY date filters, ONLY send date filters (no status, no pagination)
-      if (apiFilters.issuedAt || apiFilters.expiredAt) {
-        // Send both date filters if they exist
-        if (apiFilters.issuedAt) {
-          queryParams.issuedAt = apiFilters.issuedAt;
-        }
-        if (apiFilters.expiredAt) {
-          queryParams.expiredAt = apiFilters.expiredAt;
-        }
-        // Don't send status when using date filters
-      } else {
-        // Only send status when no date filters are active
-        if (activeTab === "active") {
-          queryParams.status = "ACTIVE";
-        } else if (activeTab === "revoked") {
-          queryParams.status = "REVOKED";
-        } else if (activeTab === "expired") {
-          queryParams.status = "EXPIRED";
-        }
+      // Always add status based on active tab
+      if (activeTab === "active") {
+        queryParams.status = "ACTIVE";
+      } else if (activeTab === "revoked") {
+        queryParams.status = "REVOKED";
+      } else if (activeTab === "expired") {
+        queryParams.status = "EXPIRED";
+      }
+
+      // Add date filters if they exist (along with status)
+      if (apiFilters.issuedAt) {
+        queryParams.issuedAt = apiFilters.issuedAt;
+      }
+      if (apiFilters.expiredAt) {
+        queryParams.expiredAt = apiFilters.expiredAt;
       }
 
       console.log('API Call with filters:', queryParams);
@@ -136,15 +128,9 @@ export default function Certificates() {
     }
   };
 
-  // Filter data based on active tab and search term
+  // Filter data based on search term only (status filtering is done server-side)
   const filteredCertificationData = useMemo(() => {
     let filtered = allCertificationData;
-
-    // If using date filters, show all returned data
-    // If not using date filters, filter by active tab (as backup)
-    if (!usingDateFilters) {
-      filtered = filtered.filter(item => item.Status === activeTab);
-    }
 
     // Apply client-side search filter
     if (searchTerm) {
@@ -164,7 +150,7 @@ export default function Certificates() {
     }
 
     return filtered;
-  }, [searchTerm, allCertificationData, activeTab, usingDateFilters]);
+  }, [searchTerm, allCertificationData]);
 
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set<string>();
@@ -203,32 +189,33 @@ export default function Certificates() {
     );
   }, [filteredCertificationData, selectedRows, isAllDisplayedSelected]);
 
-  // const handleDeleteCertificates = async (selectedRowIds: Set<string>) => {
-  //   try {
-  //     const idsToDelete = Array.from(selectedRowIds).map((id) => {
-  //       const certData = allCertificationData.find(item => item.id.toString() === id);
-  //       return certData?.originalData?.id;
-  //     }).filter(Boolean);
+  const handleDeleteCertificates = async (selectedRowIds: Set<string>) => {
+    try {
+      const certificationIds = Array.from(selectedRowIds).map((id) => {
+        const certData = allCertificationData.find(item => item.id.toString() === id);
+        return certData?.originalData?.id;
+      }).filter(Boolean) as string[];
 
-  //     // for (const certId of idsToDelete) {
-  //     //   await certificateApi.deleteCertificate(certId!);
-  //     // }
+      if (certificationIds.length === 0) {
+        throw new Error('No valid certificate IDs found');
+      }
 
-  //     await fetchCertificates();
+      await certificateApi.deleteCertificates(certificationIds);
+      await fetchCertificates();
       
-  //     setIsModalOpen(false);
-  //     setSelectedRows(new Set());
-  //   } catch (err) {
-  //     console.error('Error deleting certificates:', err);
-  //     setError('Failed to delete certificates');
-  //   }
-  // };
+      setIsModalOpen(false);
+      setSelectedRows(new Set());
+    } catch (err) {
+      console.error('Error deleting certificates:', err);
+      setError('Failed to delete certificates');
+    }
+  };
 
   const handleDeleteSingleCertificate = async (id: number) => {
     try {
       const certData = allCertificationData.find(item => item.id === id);
       if (certData?.originalData?.id) {
-        // await certificateApi.deleteCertificate(certData.originalData.id);
+        await certificateApi.deleteCertificate(certData.originalData.id);
         await fetchCertificates();
       }
       
@@ -255,7 +242,7 @@ export default function Certificates() {
 
   const handleModalConfirm = () => {
     if (modalType === "multiple" && selectedRows.size > 0) {
-      // handleDeleteCertificates(selectedRows);
+      handleDeleteCertificates(selectedRows);
     } else if (modalType === "single" && singleRowToDelete) {
       handleDeleteSingleCertificate(singleRowToDelete.id);
     }
@@ -273,7 +260,6 @@ export default function Certificates() {
 
   const handleResetFilter = () => {
     setApiFilters({});
-    setUsingDateFilters(false);
     setSearchTerm("");
     setIssueDate(null);
     setExpiryDate(null);
@@ -283,9 +269,8 @@ export default function Certificates() {
   const handleApplyFilter = () => {
     const newFilters: ApiFilters = {};
 
-    // Send BOTH date filters if both are selected
+    // Add date filters if they exist
     if (issueDate) {
-      // Fix date issue - use local date without timezone conversion
       const year = issueDate.getFullYear();
       const month = String(issueDate.getMonth() + 1).padStart(2, '0');
       const day = String(issueDate.getDate()).padStart(2, '0');
@@ -293,15 +278,11 @@ export default function Certificates() {
     }
 
     if (expiryDate) {
-      // Fix date issue - use local date without timezone conversion
       const year = expiryDate.getFullYear();
       const month = String(expiryDate.getMonth() + 1).padStart(2, '0');
       const day = String(expiryDate.getDate()).padStart(2, '0');
       newFilters.expiredAt = `${year}-${month}-${day}`;
     }
-
-    // Only set usingDateFilters if at least one date is selected
-    setUsingDateFilters(!!(issueDate || expiryDate));
 
     setApiFilters(newFilters);
     setIsFilterOpen(false);
@@ -329,13 +310,9 @@ export default function Certificates() {
     }
   };
 
-  // Handle tab change - reset date filters when switching tabs
+  // Handle tab change - keep date filters when switching tabs
   const handleTabChange = (tab: "active" | "revoked" | "expired") => {
     setActiveTab(tab);
-    setUsingDateFilters(false);
-    setApiFilters({});
-    setIssueDate(null);
-    setExpiryDate(null);
     setCurrentPage(1);
   };
 
@@ -462,7 +439,6 @@ export default function Certificates() {
           }}
           showPagination={true}
           currentPage={currentPage}
-          // totalPages={Math.ceil(filteredCertificationData.length / itemsPerPage)}
           onPageChange={setCurrentPage}
           clickable={true}
           selectedRows={selectedRows}

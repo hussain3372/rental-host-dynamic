@@ -5,6 +5,7 @@ import Link from "next/link";
 import BlackButton from "../../shared/BlackButton";
 import { propertyAPI } from "../../api/user-flow/index";
 import { Certification } from "../../api/user-flow/types";
+import { useRouter } from "next/navigation";
 
 type PropertyItem = {
   id: string;
@@ -17,35 +18,49 @@ const CertifiedProperties = () => {
   const [properties, setProperties] = useState<PropertyItem[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchCertifiedProperties = async () => {
-      try {
-        const response = await propertyAPI.getCertifiedProperties();
-        const certifications = response?.data?.data?.certifications;
+  const router = useRouter()
 
-        if (certifications && certifications.length > 0) {
-          const mapped: PropertyItem[] = certifications.map(
-            (item: Certification) => ({
-              id: item.id,
-              title: item.property?.name || "Unnamed Property",
-              address: item.property?.address || "",
-              image: item.property?.images?.[0] || "/images/empty.png",
-            })
-          );
-          setProperties(mapped);
-        } else {
-          // No certified properties, show empty state
-          setProperties([
-            {
-              id: "empty",
-              title: "No Certified Properties",
-              address: "",
-              image: "/images/empty.png",
-            },
-          ]);
-        }
-      } catch (error) {
-        console.error("Error fetching certified properties:", error);
+// Helper function to safely extract certifications
+// Replace the extractCertifications function with this:
+const extractCertifications = (response: unknown): Certification[] => {
+  if (!response || typeof response !== 'object') return [];
+  
+  const possiblePaths = [
+    (response as { data?: { certifications?: Certification[] } })?.data?.certifications,
+    (response as { data?: { data?: Certification[] } })?.data?.data,
+    (response as { certifications?: Certification[] })?.certifications,
+    (response as { data?: Certification[] })?.data,
+    response as Certification[]
+  ];
+  
+  for (const path of possiblePaths) {
+    if (Array.isArray(path) && path.length > 0) {
+      return path;
+    }
+  }
+  
+  return [];
+};
+
+// Then in your useEffect:
+useEffect(() => {
+  const fetchCertifiedProperties = async () => {
+    try {
+      setLoading(true);
+      const response = await propertyAPI.getCertifiedProperties();
+      const certifications = extractCertifications(response);
+
+      if (certifications.length > 0) {
+        const mapped: PropertyItem[] = certifications.map(
+          (item: Certification) => ({
+            id: item.id,
+            title: item.property?.name || "Unnamed Property",
+            address: item.property?.address || "",
+            image: item.property?.images?.[0] || "/images/empty.png",
+          })
+        );
+        setProperties(mapped);
+      } else {
         setProperties([
           {
             id: "empty",
@@ -54,13 +69,24 @@ const CertifiedProperties = () => {
             image: "/images/empty.png",
           },
         ]);
-      } finally {
-        setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error("Error fetching certified properties:", error);
+      setProperties([
+        {
+          id: "empty",
+          title: "No Certified Properties",
+          address: "",
+          image: "/images/empty.png",
+        },
+      ]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    fetchCertifiedProperties();
-  }, []);
+  fetchCertifiedProperties();
+}, []);
 
   if (loading) {
     return <p className="text-white text-center py-10">Loading...</p>;
@@ -134,7 +160,7 @@ const CertifiedProperties = () => {
             }
 
             return (
-              <div
+              <div onClick={()=>{router.push(`/property-detail/${property.id}`)}}
                 key={property.id}
                 className={`${colSpan} ${extraClasses} mb-8`}
               >

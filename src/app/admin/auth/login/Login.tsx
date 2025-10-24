@@ -39,8 +39,7 @@ export default function LoginPage() {
 
           toast.success("Login successful!");
           router.push('/admin/dashboard')
-          Cookies.remove('accessToken')
-          Cookies.remove('superAdminaccessToken')
+         
 
 
         localStorage.removeItem("firstname");

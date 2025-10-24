@@ -4,10 +4,12 @@ import { ApplicationsListResponse, Application, InfoData, ApiWrapperResponse, Pr
 import Cookies from "js-cookie";
 
 const getToken = () => Cookies.get("adminAccessToken");
+
 interface PropertyTypeApiResponse {
   message: string;
   data: PropertyType;
 }
+
 export const application = {
   getApplication: async (
     params?: Partial<{
@@ -22,14 +24,27 @@ export const application = {
   ): Promise<ApiResponse<ApplicationsListResponse>> => {
     const token = getToken();
 
+    // Clean parameters - remove empty, null, undefined values
+    const cleanParams: Record<string, string> = {};
+    
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        // Skip empty strings, null, undefined
+        if (value !== undefined && value !== null && value !== '') {
+          cleanParams[key] = String(value);
+        }
+      });
+    }
+
+    console.log("🔹 Final API Params:", cleanParams);
+
     const res = await apiClient.get<ApiWrapperResponse>("/applications", {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      params: params as Record<string, string | number | boolean | undefined>,
+      params: cleanParams,
     });
-
 
     if (!res.success) {
       return res as unknown as ApiResponse<ApplicationsListResponse>;
@@ -58,6 +73,7 @@ export const application = {
       data: normalized,
     } as ApiResponse<ApplicationsListResponse>;
   },
+
   getApplicationDetail: async (
     id: string
   ): Promise<ApiResponse<Application>> => {
@@ -88,7 +104,6 @@ export const application = {
       },
     });
   },
-  // In your application API file, add this method:
 
   getPropertyType: async (id: string): Promise<ApiResponse<PropertyType>> => {
     const token = getToken();
@@ -134,5 +149,47 @@ export const application = {
         Authorization: `Bearer ${token}`,
       },
     });
+  },
+
+  // NEW METHOD: Get all applications for filter options (without pagination)
+  getAllApplicationsForFilters: async (): Promise<ApiResponse<ApplicationsListResponse>> => {
+    const token = getToken();
+    
+    const res = await apiClient.get<ApiWrapperResponse>("/applications", {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      params: {
+        page: 1,
+        pageSize: 1000, // Get a large number to ensure we get all options
+      },
+    });
+
+    if (!res.success) {
+      return res as unknown as ApiResponse<ApplicationsListResponse>;
+    }
+
+    const wrapperData = res.data as ApiWrapperResponse;
+    const applicationsData = wrapperData.data;
+
+    const normalized: ApplicationsListResponse = {
+      applications: applicationsData?.applications || [],
+      pagination: applicationsData?.pagination || {
+        total: 0,
+        pageSize: 10,
+        currentPage: 1,
+        totalPages: 0,
+        nextPage: null,
+        prevPage: null,
+        hasNextPage: false,
+        hasPrevPage: false
+      }
+    };
+
+    return {
+      ...res,
+      data: normalized,
+    } as ApiResponse<ApplicationsListResponse>;
   },
 };
