@@ -3,7 +3,8 @@ import React, { useMemo, useState, useEffect } from "react";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "@/app/admin/tables-essentials/Filter";
-import { managementApi, GetUsersParams } from "@/app/api/super-admin/user-management/index";
+import { managementApi } from "@/app/api/super-admin/user-management/index";
+import { GetUsersParams } from "@/app/api/super-admin/user-management/types";
 
 interface AdminData {
   id: number;
@@ -110,12 +111,12 @@ export default function Applications() {
     }, 500);
 
     return () => clearTimeout(timeoutId);
-  }, [searchTerm, appliedFilters, currentPage,fetchData]);
+  }, [searchTerm, appliedFilters, currentPage]);
 
   // Initial data fetch
   useEffect(() => {
     fetchData();
-  }, [fetchData]);
+  }, []);
 
   // Reset to page 1 when filters change
   useEffect(() => {

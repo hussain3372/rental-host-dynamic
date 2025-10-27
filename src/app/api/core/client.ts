@@ -167,14 +167,13 @@ async function fetchWithTimeout(
 
 export async function getAuthToken(): Promise<string | null> {
   // 1. Try to get token from cookies (most secure for accessToken)
-  const cookieToken = Cookies.get("accessToken");
 
   // 2. If not found, fall back to localStorage
   const localToken =
     typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
 
   // 3. You can prioritize cookie over local storage
-  return cookieToken || localToken;
+  return  localToken;
 }
 
 /**

@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { Toaster } from "react-hot-toast";
 import Navbar from "./(components)/Navbar";
 
-
 // Define props type
 type ListingLayoutProps = {
   children: ReactNode;

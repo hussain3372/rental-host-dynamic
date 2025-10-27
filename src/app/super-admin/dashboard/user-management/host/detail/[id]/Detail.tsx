@@ -2,64 +2,75 @@
 import Link from "next/link";
 import { useEffect, useRef, useState, useMemo } from "react";
 import Image from "next/image";
-// import { allProperties } from "@/app/admin/data/Info";
 import Dropdown from "@/app/shared/Dropdown";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "@/app/admin/tables-essentials/Filter";
+import { managementApi } from "@/app/api/super-admin/user-management";
+import { useParams } from "next/navigation";
+import { PropertyResponse, BillingHistoryResponse , GetUserPropertiesParams , GetUserBillingParams } from "@/app/api/super-admin/user-management/types";
 
-interface PropertyData {
+interface UserDetail {
   id: number;
-  "Application ID": string;
-  "Property Name": string;
-  Ownership: string;
-  "Submitted On": string;
-  "Reviewed By": string;
-  Status: "Approved" | "Rejected" | "Approved";
+  email: string;
+  name: string;
+  firstName: string;
+  lastName: string;
+  companyName: string | null;
+  phone: string | null;
+  role: string;
+  status: string;
+  emailVerified: boolean;
+  isEmail: boolean;
+  isNotification: boolean;
+  mfaEnabled: boolean;
+  lastLoginAt: string;
+  createdAt: string;
+  updatedAt: string;
+  statistics: {
+    listedProperties: number;
+    certifiedProperties: number;
+    expiredCertificates: number;
+    rejectedProperties: number;
+  };
 }
 
-interface BillingData {
-  id: number;
-  "Plan Name": string;
-  Amount: string;
-  "Purchase Date": string;
-  "End Date": string;
-  Status: "Active" | "Inactive";
+interface FilterValues {
+  [key: string]: string;
 }
+
 
 export default function Detail() {
-  const Credentials = [
+  const { id } = useParams();
+  const userId = Array.isArray(id) ? id[0] : id;
+
+  const [userData, setUserData] = useState<UserDetail | null>(null);
+  const [credentials, setCredentials] = useState([
     {
       id: 1,
       img: "/images/apartment.svg",
-      val: "120",
+      val: "0",
       title: "Listed Properties",
     },
     {
       id: 2,
       img: "/images/p-app.svg",
-      val: "86",
+      val: "0",
       title: "Certified Properties",
     },
     {
       id: 3,
       img: "/images/reject.svg",
-      val: "12",
+      val: "0",
       title: "Expired Certificates",
     },
     {
       id: 4,
       img: "/images/approved.svg",
-      val: "05",
+      val: "0",
       title: "Rejected Properties",
     },
-  ];
-
-  // const { id } = useParams();
-  // const propertyId = Number(id);
-
-  // Get property by ID
-  // const property = allProperties.find((p) => p.id === propertyId);
+  ]);
 
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [selectedStatus, setSelectedStatus] = useState("Active");
@@ -69,163 +80,243 @@ export default function Detail() {
   const [propertySearchTerm, setPropertySearchTerm] = useState("");
   const [propertyCurrentPage, setPropertyCurrentPage] = useState(1);
   const [isPropertyFilterOpen, setIsPropertyFilterOpen] = useState(false);
-  // Properties Table States - Change to string
-  const [propertySelectedRows, setPropertySelectedRows] = useState<Set<string>>(
-    new Set()
-  );
+  const [propertySelectedRows, setPropertySelectedRows] = useState<Set<string>>(new Set());
   const [submittedDate, setSubmittedDate] = useState<Date | null>(null);
   const [propertyFilters, setPropertyFilters] = useState({
     ownership: "",
     status: "",
     submittedDate: "",
   });
+  const [allPropertyData, setAllPropertyData] = useState<PropertyResponse['data']>([]);
+  const [propertyLoading, setPropertyLoading] = useState(false);
+  const [deletingProperties, setDeletingProperties] = useState<Set<string>>(new Set());
 
   // Billing Table States
   const [billingSearchTerm, setBillingSearchTerm] = useState("");
   const [billingCurrentPage, setBillingCurrentPage] = useState(1);
   const [isBillingFilterOpen, setIsBillingFilterOpen] = useState(false);
-  // Billing Table States - Change to string
-  const [billingSelectedRows, setBillingSelectedRows] = useState<Set<string>>(
-    new Set()
-  );
+  const [billingSelectedRows, setBillingSelectedRows] = useState<Set<string>>(new Set());
   const [purchaseDate, setPurchaseDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
-
   const [billingFilters, setBillingFilters] = useState({
     status: "",
     purchaseDate: "",
     endDate: "",
   });
+  const [allBillingData, setAllBillingData] = useState<BillingHistoryResponse['data']>([]);
+  const [billingLoading, setBillingLoading] = useState(false);
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [singleRowToDelete, setSingleRowToDelete] = useState<{
     row: Record<string, string>;
-    id: number;
+    id: string;
     type: "property" | "billing";
   } | null>(null);
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
-  const [deleteType, setDeleteType] = useState<"property" | "billing">(
-    "property"
-  );
+  const [deleteType, setDeleteType] = useState<"property" | "billing">("property");
 
   // Dropdown states for filters
   const [showOwnershipDropdown, setShowOwnershipDropdown] = useState(false);
-  const [showPropertyStatusDropdown, setShowPropertyStatusDropdown] =
-    useState(false);
-  const [showBillingStatusDropdown, setShowBillingStatusDropdown] =
-    useState(false);
+  const [showPropertyStatusDropdown, setShowPropertyStatusDropdown] = useState(false);
+  const [showBillingStatusDropdown, setShowBillingStatusDropdown] = useState(false);
 
   const itemsPerPage = 6;
 
-  // Sample Data
-  const [allPropertyData, setAllPropertyData] = useState<PropertyData[]>([
-    {
-      id: 1,
-      "Application ID": "TAG-8789",
-      "Property Name": "Coastal Hillside Estate",
-      Ownership: "Manager",
-      "Submitted On": "August 12, 2025",
-      "Reviewed By": "Conrad Fisher",
-      Status: "Approved",
-    },
-    {
-      id: 2,
-      "Application ID": "TAG-8789",
-      "Property Name": "Coastal Hillside Estate",
-      Ownership: "Manager",
-      "Submitted On": "August 12, 2025",
-      "Reviewed By": "Conrad Fisher",
-      Status: "Rejected",
-    },
-    {
-      id: 3,
-      "Application ID": "TAG-8789",
-      "Property Name": "Coastal Hillside Estate",
-      Ownership: "Owner",
-      "Submitted On": "August 12, 2025",
-      "Reviewed By": "Conrad Fisher",
-      Status: "Approved",
-    },
-    {
-      id: 4,
-      "Application ID": "TAG-8789",
-      "Property Name": "Coastal Hillside Estate",
-      Ownership: "Manager",
-      "Submitted On": "August 12, 2025",
-      "Reviewed By": "Conrad Fisher",
-      Status: "Approved",
-    },
-    {
-      id: 5,
-      "Application ID": "TAG-8789",
-      "Property Name": "Coastal Hillside Estate",
-      Ownership: "Agent",
-      "Submitted On": "August 12, 2025",
-      "Reviewed By": "Conrad Fisher",
-      Status: "Approved",
-    },
-    {
-      id: 6,
-      "Application ID": "TAG-8789",
-      "Property Name": "Coastal Hillside Estate",
-      Ownership: "Manager",
-      "Submitted On": "August 12, 2025",
-      "Reviewed By": "Conrad Fisher",
-      Status: "Approved",
-    },
-  ]);
+  // Fetch user data
+  useEffect(() => {
+    const fetchData = async () => {
+      if (!userId) return;
+      
+      try {
+        const response = await managementApi.getUserDetail(userId);
+        setUserData(response.data as UserDetail);;
+        
+        // Update credentials with API data
+        setCredentials([
+          {
+            id: 1,
+            img: "/images/apartment.svg",
+            val: response.data.statistics.listedProperties.toString(),
+            title: "Listed Properties",
+          },
+          {
+            id: 2,
+            img: "/images/p-app.svg",
+            val: response.data.statistics.certifiedProperties.toString(),
+            title: "Certified Properties",
+          },
+          {
+            id: 3,
+            img: "/images/reject.svg",
+            val: response.data.statistics.expiredCertificates.toString(),
+            title: "Expired Certificates",
+          },
+          {
+            id: 4,
+            img: "/images/approved.svg",
+            val: response.data.statistics.rejectedProperties.toString(),
+            title: "Rejected Properties",
+          },
+        ]);
+      } catch (error) {
+        console.error("Failed to fetch user details:", error);
+      }
+    };
+    
+    fetchData();
+  }, [userId]);
 
-  const [allBillingData, setAllBillingData] = useState<BillingData[]>([
-    {
-      id: 1,
-      "Plan Name": "Starter",
-      Amount: "$12",
-      "Purchase Date": "Aug 12, 2025",
-      "End Date": "Aug 12, 2025",
-      Status: "Active",
-    },
-    {
-      id: 2,
-      "Plan Name": "Professional",
-      Amount: "$24",
-      "Purchase Date": "Aug 12, 2025",
-      "End Date": "Aug 12, 2025",
-      Status: "Inactive",
-    },
-    {
-      id: 3,
-      "Plan Name": "Enterprise",
-      Amount: "$200",
-      "Purchase Date": "Aug 12, 2025",
-      "End Date": "Aug 12, 2025",
-      Status: "Active",
-    },
-    {
-      id: 4,
-      "Plan Name": "Starter",
-      Amount: "$12",
-      "Purchase Date": "Aug 12, 2025",
-      "End Date": "Aug 12, 2025",
-      Status: "Inactive",
-    },
-    {
-      id: 5,
-      "Plan Name": "Enterprise",
-      Amount: "$200",
-      "Purchase Date": "Aug 12, 2025",
-      "End Date": "Aug 12, 2025",
-      Status: "Active",
-    },
-  ]);
+  // Fetch properties data
+  // const fetchProperties = async (searchTerm?: string, filters?: any) => {
+  //   if (!userId) return;
+    
+  //   setPropertyLoading(true);
+  //   try {
+  //     const params: GetUserPropertiesParams = {};
+      
+  //     if (searchTerm && searchTerm.length >= 3) {
+  //       params.search = searchTerm;
+  //     }
+      
+  //     if (filters?.status) {
+  //       params.status = filters.status;
+  //     }
+      
+  //     if (filters?.ownership) {
+  //       params.ownership = filters.ownership;
+  //     }
+      
+  //     if (filters?.submittedDate) {
+  //       // Convert submitted date to date range format
+  //       const submittedDateObj = new Date(filters.submittedDate);
+  //       params.submittedFrom = submittedDateObj.toISOString().split('T')[0];
+  //       params.submittedTo = submittedDateObj.toISOString().split('T')[0];
+  //     }
+      
+  //     const response = await managementApi.getUserProperties(userId, params);
+  //     setAllPropertyData(response.data.data);
+  //   } catch (error) {
+  //     console.error("Failed to fetch properties:", error);
+  //   } finally {
+  //     setPropertyLoading(false);
+  //   }
+  // };
+
+  // Fetch billing data
+  // const fetchBilling = async (searchTerm?: string, filters?: any) => {
+  //   if (!userId) return;
+    
+  //   setBillingLoading(true);
+  //   try {
+  //     const params: GetUserBillingParams = {};
+      
+  //     if (searchTerm && searchTerm.length >= 3) {
+  //       params.search = searchTerm;
+  //     }
+      
+  //     if (filters?.status) {
+  //       params.status = filters.status;
+  //     }
+      
+  //     if (filters?.purchaseDate) {
+  //       const purchaseDateObj = new Date(filters.purchaseDate);
+  //       params.endDateFrom = purchaseDateObj.toISOString().split('T')[0];
+  //     }
+      
+  //     if (filters?.endDate) {
+  //       const endDateObj = new Date(filters.endDate);
+  //       params.endDateTo = endDateObj.toISOString().split('T')[0];
+  //     }
+      
+  //     const response = await managementApi.getUserBilling(userId, params);
+  //     setAllBillingData(response.data.data);
+  //   } catch (error) {
+  //     console.error("Failed to fetch billing:", error);
+  //   } finally {
+  //     setBillingLoading(false);
+  //   }
+  // };
+
+  // Delete property function
+  const deleteProperty = async (propertyId: string) => {
+    setDeletingProperties(prev => new Set(prev).add(propertyId));
+    try {
+      await managementApi.deleteApplication(propertyId);
+      // Remove the deleted property from state
+      setAllPropertyData(prev => prev.filter(property => property.id !== propertyId));
+      // Remove from selected rows
+      setPropertySelectedRows(prev => {
+        const newSelected = new Set(prev);
+        newSelected.delete(propertyId);
+        return newSelected;
+      });
+      return true;
+    } catch (error) {
+      console.error("Failed to delete property:", error);
+      return false;
+    } finally {
+      setDeletingProperties(prev => {
+        const newDeleting = new Set(prev);
+        newDeleting.delete(propertyId);
+        return newDeleting;
+      });
+    }
+  };
+
+  // Delete multiple properties
+  const deleteMultipleProperties = async (propertyIds: string[]) => {
+    const results = await Promise.allSettled(
+      propertyIds.map(id => deleteProperty(id))
+    );
+    
+    const successfulDeletes = results.filter(result => result.status === 'fulfilled' && result.value).length;
+    const failedDeletes = results.filter(result => result.status === 'rejected' || !result.value).length;
+    
+    if (successfulDeletes > 0) {
+      console.log(`Successfully deleted ${successfulDeletes} properties`);
+    }
+    if (failedDeletes > 0) {
+      console.error(`Failed to delete ${failedDeletes} properties`);
+    }
+    
+    return successfulDeletes > 0;
+  };
+
+  // Initial data fetch
+  useEffect(() => {
+    if (userId) {
+      // fetchProperties();
+      // fetchBilling();
+    }
+  }, [userId]);
+
+  // Search with debounce for properties
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (propertySearchTerm.length >= 3 || propertySearchTerm.length === 0) {
+        // fetchProperties(propertySearchTerm, propertyFilters);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [propertySearchTerm, userId]);
+
+  // Search with debounce for billing
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      if (billingSearchTerm.length >= 3 || billingSearchTerm.length === 0) {
+        // fetchBilling(billingSearchTerm, billingFilters);
+      }
+    }, 500);
+
+    return () => clearTimeout(timeoutId);
+  }, [billingSearchTerm, userId]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
     };
@@ -235,33 +326,11 @@ export default function Detail() {
       document.removeEventListener("mousedown", handleClickOutside);
     };
   }, []);
-
-  // If property not found
 
   const handleStatusSelect = (status: string) => {
     setSelectedStatus(status);
     setIsDropdownOpen(false);
   };
-
-  // Remove this problematic line completely
-  // window.addEventListener("click", () => setIsDropdownOpen(false));
-
-  // Your useEffect is sufficient
-  useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
 
   const statusOptions = [
     { label: "Active", onClick: () => handleStatusSelect("Active") },
@@ -269,106 +338,61 @@ export default function Detail() {
     { label: "Expired", onClick: () => handleStatusSelect("Expired") },
   ];
 
-  // Get unique values for filter options
-  const uniqueOwnerships = [
-    ...new Set(allPropertyData.map((item) => item["Ownership"])),
-  ];
-  const uniquePropertyStatuses = [
-    ...new Set(allPropertyData.map((item) => item["Status"])),
-  ];
-  const uniqueBillingStatuses = [
-    ...new Set(allBillingData.map((item) => item["Status"])),
-  ];
+  // Transform API data for table display - Properties
+  const displayPropertyData = useMemo(() => {
+    return allPropertyData.map((property) => ({
+      "Application ID": property.id.substring(0, 8).toUpperCase(),
+      "Property Name": property.propertyDetails.propertyName,
+      "Ownership": property.propertyDetails.ownership,
+      "Submitted On": property.submittedAt ? new Date(property.submittedAt).toLocaleDateString('en-US', {
+        month: 'long',
+        day: 'numeric',
+        year: 'numeric'
+      }) : 'Not Submitted',
+      "Reviewed By": property.reviewedAt ? 'Admin' : 'Not Reviewed',
+      "Status": property.status.charAt(0) + property.status.slice(1).toLowerCase()
+    }));
+  }, [allPropertyData]);
 
-  // Filter Properties Data
-  const filteredPropertyData = useMemo(() => {
-    let filtered = allPropertyData;
+  // Transform API data for table display - Billing
+  const displayBillingData = useMemo(() => {
+    return allBillingData.map((billing) => ({
+      "Plan Name": "Certification Fee", // You might want to get this from application data
+      "Amount": `${billing.amount} ${billing.currency}`,
+      "Purchase Date": new Date(billing.createdAt).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }),
+      "End Date": new Date(billing.createdAt).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      }), // Adjust based on your business logic
+      "Status": billing.status === 'COMPLETED' ? 'Active' : 'Inactive'
+    }));
+  }, [allBillingData]);
 
-    if (propertySearchTerm) {
-      filtered = filtered.filter(
-        (item) =>
-          item["Property Name"]
-            .toLowerCase()
-            .includes(propertySearchTerm.toLowerCase()) ||
-          item["Application ID"]
-            .toLowerCase()
-            .includes(propertySearchTerm.toLowerCase()) ||
-          item["Ownership"]
-            .toLowerCase()
-            .includes(propertySearchTerm.toLowerCase()) ||
-          item["Reviewed By"]
-            .toLowerCase()
-            .includes(propertySearchTerm.toLowerCase())
-      );
-    }
+  // Get unique values for filter options from API data
+  const uniqueOwnerships = useMemo(() => {
+    return [...new Set(allPropertyData.map((item) => item.propertyDetails.ownership))];
+  }, [allPropertyData]);
 
-    if (propertyFilters.ownership) {
-      filtered = filtered.filter(
-        (item) => item["Ownership"] === propertyFilters.ownership
-      );
-    }
+  const uniquePropertyStatuses = useMemo(() => {
+    return [...new Set(allPropertyData.map((item) => item.status))];
+  }, [allPropertyData]);
 
-    if (propertyFilters.status) {
-      filtered = filtered.filter(
-        (item) => item["Status"] === propertyFilters.status
-      );
-    }
-
-    if (propertyFilters.submittedDate) {
-      filtered = filtered.filter((item) =>
-        item["Submitted On"].includes(propertyFilters.submittedDate)
-      );
-    }
-
-    return filtered;
-  }, [propertySearchTerm, propertyFilters, allPropertyData]);
-
-  // Filter Billing Data
-  const filteredBillingData = useMemo(() => {
-    let filtered = allBillingData;
-
-    if (billingSearchTerm) {
-      filtered = filtered.filter(
-        (item) =>
-          item["Plan Name"]
-            .toLowerCase()
-            .includes(billingSearchTerm.toLowerCase()) ||
-          item["Amount"].toLowerCase().includes(billingSearchTerm.toLowerCase())
-      );
-    }
-
-    if (billingFilters.status) {
-      filtered = filtered.filter(
-        (item) => item["Status"] === billingFilters.status
-      );
-    }
-
-    if (billingFilters.purchaseDate) {
-      filtered = filtered.filter((item) =>
-        item["Purchase Date"].includes(billingFilters.purchaseDate)
-      );
-    }
-
-    if (billingFilters.endDate) {
-      filtered = filtered.filter((item) =>
-        item["End Date"].includes(billingFilters.endDate)
-      );
-    }
-
-    return filtered;
-  }, [billingSearchTerm, billingFilters, allBillingData]);
+  const uniqueBillingStatuses = useMemo(() => {
+    return [...new Set(allBillingData.map((item) => item.status))];
+  }, [allBillingData]);
 
   // Property Table Handlers
   const handlePropertySelectAll = (checked: boolean) => {
     const newSelected = new Set(propertySelectedRows);
     if (checked) {
-      filteredPropertyData.forEach((item) =>
-        newSelected.add(item.id.toString())
-      );
+      allPropertyData.forEach((item) => newSelected.add(item.id));
     } else {
-      filteredPropertyData.forEach((item) =>
-        newSelected.delete(item.id.toString())
-      );
+      allPropertyData.forEach((item) => newSelected.delete(item.id));
     }
     setPropertySelectedRows(newSelected);
   };
@@ -384,33 +408,20 @@ export default function Detail() {
   };
 
   const isAllPropertySelected = useMemo(() => {
-    return (
-      filteredPropertyData.length > 0 &&
-      filteredPropertyData.every((item) =>
-        propertySelectedRows.has(item.id.toString())
-      )
-    );
-  }, [filteredPropertyData, propertySelectedRows]);
+    return allPropertyData.length > 0 && allPropertyData.every((item) => propertySelectedRows.has(item.id));
+  }, [allPropertyData, propertySelectedRows]);
 
   const isSomePropertySelected = useMemo(() => {
-    return (
-      filteredPropertyData.some((item) =>
-        propertySelectedRows.has(item.id.toString())
-      ) && !isAllPropertySelected
-    );
-  }, [filteredPropertyData, propertySelectedRows, isAllPropertySelected]);
+    return allPropertyData.some((item) => propertySelectedRows.has(item.id)) && !isAllPropertySelected;
+  }, [allPropertyData, propertySelectedRows, isAllPropertySelected]);
 
   // Billing Table Handlers
   const handleBillingSelectAll = (checked: boolean) => {
     const newSelected = new Set(billingSelectedRows);
     if (checked) {
-      filteredBillingData.forEach((item) =>
-        newSelected.add(item.id.toString())
-      );
+      allBillingData.forEach((item) => newSelected.add(item.id));
     } else {
-      filteredBillingData.forEach((item) =>
-        newSelected.delete(item.id.toString())
-      );
+      allBillingData.forEach((item) => newSelected.delete(item.id));
     }
     setBillingSelectedRows(newSelected);
   };
@@ -426,26 +437,17 @@ export default function Detail() {
   };
 
   const isAllBillingSelected = useMemo(() => {
-    return (
-      filteredBillingData.length > 0 &&
-      filteredBillingData.every((item) =>
-        billingSelectedRows.has(item.id.toString())
-      )
-    );
-  }, [filteredBillingData, billingSelectedRows]);
+    return allBillingData.length > 0 && allBillingData.every((item) => billingSelectedRows.has(item.id));
+  }, [allBillingData, billingSelectedRows]);
 
   const isSomeBillingSelected = useMemo(() => {
-    return (
-      filteredBillingData.some((item) =>
-        billingSelectedRows.has(item.id.toString())
-      ) && !isAllBillingSelected
-    );
-  }, [filteredBillingData, billingSelectedRows, isAllBillingSelected]);
+    return allBillingData.some((item) => billingSelectedRows.has(item.id)) && !isAllBillingSelected;
+  }, [allBillingData, billingSelectedRows, isAllBillingSelected]);
 
   // Delete Handlers
   const openDeleteSingleModal = (
     row: Record<string, string>,
-    id: number,
+    id: string,
     type: "property" | "billing"
   ) => {
     setSingleRowToDelete({ row, id, type });
@@ -455,8 +457,7 @@ export default function Detail() {
   };
 
   const handleDeleteSelected = (type: "property" | "billing") => {
-    const selectedRows =
-      type === "property" ? propertySelectedRows : billingSelectedRows;
+    const selectedRows = type === "property" ? propertySelectedRows : billingSelectedRows;
     if (selectedRows.size > 0) {
       setModalType("multiple");
       setDeleteType(type);
@@ -464,58 +465,20 @@ export default function Detail() {
     }
   };
 
-  const handleModalConfirm = () => {
-    if (modalType === "multiple") {
-      if (deleteType === "property" && propertySelectedRows.size > 0) {
-        const idsToDelete = Array.from(propertySelectedRows).map((id) =>
-          parseInt(id)
-        );
-        const updatedData = allPropertyData.filter(
-          (item) => !idsToDelete.includes(item.id)
-        );
-        setAllPropertyData(updatedData);
-        setPropertySelectedRows(new Set());
-      } else if (deleteType === "billing" && billingSelectedRows.size > 0) {
-        const idsToDelete = Array.from(billingSelectedRows).map((id) =>
-          parseInt(id)
-        );
-        const updatedData = allBillingData.filter(
-          (item) => !idsToDelete.includes(item.id)
-        );
-        setAllBillingData(updatedData);
-        setBillingSelectedRows(new Set());
-      }
-    } else if (modalType === "single" && singleRowToDelete) {
+  const handleModalConfirm = async () => {
+    if (modalType === "single" && singleRowToDelete) {
       if (singleRowToDelete.type === "property") {
-        const updatedData = allPropertyData.filter(
-          (item) => item.id !== singleRowToDelete.id
-        );
-        setAllPropertyData(updatedData);
-        const newSelected = new Set(propertySelectedRows);
-        newSelected.delete(singleRowToDelete.id.toString());
-        setPropertySelectedRows(newSelected);
-      } else {
-        const updatedData = allBillingData.filter(
-          (item) => item.id !== singleRowToDelete.id
-        );
-        setAllBillingData(updatedData);
-        const newSelected = new Set(billingSelectedRows);
-        newSelected.delete(singleRowToDelete.id.toString());
-        setBillingSelectedRows(newSelected);
+        await deleteProperty(singleRowToDelete.id);
       }
+      // Handle billing deletion if needed
+    } else if (modalType === "multiple" && deleteType === "property") {
+      const propertyIds = Array.from(propertySelectedRows);
+      await deleteMultipleProperties(propertyIds);
     }
+    
     setIsModalOpen(false);
     setSingleRowToDelete(null);
   };
-
-  // Reset page when filters change
-  useEffect(() => {
-    setPropertyCurrentPage(1);
-  }, [propertySearchTerm, propertyFilters]);
-
-  useEffect(() => {
-    setBillingCurrentPage(1);
-  }, [billingSearchTerm, billingFilters]);
 
   // Property Filter Handlers
   const handlePropertyResetFilter = () => {
@@ -526,20 +489,18 @@ export default function Detail() {
     });
     setPropertySearchTerm("");
     setSubmittedDate(null);
+    // fetchProperties(); // Fetch without filters
   };
 
   const handlePropertyApplyFilter = () => {
     if (submittedDate) {
       setPropertyFilters((prev) => ({
         ...prev,
-        submittedDate: submittedDate.toLocaleDateString("en-US", {
-          month: "long",
-          day: "numeric",
-          year: "numeric",
-        }),
+        submittedDate: submittedDate.toISOString(),
       }));
     }
     setIsPropertyFilterOpen(false);
+    // fetchProperties(propertySearchTerm, { ...propertyFilters, submittedDate: submittedDate?.toISOString() });
   };
 
   // Billing Filter Handlers
@@ -552,59 +513,37 @@ export default function Detail() {
     setBillingSearchTerm("");
     setPurchaseDate(null);
     setEndDate(null);
+    // fetchBilling(); // Fetch without filters
   };
 
   const handleBillingApplyFilter = () => {
     const newFilters: typeof billingFilters = { ...billingFilters };
 
     if (purchaseDate) {
-      newFilters.purchaseDate = purchaseDate.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+      newFilters.purchaseDate = purchaseDate.toISOString();
     }
 
     if (endDate) {
-      newFilters.endDate = endDate.toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
+      newFilters.endDate = endDate.toISOString();
     }
 
     setBillingFilters(newFilters);
     setIsBillingFilterOpen(false);
+    // fetchBilling(billingSearchTerm, newFilters);
   };
-
-  const displayPropertyData = useMemo(() => {
-    return filteredPropertyData.map(({ id, ...rest }) => {
-      console.log(id);
-      return rest;
-    });
-  }, [filteredPropertyData]);
-
-  const displayBillingData = useMemo(() => {
-    return filteredBillingData.map(({ id, ...rest }) => {
-      console.log(id);
-      return rest;
-    });
-  }, [filteredBillingData]);
 
   const propertyDropdownItems = [
     {
       label: "View Details",
       onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (propertyCurrentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredPropertyData[globalIndex];
+        const originalRow = allPropertyData[index];
         console.log("View property details:", originalRow);
       },
     },
     {
       label: "Delete Application",
       onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (propertyCurrentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredPropertyData[globalIndex];
+        const originalRow = allPropertyData[index];
         openDeleteSingleModal(row, originalRow.id, "property");
       },
     },
@@ -614,16 +553,14 @@ export default function Detail() {
     {
       label: "View Details",
       onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (billingCurrentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredBillingData[globalIndex];
+        const originalRow = allBillingData[index];
         console.log("View billing details:", originalRow);
       },
     },
     {
       label: "Delete",
       onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (billingCurrentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredBillingData[globalIndex];
+        const originalRow = allBillingData[index];
         openDeleteSingleModal(row, originalRow.id, "billing");
       },
     },
@@ -646,8 +583,8 @@ export default function Detail() {
         />
       )}
 
-      <nav className="flex py-3 mb-5 text-gray-200  rounded-lg bg-transparent">
-        <ol className="inline-flex  items-center space-x-1 md:space-x-2 rtl:space-x-reverse">
+      <nav className="flex py-3 mb-5 text-gray-200 rounded-lg bg-transparent">
+        <ol className="inline-flex items-center space-x-1 md:space-x-2 rtl:space-x-reverse">
           <li className="inline-flex items-center">
             <Link
               href="/super-admin/dashboard/user-management"
@@ -665,7 +602,7 @@ export default function Detail() {
           />
           <li aria-current="page">
             <p className="text-[16px] leading-5 font-regular text-white">
-              Sarah Kim
+              {userData?.name || "Loading..."}
             </p>
           </li>
         </ol>
@@ -681,18 +618,17 @@ export default function Detail() {
             width={72}
           />
           <div>
-            <h3 className="font-medium text-[24px] leading-7">Sarah Kim</h3>
+            <h3 className="font-medium text-[24px] leading-7">
+              {userData?.name || "Loading..."}
+            </h3>
             <p className="font-regular text-[16px] leading-5 text-[#FFFFFFCC] mt-2">
-              sarah@gmail.com
+              {userData?.email || "Loading..."}
             </p>
           </div>
         </div>
 
         {/* Status Dropdown */}
-        {/* Status Dropdown */}
         <div className="relative" ref={dropdownRef}>
-          {" "}
-          {/* Add ref here */}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -716,8 +652,8 @@ export default function Detail() {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2  lg:grid-cols-4 gap-3 pt-5  flex-wrap lg:flex-nowrap justify-between">
-        {Credentials.map((item) => (
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-5 flex-wrap lg:flex-nowrap justify-between">
+        {credentials.map((item) => (
           <div key={item.id} className="gap-3">
             <div className="flex items-center bg-[#121315] rounded-xl gap-4 p-5">
               <Image src={item.img} alt={item.title} width={48} height={48} />
@@ -741,9 +677,7 @@ export default function Detail() {
           title="Listed Properties"
           showDeleteButton={true}
           onDeleteSingle={(row, index) => {
-            const globalIndex =
-              (propertyCurrentPage - 1) * itemsPerPage + index;
-            const originalRow = filteredPropertyData[globalIndex];
+            const originalRow = allPropertyData[index];
             openDeleteSingleModal(row, originalRow.id, "property");
           }}
           showPagination={false}
@@ -754,18 +688,17 @@ export default function Detail() {
           onSelectRow={handlePropertySelectRow}
           isAllSelected={isAllPropertySelected}
           isSomeSelected={isSomePropertySelected}
-          rowIds={filteredPropertyData.map((item) => item.id.toString())}
+          rowIds={allPropertyData.map((item) => item.id)}
           dropdownItems={propertyDropdownItems}
           searchTerm={propertySearchTerm}
           onSearchChange={setPropertySearchTerm}
-          totalItems={filteredPropertyData.length}
+          totalItems={allPropertyData.length}
           showFilter={true}
           onFilterToggle={setIsPropertyFilterOpen}
           onDeleteAll={() => handleDeleteSelected("property")}
-          isDeleteAllDisabled={
-            propertySelectedRows.size === 0 ||
-            propertySelectedRows.size < displayPropertyData.length
-          }
+          isDeleteAllDisabled={propertySelectedRows.size === 0}
+          // loading={propertyLoading}
+          // deletingRows={deletingProperties}
         />
       </div>
 
@@ -776,8 +709,7 @@ export default function Detail() {
           title="Billing History"
           showDeleteButton={true}
           onDeleteSingle={(row, index) => {
-            const globalIndex = (billingCurrentPage - 1) * itemsPerPage + index;
-            const originalRow = filteredBillingData[globalIndex];
+            const originalRow = allBillingData[index];
             openDeleteSingleModal(row, originalRow.id, "billing");
           }}
           showPagination={false}
@@ -788,18 +720,16 @@ export default function Detail() {
           onSelectRow={handleBillingSelectRow}
           isAllSelected={isAllBillingSelected}
           isSomeSelected={isSomeBillingSelected}
-          rowIds={filteredBillingData.map((item) => item.id.toString())}
+          rowIds={allBillingData.map((item) => item.id)}
           dropdownItems={billingDropdownItems}
           searchTerm={billingSearchTerm}
           onSearchChange={setBillingSearchTerm}
-          totalItems={filteredBillingData.length}
+          totalItems={allBillingData.length}
           showFilter={true}
           onFilterToggle={setIsBillingFilterOpen}
           onDeleteAll={() => handleDeleteSelected("billing")}
-          isDeleteAllDisabled={
-            billingSelectedRows.size === 0 ||
-            billingSelectedRows.size < displayBillingData.length
-          }
+          isDeleteAllDisabled={billingSelectedRows.size === 0}
+          // loading={billingLoading}
         />
       </div>
 

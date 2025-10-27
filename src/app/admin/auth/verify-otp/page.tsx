@@ -50,28 +50,53 @@ const OTPVerificationPage = () => {
       const response = await auth.verifyOTP({
         otp: otpCode,
         email: userEmail,
-        
       });
 
       // ✅ Check for success and accessToken
       const success = response?.data?.success || response?.success;
       const accessToken = response?.data?.accessToken;
+      const userRole = response?.data?.user?.role;
       const messageText =
         response?.data?.message || response?.message || "Verification complete.";
 
       if (success && accessToken) {
-        // 🔐 Store token in cookies
-        Cookies.set("accessToken", accessToken, {
+        // 🔐 Store token in cookies with different names based on role
+        let tokenName = "accessToken"; // Default for HOST
+        
+        if (userRole === "ADMIN") {
+          tokenName = "adminAccessToken";
+        } else if (userRole === "SUPER_ADMIN") {
+          tokenName = "superAdminAccessToken";
+        }
+
+        Cookies.set(tokenName, accessToken, {
           expires: 7,
           secure: process.env.NODE_ENV === "production",
           sameSite: "Lax",
           path: "/",
         });
 
+        // 🔐 Store user role and token name in localStorage for future use
+        if (userRole) {
+          localStorage.setItem("userRole", userRole);
+          localStorage.setItem("tokenName", tokenName); // Store token name for later use
+        }
+
         toast.success("OTP verified successfully!");
         setMessage("OTP verified successfully!");
+
+        // 🔄 Redirect based on user role
         setTimeout(() => {
-          router.push("/dashboard");
+          if (userRole === "HOST") {
+            router.push("/dashboard");
+          } else if (userRole === "ADMIN") {
+            router.push("/admin/dashboard");
+          } else if (userRole === "SUPER_ADMIN") {
+            router.push("/super-admin/dashboard");
+          } else {
+            // Fallback for unknown roles
+            router.push("/dashboard");
+          }
           router.refresh();
         }, 1000);
       } else if (success && !accessToken) {

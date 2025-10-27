@@ -5,8 +5,6 @@ import { Toaster } from "react-hot-toast";
 import { Manrope } from "next/font/google";
 import GlobalAuthManager from "./shared/utils/auth-guard/AuthGuard";
 
-
-
 const manrope = Manrope({
   subsets: ["latin"],
   variable: "--font-manrope",
@@ -40,10 +38,9 @@ export default function RootLayout({ children }: RootLayoutProps) {
             },
           }}
         />
-                <GlobalAuthManager />
+        <GlobalAuthManager />
 
         <main>{children}</main>
-
       </body>
     </html>
   );

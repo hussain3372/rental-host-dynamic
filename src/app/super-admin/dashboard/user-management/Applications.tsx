@@ -1,12 +1,13 @@
 "use client";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { Tab, Tabs, TabList, TabPanel } from "react-tabs";
 import "react-tabs/style/react-tabs.css";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "@/app/admin/tables-essentials/Filter";
 import TicketDrawer from "./Drawer";
-import { managementApi, GetUsersParams } from "@/app/api/super-admin/user-management/index";
+import { managementApi } from "@/app/api/super-admin/user-management/index";
+import { GetUsersParams } from "@/app/api/super-admin/user-management/types";
 
 type ViewMode = "hosts" | "admins";
 type TableRowData = Record<string, string | number>;
@@ -101,39 +102,39 @@ export default function Applications() {
   });
 
   // Fetch data based on view mode
-  const fetchData = async (params?: GetUsersParams) => {
-    setIsLoading(true);
-    try {
-      let response;
-      
-      if (viewMode === "hosts") {
-        response = await managementApi.getUsers({
-          ...params,
-          page: currentPage,
-          limit: 10
-        });
-      } else {
-        response = await managementApi.getAdmins({
-          ...params,
-          page: currentPage,
-          limit: 10
-        });
-      }
-      
-      if (response.data) {
-        if (viewMode === "hosts") {
-          setHostsData(response.data.data);
-        } else {
-          setAdminsData(response.data.data);
-        }
-        setPagination(response.data.pagination);
-      }
-    } catch (error) {
-      console.error(`Error fetching ${viewMode}:`, error);
-    } finally {
-      setIsLoading(false);
+ const fetchData = useCallback(async (params?: GetUsersParams) => {
+  setIsLoading(true);
+  try {
+    let response;
+    
+    if (viewMode === "hosts") {
+      response = await managementApi.getUsers({
+        ...params,
+        page: currentPage,
+        limit: 10
+      });
+    } else {
+      response = await managementApi.getAdmins({
+        ...params,
+        page: currentPage,
+        limit: 10
+      });
     }
-  };
+    
+    if (response.data) {
+      if (viewMode === "hosts") {
+        setHostsData(response.data.data);
+      } else {
+        setAdminsData(response.data.data);
+      }
+      setPagination(response.data.pagination);
+    }
+  } catch (error) {
+    console.error(`Error fetching ${viewMode}:`, error);
+  } finally {
+    setIsLoading(false);
+  }
+}, [viewMode, currentPage]);
 
   // Delete user/admin API call
   const deleteItem = async (itemId: number) => {
@@ -151,30 +152,28 @@ export default function Applications() {
   };
 
   // Convert API data to table format (COMPLETELY REMOVE ID from table data)
-  const convertToTableData = (users: UserData[]): TableRowData[] => {
-    if (viewMode === "hosts") {
-      return users.map(user => ({
-        // ID is completely removed from the table data
-        "Host Name": user.name,
-        "Email": user.email,
-        "Listed Properties": user._count.applications,
-        "Certified Properties": user._count.certifications,
-        "Account Created": new Date(user.createdAt).toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: '2-digit', 
-          year: 'numeric' 
-        }),
-        "Status": normalizeStatus(user.status),
-      }));
-    } else {
-      return users.map(user => ({
-        // ID is completely removed from the table data
-        "Admin Name": user.name,
-        "Email": user.email,
-        "Status": normalizeStatus(user.status),
-      }));
-    }
-  };
+  const convertToTableData = useCallback((users: UserData[]): TableRowData[] => {
+  if (viewMode === "hosts") {
+    return users.map(user => ({
+      "Host Name": user.name,
+      "Email": user.email,
+      "Listed Properties": user._count.applications,
+      "Certified Properties": user._count.certifications,
+      "Account Created": new Date(user.createdAt).toLocaleDateString('en-US', { 
+        month: 'short', 
+        day: '2-digit', 
+        year: 'numeric' 
+      }),
+      "Status": normalizeStatus(user.status),
+    }));
+  } else {
+    return users.map(user => ({
+      "Admin Name": user.name,
+      "Email": user.email,
+      "Status": normalizeStatus(user.status),
+    }));
+  }
+}, [viewMode]);
 
   // Handle search and applied filter changes
   // Handle search and applied filter changes
