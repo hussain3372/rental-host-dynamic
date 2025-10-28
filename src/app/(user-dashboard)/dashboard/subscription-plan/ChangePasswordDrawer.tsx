@@ -3,11 +3,11 @@ import React, { useState } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { Modal } from "@/app/shared/Modal";
 import { ChangePasswordResponse } from "@/app/api/Host/setting/types";
-import { setting } from "@/app/api/Host/setting"; 
+import { setting } from "@/app/api/Host/setting";
 
 type ChangePasswordDrawerProps = {
   onClose: () => void;
-  onSave?: (currentPassword: string, newPassword: string) => void; 
+  onSave?: (currentPassword: string, newPassword: string) => void;
 };
 
 export default function ChangePasswordDrawer({
@@ -47,9 +47,11 @@ export default function ChangePasswordDrawer({
         setIsSuccessModalOpen(true);
         setCurrentPassword("");
         setNewPassword("");
-        if (onSave) onSave(currentPassword, newPassword); 
+        if (onSave) onSave(currentPassword, newPassword);
       } else {
-        setError(data.message || "Failed to change password. Please try again.");
+        setError(
+          data.message || "Failed to change password. Please try again."
+        );
       }
     } catch (err) {
       console.error("Password change error:", err);
@@ -64,7 +66,9 @@ export default function ChangePasswordDrawer({
         <h2 className="text-[20px] font-medium">Change Password</h2>
 
         <div className="relative">
-          <label className="block text-[14px] mb-[10px]">Current password</label>
+          <label className="block text-[14px] mb-[10px]">
+            Current password
+          </label>
           <input
             type={showCurrent ? "text" : "password"}
             placeholder="Enter current password"
@@ -108,7 +112,9 @@ export default function ChangePasswordDrawer({
           disabled={loading}
           onClick={handlePasswordUpdate}
           className={`yellow-btn w-full text-black px-[40px] py-[16px] rounded-[8px] font-semibold text-[18px]
-            ${loading ? "opacity-70 cursor-not-allowed" : "hover:bg-[#E5F266]"}`}
+            ${
+              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-[#E5F266]"
+            }`}
         >
           {loading ? "Updating..." : "Update Password"}
         </button>

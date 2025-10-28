@@ -6,7 +6,7 @@ import toast from "react-hot-toast";
 type HelpSupportDrawerProps = {
   onClose: () => void;
   onSuccess?: () => void; // Optional callback for success
-  onNoteSubmit?: () => void;
+  onNoteSubmit?: (note: string) => void; // ✅ Correct - accepts note parameter
 };
 
 export default function TicketDrawer({

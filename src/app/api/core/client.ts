@@ -62,6 +62,10 @@ export interface RequestOptions {
   responseType?: "json" | "blob" | "text";
 
 }
+// Extend request options to allow DELETE requests to include a body
+export interface DeleteRequestConfig extends Omit<RequestOptions, "method"> {
+  data?: unknown;
+}
 
 /**
  * Cache storage for API responses

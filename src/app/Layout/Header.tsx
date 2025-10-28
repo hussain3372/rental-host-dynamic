@@ -86,7 +86,7 @@ export default function Navbar() {
   };
   return (
     <>
-      <header className="fixed top-0 left-0 w-full z-50 bg-[#17181A] px-[0px] md:px-[89px] shadow-md">
+      <header className="fixed top-0 left-0 w-full z-50 bg-[#17181A] px-[0px] md:px-[83px] shadow-md">
         <div className="bg-[#0A0C0B] rounded-lg relative w-full max-w-[1304px] mx-auto">
           <nav className="mx-auto flex items-center justify-between py-[24px] px-3 sm:px-[20px]">
             {/* Mobile Menu Button */}

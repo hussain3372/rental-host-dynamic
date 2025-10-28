@@ -1,14 +1,19 @@
 "use client";
 import Link from "next/link";
-import { useEffect, useRef, useState, useMemo } from "react";
+import { useEffect, useRef, useState, useMemo, useCallback } from "react";
 import Image from "next/image";
 import Dropdown from "@/app/shared/Dropdown";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "@/app/admin/tables-essentials/Filter";
 import { managementApi } from "@/app/api/super-admin/user-management";
-import { useParams } from "next/navigation";
-import { PropertyResponse, BillingHistoryResponse , GetUserPropertiesParams , GetUserBillingParams } from "@/app/api/super-admin/user-management/types";
+import { useParams, useRouter } from "next/navigation";
+import {
+  PropertyResponse,
+  BillingHistoryResponse,
+  GetUserPropertiesParams,
+  GetUserBillingParams,
+} from "@/app/api/super-admin/user-management/types";
 
 interface UserDetail {
   id: number;
@@ -35,14 +40,38 @@ interface UserDetail {
   };
 }
 
-interface FilterValues {
-  [key: string]: string;
+interface PaginationData {
+  total: number;
+  pageSize: number;
+  currentPage: number;
+  totalPages: number;
+  nextPage: number | null;
+  prevPage: number | null;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
 }
 
+// Debounce hook for search
+const useDebounce = (value: string, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 
 export default function Detail() {
   const { id } = useParams();
   const userId = Array.isArray(id) ? id[0] : id;
+  const router = useRouter();
 
   const [userData, setUserData] = useState<UserDetail | null>(null);
   const [credentials, setCredentials] = useState([
@@ -79,32 +108,74 @@ export default function Detail() {
   // Properties Table States
   const [propertySearchTerm, setPropertySearchTerm] = useState("");
   const [propertyCurrentPage, setPropertyCurrentPage] = useState(1);
+  const [propertyItemsPerPage] = useState(10);
   const [isPropertyFilterOpen, setIsPropertyFilterOpen] = useState(false);
   const [propertySelectedRows, setPropertySelectedRows] = useState<Set<string>>(new Set());
-  const [submittedDate, setSubmittedDate] = useState<Date | null>(null);
-  const [propertyFilters, setPropertyFilters] = useState({
+  const [propertyLoading, setPropertyLoading] = useState(false);
+  const [deletingProperties, setDeletingProperties] = useState<Set<string>>(new Set());
+
+  // Property Filter states
+  const [propertyAppliedFilters, setPropertyAppliedFilters] = useState({
     ownership: "",
     status: "",
     submittedDate: "",
   });
-  const [allPropertyData, setAllPropertyData] = useState<PropertyResponse['data']>([]);
-  const [propertyLoading, setPropertyLoading] = useState(false);
-  const [deletingProperties, setDeletingProperties] = useState<Set<string>>(new Set());
+
+  const [propertyTempFilters, setPropertyTempFilters] = useState({
+    ownership: "",
+    status: "",
+    submittedDate: "",
+  });
+
+  const [propertySubmittedDate, setPropertySubmittedDate] = useState<Date | null>(null);
+
+  const [allPropertyData, setAllPropertyData] = useState<PropertyResponse["data"]>([]);
+  const [propertyPagination, setPropertyPagination] = useState<PaginationData>({
+    total: 0,
+    pageSize: 10,
+    currentPage: 1,
+    totalPages: 1,
+    nextPage: null,
+    prevPage: null,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
 
   // Billing Table States
   const [billingSearchTerm, setBillingSearchTerm] = useState("");
   const [billingCurrentPage, setBillingCurrentPage] = useState(1);
+  const [billingItemsPerPage] = useState(10);
   const [isBillingFilterOpen, setIsBillingFilterOpen] = useState(false);
   const [billingSelectedRows, setBillingSelectedRows] = useState<Set<string>>(new Set());
-  const [purchaseDate, setPurchaseDate] = useState<Date | null>(null);
-  const [endDate, setEndDate] = useState<Date | null>(null);
-  const [billingFilters, setBillingFilters] = useState({
+  const [billingLoading, setBillingLoading] = useState(false);
+
+  // Billing Filter states
+  const [billingAppliedFilters, setBillingAppliedFilters] = useState({
     status: "",
     purchaseDate: "",
     endDate: "",
   });
-  const [allBillingData, setAllBillingData] = useState<BillingHistoryResponse['data']>([]);
-  const [billingLoading, setBillingLoading] = useState(false);
+
+  const [billingTempFilters, setBillingTempFilters] = useState({
+    status: "",
+    purchaseDate: "",
+    endDate: "",
+  });
+
+  const [billingPurchaseDate, setBillingPurchaseDate] = useState<Date | null>(null);
+  const [billingEndDate, setBillingEndDate] = useState<Date | null>(null);
+
+  const [allBillingData, setAllBillingData] = useState<BillingHistoryResponse["data"]>([]);
+  const [billingPagination, setBillingPagination] = useState<PaginationData>({
+    total: 0,
+    pageSize: 10,
+    currentPage: 1,
+    totalPages: 1,
+    nextPage: null,
+    prevPage: null,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
 
   // Modal States
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -121,17 +192,37 @@ export default function Detail() {
   const [showPropertyStatusDropdown, setShowPropertyStatusDropdown] = useState(false);
   const [showBillingStatusDropdown, setShowBillingStatusDropdown] = useState(false);
 
-  const itemsPerPage = 6;
+  // Debounced search terms
+  const debouncedPropertySearch = useDebounce(propertySearchTerm, 500);
+  const debouncedBillingSearch = useDebounce(billingSearchTerm, 500);
+
+  // Check if search term is valid for API call (3+ chars or empty)
+  const isValidPropertySearch = useMemo(() => {
+    return debouncedPropertySearch.length >= 3 || debouncedPropertySearch.length === 0;
+  }, [debouncedPropertySearch]);
+
+  const isValidBillingSearch = useMemo(() => {
+    return debouncedBillingSearch.length >= 3 || debouncedBillingSearch.length === 0;
+  }, [debouncedBillingSearch]);
+
+  // Format date for API
+  const formatDateForAPI = (date: Date | null): string => {
+    if (!date) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
 
   // Fetch user data
   useEffect(() => {
     const fetchData = async () => {
       if (!userId) return;
-      
+
       try {
         const response = await managementApi.getUserDetail(userId);
-        setUserData(response.data as UserDetail);;
-        
+        setUserData(response.data as UserDetail);
+
         // Update credentials with API data
         setCredentials([
           {
@@ -163,155 +254,213 @@ export default function Detail() {
         console.error("Failed to fetch user details:", error);
       }
     };
-    
+
     fetchData();
   }, [userId]);
 
-  // Fetch properties data
-  // const fetchProperties = async (searchTerm?: string, filters?: any) => {
-  //   if (!userId) return;
-    
-  //   setPropertyLoading(true);
-  //   try {
-  //     const params: GetUserPropertiesParams = {};
-      
-  //     if (searchTerm && searchTerm.length >= 3) {
-  //       params.search = searchTerm;
-  //     }
-      
-  //     if (filters?.status) {
-  //       params.status = filters.status;
-  //     }
-      
-  //     if (filters?.ownership) {
-  //       params.ownership = filters.ownership;
-  //     }
-      
-  //     if (filters?.submittedDate) {
-  //       // Convert submitted date to date range format
-  //       const submittedDateObj = new Date(filters.submittedDate);
-  //       params.submittedFrom = submittedDateObj.toISOString().split('T')[0];
-  //       params.submittedTo = submittedDateObj.toISOString().split('T')[0];
-  //     }
-      
-  //     const response = await managementApi.getUserProperties(userId, params);
-  //     setAllPropertyData(response.data.data);
-  //   } catch (error) {
-  //     console.error("Failed to fetch properties:", error);
-  //   } finally {
-  //     setPropertyLoading(false);
-  //   }
-  // };
+  // Fetch properties data with proper pagination
+  const fetchProperties = useCallback(async () => {
+    if (!userId) return;
 
-  // Fetch billing data
-  // const fetchBilling = async (searchTerm?: string, filters?: any) => {
-  //   if (!userId) return;
-    
-  //   setBillingLoading(true);
-  //   try {
-  //     const params: GetUserBillingParams = {};
-      
-  //     if (searchTerm && searchTerm.length >= 3) {
-  //       params.search = searchTerm;
-  //     }
-      
-  //     if (filters?.status) {
-  //       params.status = filters.status;
-  //     }
-      
-  //     if (filters?.purchaseDate) {
-  //       const purchaseDateObj = new Date(filters.purchaseDate);
-  //       params.endDateFrom = purchaseDateObj.toISOString().split('T')[0];
-  //     }
-      
-  //     if (filters?.endDate) {
-  //       const endDateObj = new Date(filters.endDate);
-  //       params.endDateTo = endDateObj.toISOString().split('T')[0];
-  //     }
-      
-  //     const response = await managementApi.getUserBilling(userId, params);
-  //     setAllBillingData(response.data.data);
-  //   } catch (error) {
-  //     console.error("Failed to fetch billing:", error);
-  //   } finally {
-  //     setBillingLoading(false);
-  //   }
-  // };
-
-  // Delete property function
-  const deleteProperty = async (propertyId: string) => {
-    setDeletingProperties(prev => new Set(prev).add(propertyId));
+    setPropertyLoading(true);
     try {
-      await managementApi.deleteApplication(propertyId);
-      // Remove the deleted property from state
-      setAllPropertyData(prev => prev.filter(property => property.id !== propertyId));
-      // Remove from selected rows
-      setPropertySelectedRows(prev => {
-        const newSelected = new Set(prev);
-        newSelected.delete(propertyId);
-        return newSelected;
-      });
-      return true;
+      const queryParams: GetUserPropertiesParams = {
+        page: propertyCurrentPage,
+        limit: propertyItemsPerPage,
+      };
+
+      // Only include search if it has 3 or more characters OR is empty (to clear search)
+      if (isValidPropertySearch && debouncedPropertySearch.trim()) {
+        queryParams.search = debouncedPropertySearch.trim();
+      }
+
+      // Add filters if applicable
+      if (propertyAppliedFilters.ownership.trim()) {
+        queryParams.ownership = propertyAppliedFilters.ownership.trim();
+      }
+
+      if (propertyAppliedFilters.status.trim()) {
+        queryParams.status = propertyAppliedFilters.status.trim();
+      }
+
+      if (propertyAppliedFilters.submittedDate) {
+        const submittedDateObj = new Date(propertyAppliedFilters.submittedDate);
+        queryParams.submittedFrom = submittedDateObj.toISOString().split("T")[0];
+        queryParams.submittedTo = submittedDateObj.toISOString().split("T")[0];
+      }
+
+      console.log('🔍 Fetching properties with params:', queryParams);
+      const response = await managementApi.getUserProperties(userId, queryParams);
+      
+      setAllPropertyData(response.data.data);
+      
+      // Update pagination from API response
+      if (response.data.pagination) {
+        setPropertyPagination({
+          total: response.data.pagination.total || 0,
+          pageSize: response.data.pagination.limit || propertyItemsPerPage,
+          currentPage: response.data.pagination.page || propertyCurrentPage,
+          totalPages: response.data.pagination.totalPages || 1,
+          nextPage: response.data.pagination.nextPage || null,
+          prevPage: response.data.pagination.prevPage || null,
+          hasNextPage: response.data.pagination.hasNextPage || false,
+          hasPrevPage: response.data.pagination.hasPrevPage || false
+        });
+      }
+      
     } catch (error) {
-      console.error("Failed to delete property:", error);
-      return false;
-    } finally {
-      setDeletingProperties(prev => {
-        const newDeleting = new Set(prev);
-        newDeleting.delete(propertyId);
-        return newDeleting;
+      console.error("❌ Failed to fetch properties:", error);
+      setAllPropertyData([]);
+      setPropertyPagination({
+        total: 0,
+        pageSize: propertyItemsPerPage,
+        currentPage: 1,
+        totalPages: 1,
+        nextPage: null,
+        prevPage: null,
+        hasNextPage: false,
+        hasPrevPage: false
       });
+    } finally {
+      setPropertyLoading(false);
     }
-  };
+  }, [
+    userId,
+    debouncedPropertySearch,
+    propertyAppliedFilters.ownership,
+    propertyAppliedFilters.status,
+    propertyAppliedFilters.submittedDate,
+    propertyCurrentPage,
+    propertyItemsPerPage,
+    isValidPropertySearch, // Add this dependency
+  ]);
 
-  // Delete multiple properties
-  const deleteMultipleProperties = async (propertyIds: string[]) => {
-    const results = await Promise.allSettled(
-      propertyIds.map(id => deleteProperty(id))
-    );
-    
-    const successfulDeletes = results.filter(result => result.status === 'fulfilled' && result.value).length;
-    const failedDeletes = results.filter(result => result.status === 'rejected' || !result.value).length;
-    
-    if (successfulDeletes > 0) {
-      console.log(`Successfully deleted ${successfulDeletes} properties`);
-    }
-    if (failedDeletes > 0) {
-      console.error(`Failed to delete ${failedDeletes} properties`);
-    }
-    
-    return successfulDeletes > 0;
-  };
+  // Fetch billing data with proper pagination
+  const fetchBilling = useCallback(async () => {
+    if (!userId) return;
 
-  // Initial data fetch
-  useEffect(() => {
-    if (userId) {
-      // fetchProperties();
-      // fetchBilling();
-    }
-  }, [userId]);
+    setBillingLoading(true);
+    try {
+      const queryParams: GetUserBillingParams = {
+        page: billingCurrentPage,
+        limit: billingItemsPerPage,
+      };
 
-  // Search with debounce for properties
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (propertySearchTerm.length >= 3 || propertySearchTerm.length === 0) {
-        // fetchProperties(propertySearchTerm, propertyFilters);
+      // Only include search if it has 3 or more characters OR is empty (to clear search)
+      if (isValidBillingSearch && debouncedBillingSearch.trim()) {
+        queryParams.search = debouncedBillingSearch.trim();
       }
-    }, 500);
 
-    return () => clearTimeout(timeoutId);
-  }, [propertySearchTerm, userId]);
-
-  // Search with debounce for billing
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (billingSearchTerm.length >= 3 || billingSearchTerm.length === 0) {
-        // fetchBilling(billingSearchTerm, billingFilters);
+      // Add filters if applicable
+      if (billingAppliedFilters.status.trim()) {
+        queryParams.status = billingAppliedFilters.status.trim();
       }
-    }, 500);
 
-    return () => clearTimeout(timeoutId);
-  }, [billingSearchTerm, userId]);
+      if (billingAppliedFilters.purchaseDate) {
+        const purchaseDateObj = new Date(billingAppliedFilters.purchaseDate);
+        queryParams.endDateFrom = purchaseDateObj.toISOString().split("T")[0];
+      }
+
+      if (billingAppliedFilters.endDate) {
+        const endDateObj = new Date(billingAppliedFilters.endDate);
+        queryParams.endDateTo = endDateObj.toISOString().split("T")[0];
+      }
+
+      const response = await managementApi.getUserBilling(userId, queryParams);
+      setAllBillingData(response.data.data);
+      
+      // Update pagination from API response
+      if (response.data.pagination) {
+        setBillingPagination({
+          total: response.data.pagination.total || 0,
+          pageSize: response.data.pagination.limit || billingItemsPerPage,
+          currentPage: response.data.pagination.page || billingCurrentPage,
+          totalPages: response.data.pagination.totalPages || 1,
+          nextPage: response.data.pagination.nextPage || null,
+          prevPage: response.data.pagination.prevPage || null,
+          hasNextPage: response.data.pagination.hasNextPage || false,
+          hasPrevPage: response.data.pagination.hasPrevPage || false
+        });
+      }
+      
+    } catch (error) {
+      console.error("Failed to fetch billing:", error);
+      setAllBillingData([]);
+      setBillingPagination({
+        total: 0,
+        pageSize: billingItemsPerPage,
+        currentPage: 1,
+        totalPages: 1,
+        nextPage: null,
+        prevPage: null,
+        hasNextPage: false,
+        hasPrevPage: false
+      });
+    } finally {
+      setBillingLoading(false);
+    }
+  }, [
+    userId,
+    debouncedBillingSearch,
+    billingAppliedFilters.status,
+    billingAppliedFilters.purchaseDate,
+    billingAppliedFilters.endDate,
+    billingCurrentPage,
+    billingItemsPerPage,
+    isValidBillingSearch, // Add this dependency
+  ]);
+
+  // Single useEffect for properties data fetching - only when valid search
+  useEffect(() => {
+    if (isValidPropertySearch) {
+      fetchProperties();
+    }
+  }, [fetchProperties, isValidPropertySearch]);
+
+  // Single useEffect for billing data fetching - only when valid search
+  useEffect(() => {
+    if (isValidBillingSearch) {
+      fetchBilling();
+    }
+  }, [fetchBilling, isValidBillingSearch]);
+
+  // Reset to page 1 when property filters/search change
+  useEffect(() => {
+    setPropertyCurrentPage(1);
+  }, [debouncedPropertySearch, propertyAppliedFilters.ownership, propertyAppliedFilters.status, propertyAppliedFilters.submittedDate]);
+
+  // Reset to page 1 when billing filters/search change
+  useEffect(() => {
+    setBillingCurrentPage(1);
+  }, [debouncedBillingSearch, billingAppliedFilters.status, billingAppliedFilters.purchaseDate, billingAppliedFilters.endDate]);
+
+  // Sync temp filters when filter drawers open
+  useEffect(() => {
+    if (isPropertyFilterOpen) {
+      setPropertyTempFilters(propertyAppliedFilters);
+      if (propertyAppliedFilters.submittedDate) {
+        setPropertySubmittedDate(new Date(propertyAppliedFilters.submittedDate));
+      } else {
+        setPropertySubmittedDate(null);
+      }
+    }
+  }, [isPropertyFilterOpen, propertyAppliedFilters]);
+
+  useEffect(() => {
+    if (isBillingFilterOpen) {
+      setBillingTempFilters(billingAppliedFilters);
+      if (billingAppliedFilters.purchaseDate) {
+        setBillingPurchaseDate(new Date(billingAppliedFilters.purchaseDate));
+      } else {
+        setBillingPurchaseDate(null);
+      }
+      if (billingAppliedFilters.endDate) {
+        setBillingEndDate(new Date(billingAppliedFilters.endDate));
+      } else {
+        setBillingEndDate(null);
+      }
+    }
+  }, [isBillingFilterOpen, billingAppliedFilters]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -338,52 +487,114 @@ export default function Detail() {
     { label: "Expired", onClick: () => handleStatusSelect("Expired") },
   ];
 
+  // Delete property function
+  const deleteProperty = async (propertyId: string) => {
+    setDeletingProperties((prev) => new Set(prev).add(propertyId));
+    try {
+      await managementApi.deleteApplication(propertyId);
+      await fetchProperties();
+      // Remove from selected rows
+      setPropertySelectedRows((prev) => {
+        const newSelected = new Set(prev);
+        newSelected.delete(propertyId);
+        return newSelected;
+      });
+      return true;
+    } catch (error) {
+      console.error("Failed to delete property:", error);
+      return false;
+    } finally {
+      setDeletingProperties((prev) => {
+        const newDeleting = new Set(prev);
+        newDeleting.delete(propertyId);
+        return newDeleting;
+      });
+    }
+  };
+
+  // Delete multiple properties
+  const deleteMultipleProperties = async (propertyIds: string[]) => {
+    const results = await Promise.allSettled(
+      propertyIds.map((id) => deleteProperty(id))
+    );
+
+    const successfulDeletes = results.filter(
+      (result) => result.status === "fulfilled" && result.value
+    ).length;
+
+    if (successfulDeletes > 0) {
+      console.log(`Successfully deleted ${successfulDeletes} properties`);
+    }
+
+    return successfulDeletes > 0;
+  };
+
   // Transform API data for table display - Properties
   const displayPropertyData = useMemo(() => {
-    return allPropertyData.map((property) => ({
-      "Application ID": property.id.substring(0, 8).toUpperCase(),
-      "Property Name": property.propertyDetails.propertyName,
-      "Ownership": property.propertyDetails.ownership,
-      "Submitted On": property.submittedAt ? new Date(property.submittedAt).toLocaleDateString('en-US', {
-        month: 'long',
-        day: 'numeric',
-        year: 'numeric'
-      }) : 'Not Submitted',
-      "Reviewed By": property.reviewedAt ? 'Admin' : 'Not Reviewed',
-      "Status": property.status.charAt(0) + property.status.slice(1).toLowerCase()
-    }));
+    if (!allPropertyData || allPropertyData.length === 0) {
+      return [];
+    }
+    
+    return allPropertyData.map((property) => {
+      const propertyDetails = property.propertyDetails || {};
+      
+      return {
+        "Application ID": property.id ? property.id.substring(0, 8).toUpperCase() : "N/A",
+        "Property Name": propertyDetails.propertyName || "Unnamed Property",
+        "Ownership": propertyDetails.ownership || "Unknown",
+        "Submitted On": property.submittedAt 
+          ? new Date(property.submittedAt).toLocaleDateString("en-US", {
+              month: "long",
+              day: "numeric", 
+              year: "numeric",
+            })
+          : "Not Submitted",
+        "Reviewed By": property.reviewedAt ? "Admin" : "Not Reviewed",
+        "Status": property.status 
+          ? property.status.charAt(0) + property.status.slice(1).toLowerCase()
+          : "Unknown",
+      };
+    });
   }, [allPropertyData]);
 
   // Transform API data for table display - Billing
   const displayBillingData = useMemo(() => {
+    if (!allBillingData || allBillingData.length === 0) return [];
+    
     return allBillingData.map((billing) => ({
-      "Plan Name": "Certification Fee", // You might want to get this from application data
-      "Amount": `${billing.amount} ${billing.currency}`,
-      "Purchase Date": new Date(billing.createdAt).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      }),
-      "End Date": new Date(billing.createdAt).toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric'
-      }), // Adjust based on your business logic
-      "Status": billing.status === 'COMPLETED' ? 'Active' : 'Inactive'
+      "Plan Name": "Certification Fee",
+      "Amount": `${billing.amount || 0} ${billing.currency || "USD"}`,
+      "Purchase Date": billing.createdAt 
+        ? new Date(billing.createdAt).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          })
+        : "N/A",
+      "End Date": billing.createdAt 
+        ? new Date(billing.createdAt).toLocaleDateString("en-US", {
+            month: "short", 
+            day: "numeric",
+            year: "numeric",
+          })
+        : "N/A",
+      "Status": billing.status === "COMPLETED" ? "Active" : "Inactive",
     }));
   }, [allBillingData]);
 
   // Get unique values for filter options from API data
   const uniqueOwnerships = useMemo(() => {
-    return [...new Set(allPropertyData.map((item) => item.propertyDetails.ownership))];
+    return [
+      ...new Set(allPropertyData.map((item) => item.propertyDetails?.ownership || "")),
+    ].filter(Boolean);
   }, [allPropertyData]);
 
   const uniquePropertyStatuses = useMemo(() => {
-    return [...new Set(allPropertyData.map((item) => item.status))];
+    return [...new Set(allPropertyData.map((item) => item.status))].filter(Boolean);
   }, [allPropertyData]);
 
   const uniqueBillingStatuses = useMemo(() => {
-    return [...new Set(allBillingData.map((item) => item.status))];
+    return [...new Set(allBillingData.map((item) => item.status))].filter(Boolean);
   }, [allBillingData]);
 
   // Property Table Handlers
@@ -408,11 +619,17 @@ export default function Detail() {
   };
 
   const isAllPropertySelected = useMemo(() => {
-    return allPropertyData.length > 0 && allPropertyData.every((item) => propertySelectedRows.has(item.id));
+    return (
+      allPropertyData.length > 0 &&
+      allPropertyData.every((item) => propertySelectedRows.has(item.id))
+    );
   }, [allPropertyData, propertySelectedRows]);
 
   const isSomePropertySelected = useMemo(() => {
-    return allPropertyData.some((item) => propertySelectedRows.has(item.id)) && !isAllPropertySelected;
+    return (
+      allPropertyData.some((item) => propertySelectedRows.has(item.id)) &&
+      !isAllPropertySelected
+    );
   }, [allPropertyData, propertySelectedRows, isAllPropertySelected]);
 
   // Billing Table Handlers
@@ -437,11 +654,17 @@ export default function Detail() {
   };
 
   const isAllBillingSelected = useMemo(() => {
-    return allBillingData.length > 0 && allBillingData.every((item) => billingSelectedRows.has(item.id));
+    return (
+      allBillingData.length > 0 &&
+      allBillingData.every((item) => billingSelectedRows.has(item.id))
+    );
   }, [allBillingData, billingSelectedRows]);
 
   const isSomeBillingSelected = useMemo(() => {
-    return allBillingData.some((item) => billingSelectedRows.has(item.id)) && !isAllBillingSelected;
+    return (
+      allBillingData.some((item) => billingSelectedRows.has(item.id)) &&
+      !isAllBillingSelected
+    );
   }, [allBillingData, billingSelectedRows, isAllBillingSelected]);
 
   // Delete Handlers
@@ -475,61 +698,116 @@ export default function Detail() {
       const propertyIds = Array.from(propertySelectedRows);
       await deleteMultipleProperties(propertyIds);
     }
-    
+
     setIsModalOpen(false);
     setSingleRowToDelete(null);
   };
 
   // Property Filter Handlers
   const handlePropertyResetFilter = () => {
-    setPropertyFilters({
+    const resetFilters = {
       ownership: "",
       status: "",
       submittedDate: "",
-    });
+    };
+
+    setPropertyTempFilters(resetFilters);
+    setPropertyAppliedFilters(resetFilters);
+    setPropertySubmittedDate(null);
     setPropertySearchTerm("");
-    setSubmittedDate(null);
-    // fetchProperties(); // Fetch without filters
+    setPropertyCurrentPage(1);
+    setIsPropertyFilterOpen(false);
   };
 
   const handlePropertyApplyFilter = () => {
-    if (submittedDate) {
-      setPropertyFilters((prev) => ({
-        ...prev,
-        submittedDate: submittedDate.toISOString(),
-      }));
+    const dateString = formatDateForAPI(propertySubmittedDate);
+    
+    const filtersToApply = {
+      ownership: propertyTempFilters.ownership,
+      status: propertyTempFilters.status,
+      submittedDate: dateString,
+    };
+
+    setPropertyAppliedFilters(filtersToApply);
+    setPropertyCurrentPage(1);
+    setIsPropertyFilterOpen(false);
+  };
+
+  const handlePropertyCloseFilter = () => {
+    setPropertyTempFilters(propertyAppliedFilters);
+    if (propertyAppliedFilters.submittedDate) {
+      setPropertySubmittedDate(new Date(propertyAppliedFilters.submittedDate));
+    } else {
+      setPropertySubmittedDate(null);
     }
     setIsPropertyFilterOpen(false);
-    // fetchProperties(propertySearchTerm, { ...propertyFilters, submittedDate: submittedDate?.toISOString() });
   };
 
   // Billing Filter Handlers
   const handleBillingResetFilter = () => {
-    setBillingFilters({
+    const resetFilters = {
       status: "",
       purchaseDate: "",
       endDate: "",
-    });
+    };
+
+    setBillingTempFilters(resetFilters);
+    setBillingAppliedFilters(resetFilters);
+    setBillingPurchaseDate(null);
+    setBillingEndDate(null);
     setBillingSearchTerm("");
-    setPurchaseDate(null);
-    setEndDate(null);
-    // fetchBilling(); // Fetch without filters
+    setBillingCurrentPage(1);
+    setIsBillingFilterOpen(false);
   };
 
   const handleBillingApplyFilter = () => {
-    const newFilters: typeof billingFilters = { ...billingFilters };
+    const purchaseDateString = formatDateForAPI(billingPurchaseDate);
+    const endDateString = formatDateForAPI(billingEndDate);
+    
+    const filtersToApply = {
+      status: billingTempFilters.status,
+      purchaseDate: purchaseDateString,
+      endDate: endDateString,
+    };
 
-    if (purchaseDate) {
-      newFilters.purchaseDate = purchaseDate.toISOString();
-    }
-
-    if (endDate) {
-      newFilters.endDate = endDate.toISOString();
-    }
-
-    setBillingFilters(newFilters);
+    setBillingAppliedFilters(filtersToApply);
+    setBillingCurrentPage(1);
     setIsBillingFilterOpen(false);
-    // fetchBilling(billingSearchTerm, newFilters);
+  };
+
+  const handleBillingCloseFilter = () => {
+    setBillingTempFilters(billingAppliedFilters);
+    if (billingAppliedFilters.purchaseDate) {
+      setBillingPurchaseDate(new Date(billingAppliedFilters.purchaseDate));
+    } else {
+      setBillingPurchaseDate(null);
+    }
+    if (billingAppliedFilters.endDate) {
+      setBillingEndDate(new Date(billingAppliedFilters.endDate));
+    } else {
+      setBillingEndDate(null);
+    }
+    setIsBillingFilterOpen(false);
+  };
+
+  // Pagination Handlers
+  const handlePropertyPageChange = (page: number) => {
+    setPropertyCurrentPage(page);
+  };
+
+  const handleBillingPageChange = (page: number) => {
+    setBillingCurrentPage(page);
+  };
+
+  // Search change handlers with validation
+  const handlePropertySearchChange = (value: string) => {
+    setPropertySearchTerm(value);
+    // Only trigger API call if valid search (handled by useEffect)
+  };
+
+  const handleBillingSearchChange = (value: string) => {
+    setBillingSearchTerm(value);
+    // Only trigger API call if valid search (handled by useEffect)
   };
 
   const propertyDropdownItems = [
@@ -537,7 +815,7 @@ export default function Detail() {
       label: "View Details",
       onClick: (row: Record<string, string>, index: number) => {
         const originalRow = allPropertyData[index];
-        console.log("View property details:", originalRow);
+        router.push(`sub-detail/${originalRow.id}`);
       },
     },
     {
@@ -680,7 +958,7 @@ export default function Detail() {
             const originalRow = allPropertyData[index];
             openDeleteSingleModal(row, originalRow.id, "property");
           }}
-          showPagination={false}
+          showPagination={true}
           clickable={true}
           selectedRows={propertySelectedRows}
           setSelectedRows={setPropertySelectedRows}
@@ -691,14 +969,17 @@ export default function Detail() {
           rowIds={allPropertyData.map((item) => item.id)}
           dropdownItems={propertyDropdownItems}
           searchTerm={propertySearchTerm}
-          onSearchChange={setPropertySearchTerm}
-          totalItems={allPropertyData.length}
+          onSearchChange={handlePropertySearchChange}
+          currentPage={propertyCurrentPage}
+          onPageChange={handlePropertyPageChange}
+          itemsPerPage={propertyPagination.pageSize}
+          totalItems={propertyPagination.total}
           showFilter={true}
           onFilterToggle={setIsPropertyFilterOpen}
           onDeleteAll={() => handleDeleteSelected("property")}
           isDeleteAllDisabled={propertySelectedRows.size === 0}
-          // loading={propertyLoading}
-          // deletingRows={deletingProperties}
+          disableClientSidePagination={true}
+          isLoading={propertyLoading}
         />
       </div>
 
@@ -707,12 +988,12 @@ export default function Detail() {
         <Table
           data={displayBillingData}
           title="Billing History"
-          showDeleteButton={true}
+          showDeleteButton={false}
           onDeleteSingle={(row, index) => {
             const originalRow = allBillingData[index];
             openDeleteSingleModal(row, originalRow.id, "billing");
           }}
-          showPagination={false}
+          showPagination={true}
           clickable={true}
           selectedRows={billingSelectedRows}
           setSelectedRows={setBillingSelectedRows}
@@ -723,32 +1004,45 @@ export default function Detail() {
           rowIds={allBillingData.map((item) => item.id)}
           dropdownItems={billingDropdownItems}
           searchTerm={billingSearchTerm}
-          onSearchChange={setBillingSearchTerm}
-          totalItems={allBillingData.length}
+          onSearchChange={handleBillingSearchChange}
+          currentPage={billingCurrentPage}
+          onPageChange={handleBillingPageChange}
+          itemsPerPage={billingPagination.pageSize}
+          totalItems={billingPagination.total}
           showFilter={true}
           onFilterToggle={setIsBillingFilterOpen}
           onDeleteAll={() => handleDeleteSelected("billing")}
           isDeleteAllDisabled={billingSelectedRows.size === 0}
-          // loading={billingLoading}
+          disableClientSidePagination={true}
+          isLoading={billingLoading}
         />
       </div>
 
       {/* Property Filter Drawer */}
       <FilterDrawer
         isOpen={isPropertyFilterOpen}
-        onClose={() => setIsPropertyFilterOpen(false)}
+        onClose={handlePropertyCloseFilter}
         title="Apply Filter"
         description="Refine listings to find the right property faster."
         resetLabel="Reset"
         onReset={handlePropertyResetFilter}
         buttonLabel="Apply Filter"
         onApply={handlePropertyApplyFilter}
-        filterValues={propertyFilters}
-        onFilterChange={(filters) => {
-          setPropertyFilters((prev) => ({
-            ...prev,
-            ...filters,
-          }));
+        filterValues={{
+          ownership: propertyTempFilters.ownership,
+          status: propertyTempFilters.status,
+          "Submitted date": propertySubmittedDate,
+        }}
+        onFilterChange={(newValues) => {
+          if (newValues.ownership !== undefined) {
+            setPropertyTempFilters(prev => ({ ...prev, ownership: newValues.ownership as string }));
+          }
+          if (newValues.status !== undefined) {
+            setPropertyTempFilters(prev => ({ ...prev, status: newValues.status as string }));
+          }
+          if (newValues["Submitted date"] !== undefined) {
+            setPropertySubmittedDate(newValues["Submitted date"] as Date | null);
+          }
         }}
         dropdownStates={{
           ownership: showOwnershipDropdown,
@@ -775,7 +1069,7 @@ export default function Detail() {
           },
           {
             label: "Submitted date",
-            key: "submittedDate",
+            key: "Submitted date",
             type: "date",
             placeholder: "Select date",
           },
@@ -785,19 +1079,28 @@ export default function Detail() {
       {/* Billing Filter Drawer */}
       <FilterDrawer
         isOpen={isBillingFilterOpen}
-        onClose={() => setIsBillingFilterOpen(false)}
+        onClose={handleBillingCloseFilter}
         title="Apply Filter"
         description="Refine billing records to find the right information."
         resetLabel="Reset"
         onReset={handleBillingResetFilter}
         buttonLabel="Apply Filter"
         onApply={handleBillingApplyFilter}
-        filterValues={billingFilters}
-        onFilterChange={(filters) => {
-          setBillingFilters((prev) => ({
-            ...prev,
-            ...filters,
-          }));
+        filterValues={{
+          status: billingTempFilters.status,
+          "Purchase Date": billingPurchaseDate,
+          "End Date": billingEndDate,
+        }}
+        onFilterChange={(newValues) => {
+          if (newValues.status !== undefined) {
+            setBillingTempFilters(prev => ({ ...prev, status: newValues.status as string }));
+          }
+          if (newValues["Purchase Date"] !== undefined) {
+            setBillingPurchaseDate(newValues["Purchase Date"] as Date | null);
+          }
+          if (newValues["End Date"] !== undefined) {
+            setBillingEndDate(newValues["End Date"] as Date | null);
+          }
         }}
         dropdownStates={{
           status: showBillingStatusDropdown,
@@ -815,13 +1118,13 @@ export default function Detail() {
           },
           {
             label: "Purchase Date",
-            key: "purchaseDate",
+            key: "Purchase Date",
             type: "date",
             placeholder: "Select date",
           },
           {
             label: "End Date",
-            key: "endDate",
+            key: "End Date",
             type: "date",
             placeholder: "Select date",
           },

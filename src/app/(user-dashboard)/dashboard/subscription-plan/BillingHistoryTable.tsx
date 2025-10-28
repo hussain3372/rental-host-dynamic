@@ -59,30 +59,32 @@ export default function BillingHistory() {
       try {
         setLoading(true);
         setError(null);
-        
+
         console.log("Fetching billing data with query parameters...");
-        
+
         const response = await setting.getBillingWithParams({
           status: "COMPLETED",
           skip: 0,
-          take: 100
+          take: 100,
         });
-        
+
         console.log("API Response:", response);
-        
+
         // In the useEffect where you set the API data:
-if (response.success && response.data && response.data.payments) {
-  // Convert amount from string to number
-  const paymentsWithNumberAmount = response.data.payments.map(payment => ({
-    ...payment,
-    amount: parseFloat(payment.amount) || 0
-  }));
-  setApiData(paymentsWithNumberAmount);
-}
-     } catch (err: unknown) {
-  console.error("Error fetching billing data:", err);
-  setError((err as Error).message || "Failed to load billing history");
-} finally {
+        if (response.success && response.data && response.data.payments) {
+          // Convert amount from string to number
+          const paymentsWithNumberAmount = response.data.payments.map(
+            (payment) => ({
+              ...payment,
+              amount: parseFloat(payment.amount) || 0,
+            })
+          );
+          setApiData(paymentsWithNumberAmount);
+        }
+      } catch (err: unknown) {
+        console.error("Error fetching billing data:", err);
+        setError((err as Error).message || "Failed to load billing history");
+      } finally {
         setLoading(false);
       }
     };
@@ -97,11 +99,13 @@ if (response.success && response.data && response.data.payments) {
     return apiData.map((payment, index) => {
       const purchaseDateObj = new Date(payment.createdAt);
       const endDateObj = new Date(payment.createdAt);
-      
+
       return {
         id: index + 1,
-        "Plan Name": payment.application?.propertyDetails?.propertyName || `Property ${index + 1}`,
-        "Amount": `${payment.amount} ${payment.currency}`,
+        "Plan Name":
+          payment.application?.propertyDetails?.propertyName ||
+          `Property ${index + 1}`,
+        Amount: `${payment.amount} ${payment.currency}`,
         "Purchase Date": purchaseDateObj.toLocaleDateString("en-US", {
           month: "short",
           day: "numeric",
@@ -112,10 +116,10 @@ if (response.success && response.data && response.data.payments) {
           day: "numeric",
           year: "numeric",
         }),
-        "Status": payment.status,
+        Status: payment.status,
         // Store ISO dates for consistent filtering
-        purchaseDateISO: purchaseDateObj.toISOString().split('T')[0], // YYYY-MM-DD
-        endDateISO: endDateObj.toISOString().split('T')[0], // YYYY-MM-DD
+        purchaseDateISO: purchaseDateObj.toISOString().split("T")[0], // YYYY-MM-DD
+        endDateISO: endDateObj.toISOString().split("T")[0], // YYYY-MM-DD
       };
     });
   }, [apiData]);
@@ -149,21 +153,21 @@ if (response.success && response.data && response.data.payments) {
         (item) => item["Status"] === certificationFilters.status
       );
     }
-    
+
     // FIXED: Date filtering using ISO dates
     if (certificationFilters.purchaseDate) {
       filtered = filtered.filter(
         (item) => item.purchaseDateISO === certificationFilters.purchaseDate
       );
     }
-    
+
     // FIXED: Date filtering using ISO dates
     if (certificationFilters.endDate) {
       filtered = filtered.filter(
         (item) => item.endDateISO === certificationFilters.endDate
       );
     }
-    
+
     return filtered;
   }, [searchTerm, certificationFilters, certificationData]);
 
@@ -171,24 +175,28 @@ if (response.success && response.data && response.data.payments) {
   const handleRowClick = (row: Record<string, string>, index: number) => {
     const originalRow = filteredCertificationData[index];
     const actualPaymentId = apiData[index]?.id;
-    window.location.href = `/dashboard/billing/detail/${actualPaymentId || originalRow.id}`;
+    window.location.href = `/dashboard/billing/detail/${
+      actualPaymentId || originalRow.id
+    }`;
   };
 
   // Transform data to exclude ID from display and ensure all values are strings
-// Remove this line:
-// const status = ["COMPLETED", "PENDING", "REJECTED"];
+  // Remove this line:
+  // const status = ["COMPLETED", "PENDING", "REJECTED"];
 
-// In the transform function, remove unused destructured parameters:
-const displayData = useMemo((): Record<string, string>[] => {
-  return filteredCertificationData.map(({ id, purchaseDateISO, endDateISO, ...rest }) => {
-    console.log(id, purchaseDateISO, endDateISO)
-    const stringRow: Record<string, string> = {};
-    Object.entries(rest).forEach(([key, value]) => {
-      stringRow[key] = String(value);
-    });
-    return stringRow;
-  });
-}, [filteredCertificationData]);
+  // In the transform function, remove unused destructured parameters:
+  const displayData = useMemo((): Record<string, string>[] => {
+    return filteredCertificationData.map(
+      ({ id, purchaseDateISO, endDateISO, ...rest }) => {
+        console.log(id, purchaseDateISO, endDateISO);
+        const stringRow: Record<string, string> = {};
+        Object.entries(rest).forEach(([key, value]) => {
+          stringRow[key] = String(value);
+        });
+        return stringRow;
+      }
+    );
+  }, [filteredCertificationData]);
 
   // Table control
   const tableControl = {
@@ -230,13 +238,13 @@ const displayData = useMemo((): Record<string, string>[] => {
 
     // Store dates as ISO strings (YYYY-MM-DD) for consistent comparison
     if (purchaseDate) {
-      newFilters.purchaseDate = purchaseDate.toISOString().split('T')[0];
+      newFilters.purchaseDate = purchaseDate.toISOString().split("T")[0];
     } else {
       newFilters.purchaseDate = "";
     }
 
     if (endDate) {
-      newFilters.endDate = endDate.toISOString().split('T')[0];
+      newFilters.endDate = endDate.toISOString().split("T")[0];
     } else {
       newFilters.endDate = "";
     }
@@ -252,7 +260,9 @@ const displayData = useMemo((): Record<string, string>[] => {
       onClick: (row: Record<string, string>, index: number) => {
         const originalRow = filteredCertificationData[index];
         const actualPaymentId = apiData[index]?.id;
-        window.location.href = `/dashboard/billing/detail/${actualPaymentId || originalRow.id}`;
+        window.location.href = `/dashboard/billing/detail/${
+          actualPaymentId || originalRow.id
+        }`;
       },
     },
   ];

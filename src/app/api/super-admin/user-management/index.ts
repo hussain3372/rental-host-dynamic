@@ -1,6 +1,6 @@
 import { apiClient, ApiResponse } from "../../core/client";
 import Cookies from "js-cookie";
-import { UsersResponse, AddAdminPayload, AddAdminResponse , GetUsersParams , UserDetail , PropertyResponse , GetUserPropertiesParams , BillingHistoryResponse , GetUserBillingParams } from "./types";
+import { UsersResponse, AddAdminPayload, AddAdminResponse , GetUsersParams , UserDetail , PropertyResponse , GetUserPropertiesParams , BillingHistoryResponse , GetUserBillingParams,PropertyType,PropertyTypeApiResponse , Application , AdminData,ApplicationsResponse,GetAdminReviewedApplicationsParams} from "./types";
 
 const getAuthHeaders = () => {
   const token = Cookies.get("superAdminAccessToken");
@@ -144,4 +144,76 @@ export const managementApi = {
           headers: getAuthHeaders(),
         });
       },
+
+       getPropertyType: async (id: string): Promise<ApiResponse<PropertyType>> => {
+          const res = await apiClient.get<PropertyTypeApiResponse>(`/property-types/${id}`, {
+           headers: getAuthHeaders(),
+          });
+      
+          if (!res.success) {
+            return res as unknown as ApiResponse<PropertyType>;
+          }
+      
+          // Extract the nested data structure from the API response
+          const wrapperData = res.data as PropertyTypeApiResponse;
+          const propertyTypeData = wrapperData.data;
+      
+          return {
+            ...res,
+            data: propertyTypeData,
+          } as ApiResponse<PropertyType>;
+        },
+
+        getApplicationDetail: async (
+            id: string
+          ): Promise<ApiResponse<Application>> => {
+            const res = await apiClient.get<Application>(`/applications/${id}`, {
+               headers: getAuthHeaders(),
+            });
+            if (!res.success) return res as ApiResponse<Application>;
+            const payload = res.data as Application;
+            const normalized: Application = (payload?.id && typeof payload.id === 'string')
+              ? payload as Application
+              : (payload as Application);
+            return {
+              ...res,
+              data: normalized,
+            } as ApiResponse<Application>;
+          },
+
+          approveORrejectApplication: async (
+              id: string,
+              status: string
+            ): Promise<ApiResponse> => {
+
+              return apiClient.post(`/applications/${id}/${status}`, undefined, {
+                headers: getAuthHeaders(),
+              });
+            },
+
+            getAdminDetail: async (id : string): Promise<ApiResponse<AdminData>> => {
+            return apiClient.get<AdminData>(`/super-admin/admins/${id}`, {
+              headers: getAuthHeaders(),
+              requiresAuth: false,
+    });
+  },
+
+ getAdminReviewedApplications: async (adminId: number, params?: GetAdminReviewedApplicationsParams): Promise<ApiResponse<ApplicationsResponse>> => {
+  const queryParams = new URLSearchParams();
+  
+  if (params?.search) queryParams.append('search', params.search);
+  if (params?.status) queryParams.append('status', params.status);
+  if (params?.reviewedFrom) queryParams.append('reviewedFrom', params.reviewedFrom);
+  if (params?.reviewedTo) queryParams.append('reviewedTo', params.reviewedTo);
+  if (params?.page) queryParams.append('page', params.page.toString());
+  if (params?.limit) queryParams.append('limit', params.limit.toString());
+  
+  const queryString = queryParams.toString();
+  const url = `/super-admin/admins/${adminId}/reviewed-applications${queryString ? `?${queryString}` : ''}`;
+  
+  return apiClient.get<ApplicationsResponse>(url, {
+    headers: getAuthHeaders(),
+    requiresAuth: false,
+  });
+},
 };

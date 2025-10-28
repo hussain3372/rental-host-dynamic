@@ -1,11 +1,15 @@
 "use client";
+
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import { Table } from "@/app/shared/tables/Tables";
 import FilterDrawer from "../../../shared/tables/Filter";
 import "react-datepicker/dist/react-datepicker.css";
 import { application } from "@/app/api/Host/application";
-import type { ApplicationData, PaginationInfo } from "@/app/api/Host/application/types";
+import type {
+  ApplicationData,
+  PaginationInfo,
+} from "@/app/api/Host/application/types";
 
 interface CustomDateInputProps {
   value?: string;
@@ -36,6 +40,8 @@ interface ApiParams {
 export default function Applications() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(6);
   const [isLoading, setIsLoading] = useState(true);
@@ -59,7 +65,9 @@ export default function Applications() {
 
   const [submittedDate, setSubmittedDate] = useState<Date | null>(null);
 
-  const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([]);
+  const [allCertificationData, setAllCertificationData] = useState<
+    CertificationData[]
+  >([]);
   const [, setPaginationInfo] = useState<PaginationInfo | null>(null);
   const [totalItems, setTotalItems] = useState(0);
 
@@ -67,6 +75,15 @@ export default function Applications() {
   const [allStatuses, setAllStatuses] = useState<string[]>([]);
   const [allOwnerships, setAllOwnerships] = useState<string[]>([]);
   const [, setAllPropertyNames] = useState<string[]>([]);
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500); // ⏳ Delay of 500ms after typing stops
+
+    return () => {
+      clearTimeout(handler); // cleanup on every new keystroke
+    };
+  }, [searchTerm]);
 
   const hasActiveFilters = useMemo(() => {
     return (
@@ -88,18 +105,30 @@ export default function Applications() {
 
       if (response.success && response.data) {
         const applications = response.data.applications;
-        
-        const statuses = [...new Set(applications.map((app: ApplicationData) => 
-          app.status ? app.status.toUpperCase() : ''
-        ))].filter(Boolean);
-        
-        const ownerships = [...new Set(applications.map((app: ApplicationData) => 
-          app.propertyDetails?.ownership || ''
-        ))].filter(Boolean);
 
-        const propertyNames = [...new Set(applications.map((app: ApplicationData) => 
-          app.propertyDetails?.propertyName || ''
-        ))].filter(Boolean);
+        const statuses = [
+          ...new Set(
+            applications.map((app: ApplicationData) =>
+              app.status ? app.status.toUpperCase() : ""
+            )
+          ),
+        ].filter(Boolean);
+
+        const ownerships = [
+          ...new Set(
+            applications.map(
+              (app: ApplicationData) => app.propertyDetails?.ownership || ""
+            )
+          ),
+        ].filter(Boolean);
+
+        const propertyNames = [
+          ...new Set(
+            applications.map(
+              (app: ApplicationData) => app.propertyDetails?.propertyName || ""
+            )
+          ),
+        ].filter(Boolean);
 
         setAllStatuses(statuses);
         setAllOwnerships(ownerships);
@@ -138,8 +167,8 @@ export default function Applications() {
   const formatDateForAPI = (date: Date | null): string => {
     if (!date) return "";
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
 
@@ -172,18 +201,18 @@ export default function Applications() {
         }
       }
 
-      if (searchTerm.trim()) {
-        queryParams.search = searchTerm.trim();
+      if (debouncedSearchTerm.trim().length >= 3) {
+        queryParams.search = debouncedSearchTerm.trim();
       }
 
       if (appliedFilters.ownership.trim()) {
         queryParams.ownership = appliedFilters.ownership.trim();
       }
-      
+
       if (appliedFilters.status.trim()) {
         queryParams.status = getStatusForAPI(appliedFilters.status.trim());
       }
-      
+
       if (appliedFilters.submittedDate) {
         queryParams.submittedAt = appliedFilters.submittedDate;
       }
@@ -197,20 +226,25 @@ export default function Applications() {
       const response = await application.getApplications(queryParams);
 
       if (response.success && response.data) {
-        const transformedData: CertificationData[] = response.data.applications.map((app: ApplicationData) => ({
-          id: app.id,
-          "Application ID": app.id,
-          "Property Name": app.propertyDetails?.propertyName || "N/A",
-          Address: app.propertyDetails?.address || "N/A",
-          Ownership: app.propertyDetails?.ownership || "-",
-          "Current Step": app.currentStep || "-",
-          Status: capitalizeStatusForDisplay(app.status || ""),
-          "Submitted Date": app.submittedAt ? formatDate(app.submittedAt) : "—",
-        }));
+        const transformedData: CertificationData[] =
+          response.data.applications.map((app: ApplicationData) => ({
+            id: app.id,
+            "Application ID": app.id,
+            "Property Name": app.propertyDetails?.propertyName || "N/A",
+            Address: app.propertyDetails?.address || "N/A",
+            Ownership: app.propertyDetails?.ownership || "-",
+            "Current Step": app.currentStep || "-",
+            Status: capitalizeStatusForDisplay(app.status || ""),
+            "Submitted Date": app.submittedAt
+              ? formatDate(app.submittedAt)
+              : "—",
+          }));
 
         setAllCertificationData(transformedData);
         setPaginationInfo(response.data.pagination || null);
-        setTotalItems(response.data.pagination?.total || response.data.total || 0);
+        setTotalItems(
+          response.data.pagination?.total || response.data.total || 0
+        );
       } else {
         console.log("❌ No applications found or API error");
         setAllCertificationData([]);
@@ -225,16 +259,8 @@ export default function Applications() {
     } finally {
       setIsLoading(false);
     }
-  }, [
-    searchTerm,
-    appliedFilters.ownership,
-    appliedFilters.status,
-    appliedFilters.submittedDate,
-    appliedFilters.propertyName,
-    currentPage,
-    itemsPerPage,
-    hasActiveFilters,
-  ]);
+  }, [debouncedSearchTerm, appliedFilters.ownership, appliedFilters.status, appliedFilters.submittedDate, appliedFilters.propertyName, currentPage, itemsPerPage, hasActiveFilters]
+);
 
   useEffect(() => {
     fetchApplications();
@@ -242,6 +268,8 @@ export default function Applications() {
 
   const displayData = useMemo(() => {
     return allCertificationData.map(({ id, ...rest }) => {
+      console.log("application  ID:", id);
+
       return rest;
     });
   }, [allCertificationData]);
@@ -275,7 +303,7 @@ export default function Applications() {
 
   const handleApplyFilter = () => {
     const dateString = formatDateForAPI(submittedDate);
-    
+
     const filtersToApply = {
       ownership: tempFilters.ownership,
       status: tempFilters.status,
@@ -323,29 +351,30 @@ export default function Applications() {
   ];
 
   // Custom input component for date picker
-  const CustomDateInput = React.forwardRef<HTMLInputElement, CustomDateInputProps>(
-    ({ value, onClick }, ref) => (
-      <div className="relative">
-        <input
-          type="text"
-          value={value}
-          onClick={onClick}
-          ref={ref}
-          readOnly
-          className="w-full bg-gradient-to-b from-[#202020] to-[#101010] border rounded-xl px-4 py-3 text-sm border-[#404040] focus:border-[#EFFC76] focus:outline-none cursor-pointer text-white placeholder-white/40"
-          placeholder="Select date"
+  const CustomDateInput = React.forwardRef<
+    HTMLInputElement,
+    CustomDateInputProps
+  >(({ value, onClick }, ref) => (
+    <div className="relative">
+      <input
+        type="text"
+        value={value}
+        onClick={onClick}
+        ref={ref}
+        readOnly
+        className="w-full bg-gradient-to-b from-[#202020] to-[#101010] border rounded-xl px-4 py-3 text-sm border-[#404040] focus:border-[#EFFC76] focus:outline-none cursor-pointer text-white placeholder-white/40"
+        placeholder="Select date"
+      />
+      <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
+        <Image
+          src="/images/calender.svg"
+          alt="Pick date"
+          width={20}
+          height={20}
         />
-        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-          <Image
-            src="/images/calender.svg"
-            alt="Pick date"
-            width={20}
-            height={20}
-          />
-        </div>
       </div>
-    )
-  );
+    </div>
+  ));
 
   CustomDateInput.displayName = "CustomDateInput";
 
@@ -405,16 +434,25 @@ export default function Applications() {
         }}
         onFilterChange={(newValues) => {
           if (newValues.ownership !== undefined) {
-            setTempFilters(prev => ({ ...prev, ownership: newValues.ownership as string }));
+            setTempFilters((prev) => ({
+              ...prev,
+              ownership: newValues.ownership as string,
+            }));
           }
           if (newValues.status !== undefined) {
-            setTempFilters(prev => ({ ...prev, status: newValues.status as string }));
+            setTempFilters((prev) => ({
+              ...prev,
+              status: newValues.status as string,
+            }));
           }
           if (newValues["Submitted On"] !== undefined) {
             setSubmittedDate(newValues["Submitted On"] as Date | null);
           }
           if (newValues.propertyName !== undefined) {
-            setTempFilters(prev => ({ ...prev, propertyName: newValues.propertyName as string }));
+            setTempFilters((prev) => ({
+              ...prev,
+              propertyName: newValues.propertyName as string,
+            }));
           }
         }}
         dropdownStates={{
@@ -431,14 +469,18 @@ export default function Applications() {
             key: "ownership",
             type: "dropdown",
             placeholder: "Select ownership",
-            options: allOwnerships.map(ownership => capitalizeStatusForDisplay(ownership)),
+            options: allOwnerships.map((ownership) =>
+              capitalizeStatusForDisplay(ownership)
+            ),
           },
           {
             label: "Status",
             key: "status",
             type: "dropdown",
             placeholder: "Select status",
-            options: allStatuses.map(status => capitalizeStatusForDisplay(status)),
+            options: allStatuses.map((status) =>
+              capitalizeStatusForDisplay(status)
+            ),
           },
           {
             label: "Submitted On",

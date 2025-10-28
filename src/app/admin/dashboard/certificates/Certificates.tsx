@@ -127,7 +127,7 @@ export default function Certificates() {
   
   useEffect(() => {
     fetchCertificates();
-  }, [apiFilters, activeTab,fetchCertificates]);
+  }, [apiFilters, activeTab]);
 
   // Filter data based on search term only (status filtering is done server-side)
   const filteredCertificationData = useMemo(() => {

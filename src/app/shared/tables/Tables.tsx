@@ -81,20 +81,19 @@ export function Table<T extends Record<string, unknown>>({
   isAllSelected = false,
   isSomeSelected = false,
   rowIds = [],
-  onDeleteAll = () => { },
+  onDeleteAll = () => {},
   isDeleteAllDisabled = true,
   searchTerm = "",
-  onSearchChange = () => { },
+  onSearchChange = () => {},
   currentPage = 1,
-  onPageChange = () => { },
+  onPageChange = () => {},
   itemsPerPage = 6,
   totalItems = 0,
   showPagination = true,
   showFilter = false,
-  onFilterToggle = () => { },
+  onFilterToggle = () => {},
   showActionColumn = false,
   disableClientSidePagination = false, // ✅ ADD THIS
-
 }: TableProps<T>) {
   const [displayData, setDisplayData] = useState<T[]>(data);
   const [activeSortDropdown, setActiveSortDropdown] = useState<string | null>(
@@ -230,9 +229,9 @@ export function Table<T extends Record<string, unknown>>({
 
   const tableData = disableClientSidePagination
     ? data
-    : (showPagination
-      ? data.slice(startIndex, startIndex + itemsPerPage)
-      : data);
+    : showPagination
+    ? data.slice(startIndex, startIndex + itemsPerPage)
+    : data;
 
   const renderPaginationButtons = () => {
     const buttons = [];
@@ -275,10 +274,11 @@ export function Table<T extends Record<string, unknown>>({
         <button
           key={i}
           onClick={() => onPageChange(i)}
-          className={`w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] p-[13px] transition-colors border cursor-pointer ${currentPage === i
-            ? "bg-[#EFFC76] text-black font-medium border-[#EFFC76]"
-            : "text-white opacity-60 border-gray-600"
-            }`}
+          className={`w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] p-[13px] transition-colors border cursor-pointer ${
+            currentPage === i
+              ? "bg-[#EFFC76] text-black font-medium border-[#EFFC76]"
+              : "text-white opacity-60 border-gray-600"
+          }`}
         >
           {i}
         </button>
@@ -428,8 +428,9 @@ export function Table<T extends Record<string, unknown>>({
                 : "0",
               boxShadow: control.shadow ? "0 4px 6px rgba(0,0,0,0.1)" : "none",
               border: control.bordered
-                ? `${getBorderWidth()} ${control.borderStyle || "solid"} ${control.borderColor || "#e0e0e0"
-                }`
+                ? `${getBorderWidth()} ${control.borderStyle || "solid"} ${
+                    control.borderColor || "#e0e0e0"
+                  }`
                 : "none",
             }}
           >
@@ -481,13 +482,13 @@ export function Table<T extends Record<string, unknown>>({
                             />
                             <span
                               className="absolute inset-0 rounded-md border-2 border-[#FFFFFFCC] translate-x-1 translate-y-1 
-                 peer-checked:border-[#EFFC76]"
+                                        peer-checked:border-[#EFFC76]"
                             ></span>
                             <span
                               className="relative w-5 h-5 rounded-md border-2 border-[#FFFFFFCC] bg-[#252628] 
-                 flex items-center justify-center 
-                 peer-checked:bg-[#EFFC76] peer-checked:border-[#EFFC76]
-                 peer-checked:after:content-['✓'] peer-checked:after:text-black peer-checked:after:text-xs peer-checked:after:font-bold"
+                                        flex items-center justify-center 
+                                        peer-checked:bg-[#EFFC76] peer-checked:border-[#EFFC76]
+                                        peer-checked:after:content-['✓'] peer-checked:after:text-black peer-checked:after:text-xs peer-checked:after:font-bold"
                             ></span>
                           </label>
                         </th>
@@ -605,14 +606,14 @@ export function Table<T extends Record<string, unknown>>({
                                 checked={selectedRows.has(
                                   parseInt(
                                     rowIds[
-                                    showPagination ? startIndex + idx : idx
+                                      showPagination ? startIndex + idx : idx
                                     ]
                                   )
                                 )}
                                 onChange={(e) => {
                                   const rowId =
                                     rowIds[
-                                    showPagination ? startIndex + idx : idx
+                                      showPagination ? startIndex + idx : idx
                                     ];
                                   onSelectRow?.(rowId, e.target.checked);
                                 }}
@@ -682,9 +683,9 @@ export function Table<T extends Record<string, unknown>>({
                                     ) {
                                       const rowId =
                                         rowIds[
-                                        showPagination
-                                          ? startIndex + idx
-                                          : idx
+                                          showPagination
+                                            ? startIndex + idx
+                                            : idx
                                         ];
                                       disabled = !selectedRows.has(
                                         parseInt(rowId)

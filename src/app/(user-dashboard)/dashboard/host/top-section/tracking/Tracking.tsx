@@ -462,7 +462,7 @@ export default function Tracking() {
         </div>
       )}
 
-      <div className="py-[20px] flex flex-col w-full gap-3 xl:flex-row items-center ">
+      <div className="py-[20px] flex flex-col w-full gap-3 xl:flex-row">
         {/* Left Panel - Application Tracker */}
         <div className="rounded-md w-full lg:max-w-[50%] bg-[#121315] p-5 ">
           <div className="flex justify-between items-center">
