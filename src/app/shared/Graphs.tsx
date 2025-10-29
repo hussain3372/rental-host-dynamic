@@ -733,7 +733,7 @@ const percentageTooltip = function (this: TooltipModel<ChartType>, args: { chart
       y: {
         beginAtZero: true,
         min: 0,
-        max: 50000,
+        max: yAxisMax,
         grid: { display: false },
         ticks: {
           display: true,

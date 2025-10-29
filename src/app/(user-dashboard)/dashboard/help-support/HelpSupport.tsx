@@ -123,14 +123,12 @@ export default function HelpSupport() {
           ),
         ];
 
-        // FIX: If tickets don't have property data, remove this filter or use appropriate field
         const properties = [
           ...new Set(
             ticketsData
               .map(
                 (ticket: Ticket) =>
-                  // Use appropriate property field here, or remove if not available
-                  ticket.id || "" // Using ID as fallback, replace with actual property field
+                  ticket.id || ""
               )
               .filter(Boolean)
           ),
@@ -158,6 +156,7 @@ export default function HelpSupport() {
       console.error("Error fetching filter options:", error);
     }
   }, []);
+
   // ✅ FIXED: Update filter options when main data changes
   useEffect(() => {
     if (allCertificationData.length > 0) {
@@ -211,109 +210,106 @@ export default function HelpSupport() {
     const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
-const fetchTickets = useCallback(async () => {
-  try {
-    setLoading(true);
 
-    // Build API parameters correctly
-    const apiParams: TicketApiParams = {
-      page: currentPage,
-      limit: itemsPerPage,
-    };
+  const fetchTickets = useCallback(async () => {
+    try {
+      setLoading(true);
 
-    // Add search term if applicable
-    if (debouncedSearchTerm.trim().length >= 3) {
-      apiParams.search = debouncedSearchTerm.trim();
-    }
+      // Build API parameters correctly
+      const apiParams: TicketApiParams = {
+        page: currentPage,
+        limit: itemsPerPage,
+      };
 
-    // Add filters - use correct parameter names
-    if (appliedFilters.subject?.trim()) {
-      apiParams.subject = appliedFilters.subject.trim();
-    }
+      // Add search term if applicable
+      if (debouncedSearchTerm.trim().length >= 3) {
+        apiParams.search = debouncedSearchTerm.trim();
+      }
 
-    // FIX: Use correct property parameter - if you have property data in tickets
-    if (appliedFilters.property?.trim()) {
-      // If tickets have property field, use it. Otherwise remove this filter.
-      apiParams.property = appliedFilters.property.trim();
-    }
+      // Add filters - use correct parameter names
+      if (appliedFilters.subject?.trim()) {
+        apiParams.subject = appliedFilters.subject.trim();
+      }
 
-    if (appliedFilters.status?.trim()) {
-      apiParams.status = appliedFilters.status.trim();
-    }
+      if (appliedFilters.property?.trim()) {
+        apiParams.property = appliedFilters.property.trim();
+      }
 
-    if (appliedFilters.submittedDate) {
-      apiParams.createdAt = appliedFilters.submittedDate;
-    }
+      if (appliedFilters.status?.trim()) {
+        apiParams.status = appliedFilters.status.trim();
+      }
 
-    console.log("🚀 HITTING TICKETS API WITH PARAMS:", apiParams);
+      if (appliedFilters.submittedDate) {
+        apiParams.createdAt = appliedFilters.submittedDate;
+      }
 
-    const response = await supportApi.getTickets(apiParams);
-    console.log("🔵 Full API Response:", response);
+      console.log("🚀 HITTING TICKETS API WITH PARAMS:", apiParams);
 
-    // Extract data based on your API response structure
-    let ticketsData = null;
-    let apiTotal = 0;
+      const response = await supportApi.getTickets(apiParams);
+      console.log("🔵 Full API Response:", response);
 
-    // Adjust this based on your actual API response structure
-    if (Array.isArray(response.data?.data?.data)) {
-      ticketsData = response.data.data.data;
-      apiTotal = Number(response.data.data.total) || 0;
-    } else if (Array.isArray(response.data?.data)) {
-      ticketsData = response.data.data;
-      apiTotal = Number(response.data.total) || ticketsData.length;
-    } else if (Array.isArray(response.data)) {
-      ticketsData = response.data;
-      apiTotal = ticketsData.length;
-    } else {
-      // Fallback: try to find array in response
-      ticketsData = response.data?.tickets || response.data?.items || [];
-      
-      // Ensure apiTotal is always a number
-      const totalFromResponse = response.data?.total || response.data?.count || ticketsData.length;
-      apiTotal = Number(totalFromResponse) || ticketsData.length;
-    }
+      // Extract data based on your API response structure
+      let ticketsData = null;
+      let apiTotal = 0;
 
-    if (ticketsData && Array.isArray(ticketsData)) {
-      console.log("🟢 Tickets data found:", ticketsData);
+      // Adjust this based on your actual API response structure
+      if (Array.isArray(response.data?.data?.data)) {
+        ticketsData = response.data.data.data;
+        apiTotal = Number(response.data.data.total) || 0;
+      } else if (Array.isArray(response.data?.data)) {
+        ticketsData = response.data.data;
+        apiTotal = Number(response.data.total) || ticketsData.length;
+      } else if (Array.isArray(response.data)) {
+        ticketsData = response.data;
+        apiTotal = ticketsData.length;
+      } else {
+        ticketsData = response.data?.tickets || response.data?.items || [];
+        
+        const totalFromResponse = response.data?.total || response.data?.count || ticketsData.length;
+        apiTotal = Number(totalFromResponse) || ticketsData.length;
+      }
 
-      const tickets: CertificationData[] = ticketsData.map(
-        (item: Ticket, index: number) => ({
-          id: index + 1,
-          "Ticket Id": item.id,
-          "Issue Type": item.category,
-          Subject: item.subject,
-          "Created On": new Date(item.createdAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-          Status: item.status,
-        })
-      );
+      if (ticketsData && Array.isArray(ticketsData)) {
+        console.log("🟢 Tickets data found:", ticketsData);
 
-      setAllCertificationData(tickets);
-      setTotalItems(apiTotal);
-    } else {
-      console.error("🔴 No valid tickets data found");
+        const tickets: CertificationData[] = ticketsData.map(
+          (item: Ticket, index: number) => ({
+            id: index + 1,
+            "Ticket Id": item.id,
+            "Issue Type": item.category,
+            Subject: item.subject,
+            "Created On": new Date(item.createdAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }),
+            Status: item.status,
+          })
+        );
+
+        setAllCertificationData(tickets);
+        setTotalItems(apiTotal);
+      } else {
+        console.error("🔴 No valid tickets data found");
+        setAllCertificationData([]);
+        setTotalItems(0);
+      }
+    } catch (error) {
+      console.error("🔴 Error fetching tickets:", error);
       setAllCertificationData([]);
       setTotalItems(0);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("🔴 Error fetching tickets:", error);
-    setAllCertificationData([]);
-    setTotalItems(0);
-  } finally {
-    setLoading(false);
-  }
-}, [
-  currentPage,
-  itemsPerPage,
-  debouncedSearchTerm,
-  appliedFilters.subject,
-  appliedFilters.property,
-  appliedFilters.status,
-  appliedFilters.submittedDate,
-]);
+  }, [
+    currentPage,
+    itemsPerPage,
+    debouncedSearchTerm,
+    appliedFilters.subject,
+    appliedFilters.property,
+    appliedFilters.status,
+    appliedFilters.submittedDate,
+  ]);
 
   useEffect(() => {
     fetchTickets();
@@ -326,7 +322,6 @@ const fetchTickets = useCallback(async () => {
     console.log("🟢 Applied Filters:", appliedFilters);
   }, [allCertificationData, appliedFilters]);
 
-  // ✅ FIXED: Remove client-side filtering since API handles it
   const filteredCertificationData = useMemo(() => {
     console.log("🟠 Using API-filtered data directly");
     return allCertificationData;
@@ -387,32 +382,34 @@ const fetchTickets = useCallback(async () => {
     setIsFilterOpen(false);
   };
 
-  // Rest of your existing functions remain exactly the same...
+  // ✅ FIXED: Delete multiple tickets with API call and refetch
   const handleDeleteApplications = async (selectedRowIds: Set<number>) => {
     try {
       const idsToDelete = Array.from(selectedRowIds).map(
         (id) =>
           allCertificationData.find((item) => item.id === id)?.["Ticket Id"]
-      );
+      ).filter(Boolean) as string[];
 
-      console.log(" Deleting multiple tickets:", idsToDelete);
+      console.log("🔴 Deleting multiple tickets:", idsToDelete);
 
-      await supportApi.deleteMultipleTickets(idsToDelete as string[]);
+      // Call the API to delete tickets
+      await supportApi.deleteMultipleTickets(idsToDelete);
       console.log("🟢 Multiple tickets deleted successfully");
 
-      const updatedData = allCertificationData.filter(
-        (item) => !selectedRowIds.has(item.id)
-      );
-      setAllCertificationData(updatedData);
+      // Clear selected rows
       setSelectedRows(new Set());
+      
+      // Refetch tickets to get updated data from server
+      await fetchTickets();
+      
     } catch (error) {
-      console.error(" Error deleting multiple tickets:", error);
+      console.error("🔴 Error deleting multiple tickets:", error);
     } finally {
       setIsModalOpen(false);
     }
   };
 
-  // ✅ Delete Single Ticket
+  // ✅ FIXED: Delete single ticket with API call and refetch
   const handleDeleteSingleApplication = async (
     row: Record<string, string>,
     id: number
@@ -421,21 +418,36 @@ const fetchTickets = useCallback(async () => {
       const ticketId = allCertificationData.find((item) => item.id === id)?.[
         "Ticket Id"
       ];
-      if (!ticketId) return;
-      const updatedData = allCertificationData.filter((item) => item.id !== id);
-      setAllCertificationData(updatedData);
-      setSingleRowToDelete(null);
+      
+      if (!ticketId) {
+        console.error("🔴 Ticket ID not found");
+        return;
+      }
+
+      console.log("🔴 Deleting single ticket:", ticketId);
+
+      // ✅ Call the API to delete the ticket
+      await supportApi.deleteTicket(ticketId);
+      console.log("🟢 Single ticket deleted successfully");
+
+      // Clear the row from selected rows
       setSelectedRows((prev) => {
         const newSet = new Set(prev);
         newSet.delete(id);
         return newSet;
       });
+
+      // ✅ Refetch tickets to get updated data from server
+      await fetchTickets();
+      
     } catch (error) {
-      console.error("Error deleting single ticket:", error);
+      console.error("🔴 Error deleting single ticket:", error);
     } finally {
       setIsModalOpen(false);
+      setSingleRowToDelete(null);
     }
   };
+
 
   const openDeleteSingleModal = (row: Record<string, string>, id: number) => {
     setSingleRowToDelete({ row, id });
@@ -443,22 +455,18 @@ const fetchTickets = useCallback(async () => {
     setIsModalOpen(true);
   };
 
-  // Handle select all for ALL filtered data
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set(selectedRows);
 
     if (checked) {
-      // Add ALL filtered data IDs
       filteredCertificationData.forEach((item) => newSelected.add(item.id));
     } else {
-      // Remove ALL filtered data IDs
       filteredCertificationData.forEach((item) => newSelected.delete(item.id));
     }
 
     setSelectedRows(newSelected);
   };
 
-  // Handle individual row selection
   const handleSelectRow = (id: string, checked: boolean) => {
     const newSelected = new Set(selectedRows);
     const numericId = parseInt(id);
@@ -471,7 +479,6 @@ const fetchTickets = useCallback(async () => {
     setSelectedRows(newSelected);
   };
 
-  // Handle confirmation from modal
   const handleModalConfirm = () => {
     if (modalType === "multiple" && selectedRows.size > 0) {
       handleDeleteApplications(selectedRows);
@@ -483,7 +490,6 @@ const fetchTickets = useCallback(async () => {
     }
   };
 
-  // Table control
   const tableControl = {
     hover: true,
     striped: false,
@@ -504,7 +510,6 @@ const fetchTickets = useCallback(async () => {
     highlightRowOnHover: true,
   };
 
-  // Reset pagination when filters change
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, appliedFilters]);
@@ -513,7 +518,6 @@ const fetchTickets = useCallback(async () => {
     setCurrentPage(page);
   };
 
-  // Handle delete selected - opens modal for confirmation
   const handleDeleteSelected = () => {
     if (selectedRows.size > 0) {
       setModalType("multiple");
@@ -564,7 +568,6 @@ const fetchTickets = useCallback(async () => {
     }
   };
 
-  // Dropdown items for table actions
   const dropdownItems = [
     {
       label: "View Details",
@@ -585,7 +588,6 @@ const fetchTickets = useCallback(async () => {
     },
   ];
 
-  // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -677,87 +679,85 @@ const fetchTickets = useCallback(async () => {
         />
       </div>
 
-      {/* Updated FilterDrawer with API-based options */}
-      <FilterDrawer
-        isOpen={isFilterOpen}
-        onClose={handleCloseFilter}
-        title="Apply Filter"
-        description="Refine listings to find the right tickets faster."
-        resetLabel="Reset"
-        onReset={handleResetFilter}
-        buttonLabel="Apply Filter"
-        onApply={handleApplyFilter}
-        filterValues={{
-          subject: tempFilters.subject,
-          property: tempFilters.property,
-          status: tempFilters.status,
-          submittedDate: submittedDate,
-        }}
-        onFilterChange={(newValues) => {
-          if (newValues.subject !== undefined) {
-            setTempFilters((prev) => ({
-              ...prev,
-              subject: newValues.subject as string,
-            }));
-          }
-          if (newValues.property !== undefined) {
-            setTempFilters((prev) => ({
-              ...prev,
-              property: newValues.property as string,
-            }));
-          }
-          if (newValues.status !== undefined) {
-            setTempFilters((prev) => ({
-              ...prev,
-              status: newValues.status as string,
-            }));
-          }
-          if (newValues.submittedDate !== undefined) {
-            setSubmittedDate(newValues.submittedDate as Date | null);
-          }
-        }}
-        dropdownStates={{
-          subject: subjectDropdownOpen,
-          property: propertyDropdownOpen,
-          status: statusDropdownOpen,
-        }}
-        onDropdownToggle={(key, value) => {
-          if (key === "subject") setSubjectDropdownOpen(value);
-          if (key === "property") setPropertyDropdownOpen(value);
-          if (key === "status") setStatusDropdownOpen(value);
-        }}
-        fields={[
-          {
-            label: "Subject",
-            key: "subject",
-            type: "dropdown",
-            placeholder: "Select subject",
-            options: allSubjects,
-          },
-          {
-            label: "Ticket ID", // Changed from "Property" to be more accurate
-            key: "property",
-            type: "dropdown",
-            placeholder: "Select ticket ID",
-            options: allProperties,
-          },
-          {
-            label: "Status",
-            key: "status",
-            type: "dropdown",
-            placeholder: "Select status",
-            options: allStatuses,
-          },
-          {
-            label: "Created Date", // More accurate label
-            key: "submittedDate",
-            type: "date",
-            placeholder: "Select date",
-          },
-        ]}
-      />
+     <FilterDrawer
+  isOpen={isFilterOpen}
+  onClose={handleCloseFilter}
+  title="Apply Filter"
+  description="Refine listings to find the right tickets faster."
+  resetLabel="Reset"
+  onReset={handleResetFilter}
+  buttonLabel="Apply Filter"
+  onApply={handleApplyFilter}
+  filterValues={{
+    subject: tempFilters.subject,
+    property: tempFilters.property,
+    status: tempFilters.status,
+    submittedDate: submittedDate,
+  }}
+  onFilterChange={(newValues) => {
+    if (newValues.subject !== undefined) {
+      setTempFilters((prev) => ({
+        ...prev,
+        subject: newValues.subject as string,
+      }));
+    }
+    if (newValues.property !== undefined) {
+      setTempFilters((prev) => ({
+        ...prev,
+        property: newValues.property as string,
+      }));
+    }
+    if (newValues.status !== undefined) {
+      setTempFilters((prev) => ({
+        ...prev,
+        status: newValues.status as string,
+      }));
+    }
+    if (newValues.submittedDate !== undefined) {
+      setSubmittedDate(newValues.submittedDate as Date | null);
+    }
+  }}
+  dropdownStates={{
+    subject: subjectDropdownOpen,
+    property: propertyDropdownOpen,
+    status: statusDropdownOpen,
+  }}
+  onDropdownToggle={(key, value) => {
+    if (key === "subject") setSubjectDropdownOpen(value);
+    if (key === "property") setPropertyDropdownOpen(value);
+    if (key === "status") setStatusDropdownOpen(value);
+  }}
+  fields={[
+    {
+      label: "Subject",
+      key: "subject",
+      type: "dropdown",
+      placeholder: "Select subject",
+      options: allSubjects, // ✅ Just pass the string array directly
+    },
+    {
+      label: "Ticket ID",
+      key: "property",
+      type: "dropdown", 
+      placeholder: "Select ticket ID",
+      options: allProperties, // ✅ Just pass the string array directly
+    },
+    {
+      label: "Status",
+      key: "status",
+      type: "dropdown",
+      placeholder: "Select status",
+      options: allStatuses, // ✅ Just pass the string array directly
+    },
+    {
+      label: "Created Date",
+      key: "submittedDate",
+      type: "date",
+      placeholder: "Select date",
+    },
+  ]}
+/>
 
-      {/* Rest of your JSX remains exactly the same */}
       <div
         className={`fixed inset-0 bg-[#121315CC] z-[3000000000] flex justify-end transition-opacity duration-300 ${
           isDrawerOpen ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -774,7 +774,6 @@ const fetchTickets = useCallback(async () => {
         </div>
       </div>
 
-      {/* Ticket Detail Drawer */}
       <div
         className={`fixed inset-0 bg-[#121315CC] z-[3000000001] flex justify-end transition-opacity duration-300 ${
           isDetailDrawerOpen ? "opacity-100" : "opacity-0 pointer-events-none"

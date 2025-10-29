@@ -89,6 +89,7 @@ export default function Graph() {
   };
 
   // Transform property data for graph with correct label field
+  // Transform property data for graph with correct label field
   const transformPropertyData = () => {
     if (!propertyData?.data || !Array.isArray(propertyData.data)) {
       const defaultLabels = generateDefaultLabels(range1);
@@ -105,22 +106,33 @@ export default function Graph() {
       return value?.toString() || "";
     });
     
-    const certified = propertyData.data.map((item: GraphDataItem) => item.certificatesGenerated || 0);
-    const listed = propertyData.data.map((item: GraphDataItem) => item.propertiesListed || 0);
+    const certified = propertyData.data.map((item: GraphDataItem) => 
+      Number(item.certificatesGenerated) || 0
+    );
+    const listed = propertyData.data.map((item: GraphDataItem) => 
+      Number(item.propertiesListed) || 0
+    );
 
+    // Calculate max value for proper Y-axis scaling
+    const maxValue = Math.max(...certified, ...listed);
+    
     console.log("Property graph data:", { 
       labels, 
       certified, 
       listed, 
       labelField, 
       range: range1,
-      dataLength: propertyData.data.length 
+      dataLength: propertyData.data.length,
+      maxCertified: Math.max(...certified),
+      maxListed: Math.max(...listed),
+      maxValue
     });
 
     return {
       labels,
       certified,
-      listed
+      listed,
+      maxValue
     };
   };
 
@@ -256,6 +268,7 @@ export default function Graph() {
             <GlobalGraph
               type="bar"
               stacked
+              yAxisMax={5000}
               showStripedBars
               barThickness={range1 === "yearly" ? 20 : range1 === "monthly" ? 20 : 35}
               barGap={range1 === "yearly" ? 5 : 10}
@@ -331,6 +344,7 @@ export default function Graph() {
               >
                 <GlobalGraph
                   type="line"
+                  yAxisMax={50000}
                   labels={activeRevenueData.labels}
                   datasets={[
                     {

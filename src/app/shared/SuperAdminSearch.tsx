@@ -1,9 +1,9 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
-import { searchApi } from "../api/Admin/search";
+import { searchApi } from "../api/super-admin/search";
 import toast from "react-hot-toast";
-import { SearchResult } from "../api/Admin/search/type";
+import { SearchResult } from "../api/super-admin/search/type";
 // import Cookies from "js-cookie";
 
 type SearchDrawerProps = {

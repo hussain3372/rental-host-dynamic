@@ -226,10 +226,10 @@ const handleSubmit = async () => {
             {isSubmitting ? (
               <div className="flex items-center justify-center">
                 <div className="w-4 h-4 border-2 border-[#121315] border-t-transparent rounded-full animate-spin mr-2"></div>
-                Sending Code...
+                Adding...
               </div>
             ) : (
-              "Send Code For Verification"
+              "Add Admin"
             )}
           </button>
         </div>

@@ -1,4 +1,3 @@
-import Cookies from "js-cookie";
 
 // Error types
 export class ApiError extends Error {

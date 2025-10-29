@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Menu } from "lucide-react";
 import { usePathname } from "next/navigation";
-import SearchDrawer from "@/app/shared/SearchDrawer";
+import SearchDrawer from "@/app/shared/SuperAdminSearch";
 import SearchDrawerShortcut from "@/app/shared/SearchDrawerShortcut";
 import { useNotificationContext } from "@/app/shared/context/SuperAdminNotifications";
 // import { allProperties } from "@/app/(main)/search-page/data/properties";
@@ -55,7 +55,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
   return (
     <>
       {/* Mobile top bar */}
-      <div className="lg:hidden flex items-center z-[100] justify-between px-4 py-6  fixed w-full ">
+      <div className="lg:hidden flex items-center z-[100] justify-between px-4 py-6  fixed w-0 ">
         <button onClick={toggleMobileMenu} className="text-white">
           <Menu size={28} />
         </button>
@@ -91,8 +91,7 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
 
           {/* Search & Notifications */}
           <div className="border-b border-b-[#3f4041] pb-[32px] mb-[32px] ml-[-14px]">
-            {/* Search */}
-            {/* Search */}
+           
             <div
               className={`flex justify-between items-center cursor-pointer mb-[20px]`}
             >

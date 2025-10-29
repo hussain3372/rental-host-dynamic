@@ -2,7 +2,7 @@ import { apiClient, ApiResponse } from "../../core/client";
 import { SettingData, TwoFactorAuth ,ChangePasswordResponse , PaymentResponse } from "./types";
 import Cookies from "js-cookie";
 
-const token = Cookies.get("adminAccessToken");
+const token = Cookies.get("accessToken");
 
 export const setting = {
   getSetting: async (): Promise<ApiResponse<SettingData>> => {

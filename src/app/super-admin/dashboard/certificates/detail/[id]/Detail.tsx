@@ -4,28 +4,45 @@ import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "@/app/shared/tables/Filter";
 
+interface Certificate {
+  id: string;
+  certificateNumber: string;
+  host: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  status: "ACTIVE" | "REVOKED" | "EXPIRED";
+  issuedAt: string;
+  expiresAt: string;
+  validity: string;
+}
+
+interface DetailProps {
+  certificates: Certificate[];
+  templateId: string;
+}
+
 interface CertificationData {
-  id: number;
+  id: string;
   "Host Name": string;
   "Property Name": string;
   "Issue Date": string;
   "Expiry Date": string;
-  "Status": "Active" | "revoked" | "Expired";
+  Status: "Active" | "revoked" | "Expired";
 }
 
-export default function Applications() {
+export default function Detail({ certificates }: DetailProps) {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [ActiveTab, ] = useState<"Active" | "Expired">("Active");
   const itemsPerPage = 6;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
-// Change from Set<number> to Set<string>
-const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [singleRowToDelete, setSingleRowToDelete] = useState<{
     row: Record<string, string>;
-    id: number;
+    id: string;
   } | null>(null);
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
 
@@ -40,170 +57,127 @@ const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     expiryDate: "",
   });
 
-  const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([
-    {
-      id: 1,
-      "Property Name": "Coastal Hillside Estate",
+  // Transform API data to table format
+  const [allCertificationData, setAllCertificationData] = useState<
+    CertificationData[]
+  >([]);
 
-      "Host Name": "Emily John",
-      "Issue Date": "Aug 12, 2024",
-      "Expiry Date": "Aug 12, 2025",
-      "Status": "Expired"
-    },
-    {
-      id: 2,
-      "Property Name": "Coastal Hillside Estate",
-
-      "Host Name": "Emily John",
-      "Issue Date": "Jul 15, 2024",
-      "Expiry Date": "Jul 15, 2025",
-      "Status": "Active"
-    },
-    {
-      id: 3,
-      "Property Name": "Coastal Hillside Estate",
-
-      "Host Name": "Emily John",
-      "Issue Date": "Jun 20, 2024",
-      "Expiry Date": "Jun 20, 2025",
-      "Status": "Active"
-    },
-    {
-      id: 4,
-      "Property Name": "Coastal Hillside Estate",
-
-      "Host Name": "Emily John",
-      "Issue Date": "May 10, 2024",
-      "Expiry Date": "May 10, 2025",
-      "Status": "Active"
-    },
-    {
-      id: 5,
-      "Property Name": "Coastal Hillside Estate",
-
-      "Host Name": "Emily John",
-      "Issue Date": "Apr 05, 2024",
-      "Expiry Date": "Apr 05, 2025",
-      "Status": "Active"
-    },
-    {
-      id: 6,
-      "Property Name": "Coastal Hillside Estate",
-
-      "Host Name": "Emily John",
-      "Issue Date": "Mar 18, 2024",
-      "Expiry Date": "Mar 18, 2025",
-      "Status": "Active"
-    },
-    {
-      id: 7,
-      "Property Name": "Mountain View Complex",
-
-      "Host Name": "Emily John",
-      "Issue Date": "Feb 22, 2024",
-      "Expiry Date": "Feb 22, 2025",
-      "Status": "Active"
-    },
-    {
-      "Host Name": "Emily John",
-      "Property Name": "Skyline Residences",
-      id: 8,
-
-      "Issue Date": "Jan 30, 2024",
-      "Expiry Date": "Jan 30, 2025",
-      "Status": "Active"
-    },
-    
-      ]);
+  useEffect(() => {
+    const transformedData: CertificationData[] = certificates.map((cert) => ({
+      id: cert.id,
+      "Host Name": cert.host.name,
+      "Property Name": cert.certificateNumber,
+      "Issue Date": new Date(cert.issuedAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      "Expiry Date": new Date(cert.expiresAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      Status:
+        cert.status === "ACTIVE"
+          ? "Active"
+          : cert.status === "REVOKED"
+          ? "revoked"
+          : "Expired",
+    }));
+    setAllCertificationData(transformedData);
+  }, [certificates]);
 
   const filteredCertificationData = useMemo(() => {
-  let filtered = allCertificationData; // Remove the status filter
-  
-  if (searchTerm) {
-    filtered = filtered.filter(
-      (item) =>
-        item["Property Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item["Host Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item["Issue Date"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item["Expiry Date"].toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }
+    let filtered = allCertificationData;
 
-  // Apply Issue Date filter
-  if (certificationFilters.issueDate) {
-    filtered = filtered.filter(
-      (item) => item["Issue Date"] === certificationFilters.issueDate
-    );
-  }
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (item) =>
+          item["Property Name"]
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          item["Host Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item["Issue Date"].toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item["Expiry Date"].toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
 
-  // Apply Expiry Date filter
-  if (certificationFilters.expiryDate) {
-    filtered = filtered.filter(
-      (item) => item["Expiry Date"] === certificationFilters.expiryDate
-    );
-  }
+    // Apply Issue Date filter
+    if (certificationFilters.issueDate) {
+      filtered = filtered.filter(
+        (item) => item["Issue Date"] === certificationFilters.issueDate
+      );
+    }
 
-  return filtered;
-}, [searchTerm, certificationFilters, allCertificationData]); // Remove ActiveTab from dependencies
+    // Apply Expiry Date filter
+    if (certificationFilters.expiryDate) {
+      filtered = filtered.filter(
+        (item) => item["Expiry Date"] === certificationFilters.expiryDate
+      );
+    }
+
+    return filtered;
+  }, [searchTerm, certificationFilters, allCertificationData]);
+
   const handleSelectAll = (checked: boolean) => {
-  const newSelected = new Set<string>();
-  if (checked) {
-    filteredCertificationData.forEach((item) => newSelected.add(item.id.toString()));
-  }
-  setSelectedRows(newSelected);
-};
+    const newSelected = new Set<string>();
+    if (checked) {
+      filteredCertificationData.forEach((item) => newSelected.add(item.id));
+    }
+    setSelectedRows(newSelected);
+  };
 
- const handleSelectRow = (id: string, checked: boolean) => {
-  const newSelected = new Set(selectedRows);
-  if (checked) {
-    newSelected.add(id);
-  } else {
-    newSelected.delete(id);
-  }
-  setSelectedRows(newSelected);
-};
+  const handleSelectRow = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedRows);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedRows(newSelected);
+  };
 
- const isAllDisplayedSelected = useMemo(() => {
-  return (
-    filteredCertificationData.length > 0 &&
-    filteredCertificationData.every((item) => selectedRows.has(item.id.toString()))
-  );
-}, [filteredCertificationData, selectedRows]);
+  const isAllDisplayedSelected = useMemo(() => {
+    return (
+      filteredCertificationData.length > 0 &&
+      filteredCertificationData.every((item) => selectedRows.has(item.id))
+    );
+  }, [filteredCertificationData, selectedRows]);
 
   const isSomeDisplayedSelected = useMemo(() => {
-  return (
-    filteredCertificationData.some((item) => selectedRows.has(item.id.toString())) &&
-    !isAllDisplayedSelected
-  );
-}, [filteredCertificationData, selectedRows, isAllDisplayedSelected]);
+    return (
+      filteredCertificationData.some((item) => selectedRows.has(item.id)) &&
+      !isAllDisplayedSelected
+    );
+  }, [filteredCertificationData, selectedRows, isAllDisplayedSelected]);
 
- const handleDeleteApplications = (selectedRowIds: Set<string>) => {
-  const idsToDelete = Array.from(selectedRowIds).map(id => parseInt(id));
-  const updatedData = allCertificationData.filter((item) => !idsToDelete.includes(item.id));
-  setAllCertificationData(updatedData);
-  setIsModalOpen(false);
-  setSelectedRows(new Set());
-};
-  const handleDeleteSingleApplication = (row: Record<string, string>, id: number) => {
-  const updatedData = allCertificationData.filter((item) => item.id !== id);
-  setAllCertificationData(updatedData);
-  setIsModalOpen(false);
-  setSingleRowToDelete(null);
+  const handleDeleteApplications = (selectedRowIds: Set<string>) => {
+    const updatedData = allCertificationData.filter(
+      (item) => !selectedRowIds.has(item.id)
+    );
+    setAllCertificationData(updatedData);
+    setIsModalOpen(false);
+    setSelectedRows(new Set());
+  };
 
-  // Remove these 3 lines:
-  // const newSelected = new Set(selectedRows);
-  // newSelected.delete(id);
-  // setSelectedRows(newSelected);
+  const handleDeleteSingleApplication = (
+    row: Record<string, string>,
+    id: string
+  ) => {
+    const updatedData = allCertificationData.filter((item) => item.id !== id);
+    setAllCertificationData(updatedData);
+    setIsModalOpen(false);
+    setSingleRowToDelete(null);
 
-  const remainingDataCount = updatedData.length;
-  const maxPageAfterDeletion = Math.ceil(remainingDataCount / itemsPerPage);
+    const remainingDataCount = updatedData.length;
+    const maxPageAfterDeletion = Math.ceil(remainingDataCount / itemsPerPage);
 
-  if (currentPage > maxPageAfterDeletion) {
-    setCurrentPage(Math.max(1, maxPageAfterDeletion));
-  }
-};
+    if (currentPage > maxPageAfterDeletion) {
+      setCurrentPage(Math.max(1, maxPageAfterDeletion));
+    }
+  };
 
-  const openDeleteSingleModal = (row: Record<string, string>, id: number) => {
+  const openDeleteSingleModal = (row: Record<string, string>, id: string) => {
     setSingleRowToDelete({ row, id });
     setModalType("single");
     setIsModalOpen(true);
@@ -220,21 +194,21 @@ const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
     if (modalType === "multiple" && selectedRows.size > 0) {
       handleDeleteApplications(selectedRows);
     } else if (modalType === "single" && singleRowToDelete) {
-      handleDeleteSingleApplication(singleRowToDelete.row, singleRowToDelete.id);
+      handleDeleteSingleApplication(
+        singleRowToDelete.row,
+        singleRowToDelete.id
+      );
     }
   };
 
   const displayData = useMemo(() => {
-    return filteredCertificationData.map(({ id, ...rest }) => {
-      console.log(id)
-      return rest;
-    });
+    return filteredCertificationData.map(({ id, ...rest }) => rest);
   }, [filteredCertificationData]);
 
   useEffect(() => {
     setCurrentPage(1);
     setSelectedRows(new Set());
-  }, [searchTerm, certificationFilters, ActiveTab]);
+  }, [searchTerm, certificationFilters]);
 
   const handleResetFilter = () => {
     setCertificationFilters({
@@ -270,14 +244,6 @@ const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   };
 
   const dropdownItems = [
-    // {
-    //   label: "View Details",
-    //   onClick: (row: Record<string, string>, index: number) => {
-    //     const globalIndex = (currentPage - 1) * itemsPerPage + index;
-    //     const originalRow = filteredCertificationData[globalIndex];
-    //     window.location.href = `/super-admin/dashboard/certificates/detail/${originalRow.id}`;
-    //   },
-    // },
     {
       label: "Delete Application",
       onClick: (row: Record<string, string>, index: number) => {
@@ -305,15 +271,6 @@ const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
           confirmText="Delete"
         />
       )}
-      
-      {/* Responsive Header and Tabs */}
-      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 lg:gap-0">
-       
-
-        
-        
-         
-      </div>
 
       <div className="flex flex-col !h-full justify-between">
         <Table
@@ -334,7 +291,7 @@ const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
           onSelectRow={handleSelectRow}
           isAllSelected={isAllDisplayedSelected}
           isSomeSelected={isSomeDisplayedSelected}
-          rowIds={filteredCertificationData.map((item) => item.id.toString())}
+          rowIds={filteredCertificationData.map((item) => item.id)}
           dropdownItems={dropdownItems}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
@@ -342,7 +299,9 @@ const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
           showFilter={true}
           onFilterToggle={setIsFilterOpen}
           onDeleteAll={handleDeleteSelected}
-          isDeleteAllDisabled={selectedRows.size === 0 || selectedRows.size < displayData.length}
+          isDeleteAllDisabled={
+            selectedRows.size === 0 || selectedRows.size < displayData.length
+          }
         />
       </div>
 

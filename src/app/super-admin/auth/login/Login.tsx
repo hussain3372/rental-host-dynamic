@@ -8,7 +8,6 @@ import { useRouter } from "next/navigation";
 import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, isSupported } from "firebase/messaging";
 
-
 // Firebase Config
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
@@ -25,7 +24,7 @@ let messaging: ReturnType<typeof getMessaging> | null = null;
 
 // Initialize messaging only if supported
 if (typeof window !== "undefined") {
-  isSupported().then(supported => {
+  isSupported().then((supported) => {
     if (supported) {
       messaging = getMessaging(app);
     }
@@ -71,9 +70,10 @@ export default function LoginPage() {
         if (Notification.permission === "granted") {
           console.log("✅ Permission granted, generating FCM token...");
           const token = await getToken(messaging, {
-            vapidKey: "BEyjKXOqIyfAIE2cXJZdqdLXzA_NVMq4K4EHN_WO3UXBhsHPxz_amir9TBY5PEDzkT7mvMbwudeMc8q-nnp1A9Y",
+            vapidKey:
+              "BEyjKXOqIyfAIE2cXJZdqdLXzA_NVMq4K4EHN_WO3UXBhsHPxz_amir9TBY5PEDzkT7mvMbwudeMc8q-nnp1A9Y",
           });
-          
+
           if (token) {
             console.log("✅ FCM Token generated successfully:", token);
             console.log("Token length:", token.length);
@@ -82,7 +82,9 @@ export default function LoginPage() {
             console.log("❌ No FCM token received - token is null/empty");
           }
         } else {
-          console.log("ℹ️ Notification permission not granted, token generation skipped");
+          console.log(
+            "ℹ️ Notification permission not granted, token generation skipped"
+          );
         }
       } catch (error) {
         console.error("❌ FCM token generation failed:", error);
@@ -105,19 +107,19 @@ export default function LoginPage() {
       const loginPayload = {
         email: formData.email,
         password: formData.password,
-        ...(fcmToken && { fcmToken })
+        ...(fcmToken && { fcmToken }),
       };
 
       const response: AuthResponse = await auth.Login(loginPayload);
       const user = response?.data?.user;
-      
+
       if (response.success) {
         if (user?.role !== "SUPER_ADMIN") {
-          toast.error("Access restricted — super admin only.")
-          return 
+          toast.error("Access restricted — super admin only.");
+          return;
         }
       }
-      
+
       if (!response?.success) {
         toast.error(response?.message || "Login failed");
         return;
@@ -129,42 +131,32 @@ export default function LoginPage() {
         if (user.lastname) localStorage.setItem("lastname", user.lastname);
         if (user.email) localStorage.setItem("email", user.email);
         if (typeof user.mfaEnabled !== "undefined")
-          localStorage.setItem("userMfaEnabled", JSON.stringify(user.mfaEnabled));
+          localStorage.setItem(
+            "userMfaEnabled",
+            JSON.stringify(user.mfaEnabled)
+          );
         if (user.role) localStorage.setItem("userRole", user.role);
       }
 
       const token = response?.data?.accessToken || "";
 
       // 🔐 Case 1: MFA disabled → superAdminAccessToken present
-        Cookies.set("superAdminAccessToken", token, {
-          expires: 7,
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "Lax",
-          path: "/",
-        });
+      Cookies.set("superAdminAccessToken", token, {
+        expires: 7,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "Lax",
+        path: "/",
+      });
 
-        toast.success("Login successful!");
-        
-        router.push("/super-admin/dashboard");
-        router.refresh();
-        return;
-      
-
-      // 🔐 Case 2: MFA enabled → no token yet
-      // if (user?.mfaEnabled) {
-      //   toast.success("2FA verification required");
-      //   router.push("/auth/verify-otp");
-      //   return;
-      // }
-
-      // 🧩 Case 3: Unexpected success shape (no user, no token)
-      // toast.success(response?.message || "Login request successful");
-      // router.push("/auth/verify-otp"); // safe fallback
-
+      router.push("/super-admin/dashboard");
+      router.refresh();
+      return;
     } catch (error: unknown) {
       console.error("Login error:", error);
       const errorMessage =
-        error instanceof Error ? error.message : "Network error. Please try again.";
+        error instanceof Error
+          ? error.message
+          : "Network error. Please try again.";
       toast.error(errorMessage);
     } finally {
       setLoading(false);

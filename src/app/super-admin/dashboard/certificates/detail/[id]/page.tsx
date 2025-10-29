@@ -1,13 +1,10 @@
-import React from 'react'
-import Detail from './Detail'
-import CertificationSetup from './CertificationSetup'
+import ClientPage from "./ClientPage";
 
+interface PageProps {
+  params: Promise<{ id: string }>;
+}
 
-export default function page() {
-  return (
-    <div>
-      <CertificationSetup/>
-      <Detail/>
-    </div>
-  )
+export default async function Page({ params }: PageProps) {
+  const { id } = await params;
+  return <ClientPage templateId={id} />;
 }

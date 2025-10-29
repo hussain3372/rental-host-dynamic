@@ -1,4 +1,3 @@
-
 "use client";
 import React, { useState, useEffect } from "react";
 import AuthForm from "@/app/Layout/auth-layout/AuthForm";
@@ -23,7 +22,6 @@ interface MfaResponse {
   mfaRequired?: boolean;
   email?: string;
 }
-
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
@@ -101,95 +99,92 @@ export default function LoginPage() {
     generateFcmTokenSilently();
   }, []);
 
-const handleLogin = async (formData: LoginFormData) => {
-  try {
-    setLoading(true);
+  const handleLogin = async (formData: LoginFormData) => {
+    try {
+      setLoading(true);
 
-    console.log("🔍 FCM Token status before login:");
-    console.log("- Token exists:", !!fcmToken);
-    console.log("- Token value:", fcmToken);
-    console.log("- Token length:", fcmToken?.length);
+      console.log("🔍 FCM Token status before login:");
+      console.log("- Token exists:", !!fcmToken);
+      console.log("- Token value:", fcmToken);
+      console.log("- Token length:", fcmToken?.length);
 
-    const loginPayload = {
-      email: formData.email,
-      password: formData.password,
-      ...(fcmToken && { fcmToken }),
-    };
+      const loginPayload = {
+        email: formData.email,
+        password: formData.password,
+        ...(fcmToken && { fcmToken }),
+      };
 
-    const response: AuthResponse = await auth.Login(loginPayload);
-    const user = response?.data?.user;
-const mfaRequired = (response?.data as MfaResponse)?.mfaRequired;
+      const response: AuthResponse = await auth.Login(loginPayload);
+      const user = response?.data?.user;
+      const mfaRequired = (response?.data as MfaResponse)?.mfaRequired;
 
-    console.log("🔍 Full response:", JSON.stringify(response, null, 2));
-    console.log("🔍 User object:", JSON.stringify(user, null, 2));
-    console.log("🔍 MFA Required:", mfaRequired);
+      console.log("🔍 Full response:", JSON.stringify(response, null, 2));
+      console.log("🔍 User object:", JSON.stringify(user, null, 2));
+      console.log("🔍 MFA Required:", mfaRequired);
 
-    // Step 1: Check if login failed
-    if (!response?.success) {
-      toast.error(response?.message || "Login failed");
-      return;
-    }
+      // Step 1: Check if login failed
+      if (!response?.success) {
+        toast.error(response?.message || "Login failed");
+        return;
+      }
 
-    // Step 2: Handle MFA users FIRST (check mfaRequired flag from API)
-    if (mfaRequired === true) {
-      console.log("✅ MFA required - redirecting to email verification");
-      
-      // Store email for MFA flow
-const email = (response?.data as MfaResponse)?.email;
-      if (email) localStorage.setItem("email", email);
-      localStorage.setItem("userMfaEnabled", "true");
-      
+      // Step 2: Handle MFA users FIRST (check mfaRequired flag from API)
+      if (mfaRequired === true) {
+        console.log("✅ MFA required - redirecting to email verification");
+
+        // Store email for MFA flow
+        const email = (response?.data as MfaResponse)?.email;
+        if (email) localStorage.setItem("email", email);
+        localStorage.setItem("userMfaEnabled", "true");
+
+        setLoading(false);
+        toast.loading("Redirecting to verification screen...");
+        router.push("/admin/auth/verify-otp");
+        return;
+      }
+
+      // Step 3: Store user data (only for non-MFA users)
+      if (user) {
+        if (user.firstname) localStorage.setItem("firstname", user.firstname);
+        if (user.lastname) localStorage.setItem("lastname", user.lastname);
+        if (user.email) localStorage.setItem("email", user.email);
+        localStorage.setItem("userMfaEnabled", "false");
+        if (user.role) localStorage.setItem("userRole", user.role);
+      }
+
+      // Step 4: Check role restriction (only for non-MFA users)
+      console.log("Checking role for non-MFA user:", user?.role);
+      if (user?.role !== "ADMIN") {
+        toast.error("Access restricted — admins only.");
+        return;
+      }
+
+      // Step 5: Complete login for HOST users without MFA
+      const token = response?.data?.accessToken || "";
+      if (token) {
+        Cookies.set("adminAccessToken", token, {
+          expires: 7,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "Lax",
+          path: "/",
+        });
+        router.refresh();
+        return;
+      }
+
+      // Fallback
+      console.log("⚠️ Unexpected state - no token provided");
+    } catch (error: unknown) {
+      console.error("Login error:", error);
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Network error. Please try again.";
+      toast.error(errorMessage);
+    } finally {
       setLoading(false);
-      toast.loading("Redirecting to verification screen...");
-      router.push("/admin/auth/verify-otp");
-      return;
     }
-
-    // Step 3: Store user data (only for non-MFA users)
-    if (user) {
-      if (user.firstname) localStorage.setItem("firstname", user.firstname);
-      if (user.lastname) localStorage.setItem("lastname", user.lastname);
-      if (user.email) localStorage.setItem("email", user.email);
-      localStorage.setItem("userMfaEnabled", "false");
-      if (user.role) localStorage.setItem("userRole", user.role);
-    }
-
-    // Step 4: Check role restriction (only for non-MFA users)
-    console.log("Checking role for non-MFA user:", user?.role);
-    if (user?.role !== "ADMIN") {
-      toast.error("Access restricted — admins only.");
-      return;
-    }
-
-    // Step 5: Complete login for HOST users without MFA
-    const token = response?.data?.accessToken || "";
-    if (token) {
-      Cookies.set("adminAccessToken", token, {
-        expires: 7,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "Lax",
-        path: "/",
-      });
-      toast.success("Login successful!");
-      router.refresh();
-      return;
-    }
-
-    // Fallback
-    console.log("⚠️ Unexpected state - no token provided");
-    toast.success(response?.message || "Login request successful");
-
-  } catch (error: unknown) {
-    console.error("Login error:", error);
-    const errorMessage =
-      error instanceof Error
-        ? error.message
-        : "Network error. Please try again.";
-    toast.error(errorMessage);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   return (
     <div>

@@ -446,7 +446,7 @@ export default function MultiStepForm() {
   };
 
   const handleStep1bUpdate = async (): Promise<boolean> => {
-    if (formData.images.length === 0) {
+    if (formData.images.length < 3 ) {
       toast.error("Please upload at least 3 images");
       return false;
     }

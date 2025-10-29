@@ -12,10 +12,12 @@ interface CertificationData {
   issuedAt: string;
   expiresAt: string;
   qrCodeUrl: string;
+  badgeUrl : string
 }
 
 export default function Verification() {
   const [qrCodeUrl, setQrCodeUrl] = useState<string | null>(null);
+  const [badgeUrl, setbadgeUrl] = useState<string | null>(null);
   const [verification, setVerification] = useState<
     { id: string; value: string; title: string }[]
   >([]);
@@ -30,6 +32,7 @@ export default function Verification() {
 
           // ✅ Set QR Code
           setQrCodeUrl(cert.qrCodeUrl);
+          setbadgeUrl(cert.badgeUrl);
 
           // ✅ Dynamically fill verification details
           setVerification([
@@ -94,7 +97,7 @@ export default function Verification() {
                 )}
               </div>
 
-              <Link href={"/docs/certificates.pdf"} target="_blank">
+              <Link href={badgeUrl||""} target="_blank">
                 <p className="text-[#EFFC76] font-regular underline text-[20px] leading-[24px]">
                   View Certificate
                 </p>

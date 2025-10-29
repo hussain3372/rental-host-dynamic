@@ -14,10 +14,11 @@ interface Ticket {
   ticketId: string;
   issueType: string;
   subject: string;
-  description?: string;
+  description: string;
   createdOn: string;
   status: string;
   attachment?: Attachment;
+  data : string;
 }
 
 interface TicketDetailDrawerProps {
@@ -67,8 +68,7 @@ export default function TicketDetailDrawer({
               Subject
             </h3>
             <p className="text-[16px] leading-5 font-normal text-[#FFFFFF66]">
-              {ticket.subject ||
-                "View management request - Need assistance with ticket view."}
+              {ticket.subject}
             </p>
           </div>
 
@@ -78,29 +78,34 @@ export default function TicketDetailDrawer({
               Description
             </h3>
             <p className="text-[16px] leading-5 font-normal text-[#FFFFFF66] mb-1">
-              {ticket.description ||
-                "This is a sample description. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."}
+              {ticket.description || "No description available"}
             </p>
           </div>
 
-          {/* Attachment */}
-          <div className="flex items-center gap-5 bg-[#2D2D2D] p-3 rounded-lg">
-            <Image
-              src={ticket.attachment?.url || "/images/id.png"}
-              alt={ticket.attachment?.name || "ID"}
-              width={100}
-              height={60}
-              className="rounded object-cover"
-            />
-            <div>
-              <h3 className="font-medium text-[12px] sm:text-[18px] leading-[16px] sm:leading-[22px] text-white xl:w-[353px]">
-                {ticket.attachment?.name || "Government-issued ID"}
-              </h3>
-              <h4 className="text-white/60 font-medium text-[14px] leading-[20px] pt-2">
-                {ticket.attachment?.size || "12.3kb"}
-              </h4>
+          {/* Attachment - Only show if attachment exists */}
+          {ticket.attachment && (
+            <div className="flex items-center gap-5 bg-[#2D2D2D] p-3 rounded-lg">
+              <Image
+                src={ticket.attachment.url}
+                alt={ticket.attachment.name}
+                width={100}
+                height={60}
+                className="rounded object-cover"
+                onError={(e) => {
+                  // Fallback if image fails to load
+                  (e.target as HTMLImageElement).src = "/images/id.png";
+                }}
+              />
+              <div>
+                <h3 className="font-medium text-[12px] sm:text-[18px] leading-[16px] sm:leading-[22px] text-white xl:w-[353px]">
+                  {ticket.attachment.name}
+                </h3>
+                <h4 className="text-white/60 font-medium text-[14px] leading-[20px] pt-2">
+                  {ticket.attachment.size}
+                </h4>
+              </div>
             </div>
-          </div>
+          )}
         </div>
 
         {/* --- Status Field --- */}

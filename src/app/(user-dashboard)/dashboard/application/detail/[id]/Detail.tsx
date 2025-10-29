@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRef, useState, useEffect } from "react";
 import { ApplicationData } from "@/app/api/Host/application/types";
+import TicketDrawer from "../EditDrawer";
 
 interface DetailProps {
   application: ApplicationData;
@@ -12,6 +13,15 @@ export default function ApplicationDetail({ application }: DetailProps) {
   const thumbnailsContainerRef = useRef<HTMLDivElement>(null);
   const [thumbnailsHeight, setThumbnailsHeight] = useState(0);
   const [currentStep, setCurrentStep] = useState(0);
+  const [showDrawer , setShowDrawer] = useState(false)
+
+  const openDrawer = ()=>{
+    setShowDrawer(true)
+  }
+  const closeDrawer = ()=>{
+    setShowDrawer(false)
+  }
+  
 
   useEffect(() => {
     const updateHeight = () => {
@@ -44,6 +54,7 @@ export default function ApplicationDetail({ application }: DetailProps) {
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
 
   return (
+    <>
     <div className="text-white">
       {/* Breadcrumb */}
       <nav className="mb-4">
@@ -67,7 +78,7 @@ export default function ApplicationDetail({ application }: DetailProps) {
         <h1 className="text-[16px] sm:text-[24px] font-medium leading-[28px] ">
           {application.propertyDetails?.propertyName || "Untitled Property"}
         </h1>
-        <button className="text-[#EFFC76] opacity-80 hover:text-[#e8f566] underline cursor-pointer font-medium text-[12px] sm:text-[18px] leading-[22px] ">
+        <button onClick={openDrawer} className="text-[#EFFC76] opacity-80 hover:text-[#e8f566] underline cursor-pointer font-medium text-[12px] sm:text-[18px] leading-[22px] ">
           Edit
         </button>
       </div>
@@ -185,5 +196,11 @@ export default function ApplicationDetail({ application }: DetailProps) {
         </p>
       </div>
     </div>
+    {
+      showDrawer && (
+        <TicketDrawer onClose={closeDrawer}/>
+      )
+    }
+    </>
   );
 }

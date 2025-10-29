@@ -25,11 +25,11 @@ export default function Step1b({
   const [images, setImages] = useState<File[]>(formData.images || []);
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    
     if (!e.target.files || e.target.files.length === 0) return;
 
     const newFiles = Array.from(e.target.files);
     const updatedFiles = [...images, ...newFiles];
-
     if (updatedFiles.length > 5) {
       toast.error("Maximum 5 images allowed");
       return;

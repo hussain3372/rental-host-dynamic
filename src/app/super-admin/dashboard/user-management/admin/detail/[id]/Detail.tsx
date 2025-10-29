@@ -86,21 +86,21 @@ const formatDate = (dateString: string | null): string => {
 };
 
 // Debounce hook for search
-const useDebounce = (value: string, delay: number) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
+// const useDebounce = (value: string, delay: number) => {
+//   const [debouncedValue, setDebouncedValue] = useState(value);
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
+//   useEffect(() => {
+//     const handler = setTimeout(() => {
+//       setDebouncedValue(value);
+//     }, delay);
 
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [value, delay]);
+//     return () => {
+//       clearTimeout(handler);
+//     };
+//   }, [value, delay]);
 
-  return debouncedValue;
-};
+//   return debouncedValue;
+// };
 
 export default function Detail() {
   const [adminData, setAdminData] = useState<AdminData | null>(null);
@@ -161,16 +161,16 @@ export default function Detail() {
   const router = useRouter();
 
   // Debounced search term
-  const debouncedSearchTerm = useDebounce(searchTerm, 500);
+  // const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
   // Check if there are active filters (similar to first example)
-  const hasActiveFilters = useMemo(() => {
-    return (
-      searchTerm.trim() !== "" ||
-      appliedFilters.status.trim() !== "" ||
-      appliedFilters.reviewDate !== ""
-    );
-  }, [searchTerm, appliedFilters]);
+  // const hasActiveFilters = useMemo(() => {
+  //   return (
+  //     searchTerm.trim() !== "" ||
+  //     appliedFilters.status.trim() !== "" ||
+  //     appliedFilters.reviewDate !== ""
+  //   );
+  // }, [searchTerm, appliedFilters]);
 
   // Close dropdown when clicking outside
   useEffect(() => {

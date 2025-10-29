@@ -57,7 +57,8 @@ export default function ApplicationDetail() {
       if (application?.badgeUrl) {
         const link = document.createElement("a");
         link.href = application.badgeUrl;
-        link.download = `certificate-${application.certificateNumber}.png`;
+        link.download = application.badgeUrl;
+        console.log("image : " , link.download )
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

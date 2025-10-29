@@ -112,7 +112,7 @@ export default function Detail() {
   const [isPropertyFilterOpen, setIsPropertyFilterOpen] = useState(false);
   const [propertySelectedRows, setPropertySelectedRows] = useState<Set<string>>(new Set());
   const [propertyLoading, setPropertyLoading] = useState(false);
-  const [deletingProperties, setDeletingProperties] = useState<Set<string>>(new Set());
+  const [, setDeletingProperties] = useState<Set<string>>(new Set());
 
   // Property Filter states
   const [propertyAppliedFilters, setPropertyAppliedFilters] = useState({
@@ -286,7 +286,7 @@ export default function Detail() {
       if (propertyAppliedFilters.submittedDate) {
         const submittedDateObj = new Date(propertyAppliedFilters.submittedDate);
         queryParams.submittedFrom = submittedDateObj.toISOString().split("T")[0];
-        queryParams.submittedTo = submittedDateObj.toISOString().split("T")[0];
+        // queryParams.submittedTo = submittedDateObj.toISOString().split("T")[0];
       }
 
       console.log('🔍 Fetching properties with params:', queryParams);

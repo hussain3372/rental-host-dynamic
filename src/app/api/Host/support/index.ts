@@ -1,6 +1,6 @@
 // api/support/index.ts
 
-import { apiClient, ApiResponse, DeleteRequestConfig } from "../../core/client";
+import { apiClient, ApiResponse } from "../../core/client";
 import Cookies from "js-cookie";
 import {
   CreateTicketPayload,
@@ -31,64 +31,64 @@ export const supportApi = {
     });
   },
 
-getTickets: async (params: {
-  page?: number;
-  limit?: number;
-  search?: string;
-  subject?: string;
-  property?: string;
-  status?: string;
-  createdAt?: string;
-} = {}): Promise<ApiResponse<GetTicketsResponse>> => {
-  
-  const {
-    page = 1,
-    limit = 10,
-    search = "",
-    subject = "",
-    property = "",
-    status = "",
-    createdAt = ""
-  } = params;
+  getTickets: async (params: {
+    page?: number;
+    limit?: number;
+    search?: string;
+    subject?: string;
+    property?: string;
+    status?: string;
+    createdAt?: string;
+  } = {}): Promise<ApiResponse<GetTicketsResponse>> => {
 
-  let queryParams = `page=${page}&limit=${limit}`;
-  
-  if (search && search.trim() !== "") {
-    queryParams += `&search=${encodeURIComponent(search)}`;
-  }
-  if (subject && subject.trim() !== "") {
-    queryParams += `&subject=${encodeURIComponent(subject)}`;
-  }
-  if (property && property.trim() !== "") {
-    queryParams += `&property=${encodeURIComponent(property)}`;
-  }
-  if (status && status.trim() !== "") {
-    queryParams += `&status=${encodeURIComponent(status)}`;
-  }
-  if (createdAt && createdAt.trim() !== "") {
-    queryParams += `&createdAt=${encodeURIComponent(createdAt)}`;
-  }
+    const {
+      page = 1,
+      limit = 10,
+      search = "",
+      subject = "",
+      property = "",
+      status = "",
+      createdAt = ""
+    } = params;
 
-  return apiClient.get<GetTicketsResponse>(
-    `/support/tickets?${queryParams}`,
-    {
-      headers: getAuthHeaders(),
+    let queryParams = `page=${page}&limit=${limit}`;
+
+    if (search && search.trim() !== "") {
+      queryParams += `&search=${encodeURIComponent(search)}`;
     }
-  );
-},
-  deleteMultipleTickets: async (ticketIds: string[]): Promise<ApiResponse<void>> => {
-    if (!ticketIds || ticketIds.length === 0) {
-      throw new Error("No ticket IDs provided for deletion");
+    if (subject && subject.trim() !== "") {
+      queryParams += `&subject=${encodeURIComponent(subject)}`;
+    }
+    if (property && property.trim() !== "") {
+      queryParams += `&property=${encodeURIComponent(property)}`;
+    }
+    if (status && status.trim() !== "") {
+      queryParams += `&status=${encodeURIComponent(status)}`;
+    }
+    if (createdAt && createdAt.trim() !== "") {
+      queryParams += `&createdAt=${encodeURIComponent(createdAt)}`;
     }
 
-    const config: DeleteRequestConfig = {
+    return apiClient.get<GetTicketsResponse>(
+      `/support/tickets?${queryParams}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+  },
+  // ✅ Delete Single Ticket
+  deleteTicket: async (ticketId: string): Promise<ApiResponse<void>> => {
+    return apiClient.delete<void>(`/support/tickets/${ticketId}`, {
       headers: getAuthHeaders(),
-      data: { ticketIds },
-    };
-
-    return apiClient.delete<void>("/support/tickets", config);
+    });
   },
 
-
-
+  // ✅ Delete Multiple Tickets
+  deleteMultipleTickets: async (ticketIds: string[]): Promise<ApiResponse<void>> => {
+    // Convert array to multiple query parameters
+    const queryParams = ticketIds.map(id => `ids=${id}`).join('&');
+    return apiClient.delete<void>(`/support/tickets?${queryParams}`, {
+      headers: getAuthHeaders(),
+    });
+  },
 };

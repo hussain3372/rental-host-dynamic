@@ -28,7 +28,7 @@ export const propertyAPI = {
       Object.assign(requestParams, otherParams);
     }
     
-    return apiClient.get<SearchResponse>("/search/properties", {
+    return apiClient.get<SearchResponse>("/search/advanced", {
       headers: { "Content-Type": "application/json" },
       requiresAuth: false,
       params: requestParams,
