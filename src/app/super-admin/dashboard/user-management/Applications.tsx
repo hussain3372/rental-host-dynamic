@@ -8,6 +8,7 @@ import FilterDrawer from "@/app/admin/tables-essentials/Filter";
 import TicketDrawer from "./Drawer";
 import { managementApi } from "@/app/api/super-admin/user-management/index";
 import { GetUsersParams } from "@/app/api/super-admin/user-management/types";
+import EditUser from "./EditUser";
 
 type ViewMode = "hosts" | "admins";
 type TableRowData = Record<string, string | number>;
@@ -36,6 +37,12 @@ interface UserData {
     certifications: number;
     supportTickets: number;
   };
+}
+
+interface UpdateData {
+  name?: string;
+  email?: string;
+  // add other fields you expect
 }
 
 // Normalize status for display (convert API status to display format)
@@ -68,6 +75,12 @@ export default function Applications() {
   const [singleRowToDelete, setSingleRowToDelete] = useState<{ row: TableRowData; id: number } | null>(null);
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
   const [isAddAdminDrawerOpen, setIsAddAdminDrawerOpen] = useState(false);
+  
+  // NEW: Edit drawer state
+  const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
+  const [editingUserId, setEditingUserId] = useState<number | null>(null);
+  const [editingUserData, setEditingUserData] = useState<UserData | null>(null);
+  
   const [dropdownStates, setDropdownStates] = useState({ property: false, status: false });
   const [isLoading, setIsLoading] = useState(false);
   
@@ -102,39 +115,39 @@ export default function Applications() {
   });
 
   // Fetch data based on view mode
- const fetchData = useCallback(async (params?: GetUsersParams) => {
-  setIsLoading(true);
-  try {
-    let response;
-    
-    if (viewMode === "hosts") {
-      response = await managementApi.getUsers({
-        ...params,
-        page: currentPage,
-        limit: 10
-      });
-    } else {
-      response = await managementApi.getAdmins({
-        ...params,
-        page: currentPage,
-        limit: 10
-      });
-    }
-    
-    if (response.data) {
+  const fetchData = useCallback(async (params?: GetUsersParams) => {
+    setIsLoading(true);
+    try {
+      let response;
+      
       if (viewMode === "hosts") {
-        setHostsData(response.data.data);
+        response = await managementApi.getUsers({
+          ...params,
+          page: currentPage,
+          limit: 10
+        });
       } else {
-        setAdminsData(response.data.data);
+        response = await managementApi.getAdmins({
+          ...params,
+          page: currentPage,
+          limit: 10
+        });
       }
-      setPagination(response.data.pagination);
+      
+      if (response.data) {
+        if (viewMode === "hosts") {
+          setHostsData(response.data.data);
+        } else {
+          setAdminsData(response.data.data);
+        }
+        setPagination(response.data.pagination);
+      }
+    } catch (error) {
+      console.error(`Error fetching ${viewMode}:`, error);
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error(`Error fetching ${viewMode}:`, error);
-  } finally {
-    setIsLoading(false);
-  }
-}, [viewMode, currentPage]);
+  }, [viewMode, currentPage]);
 
   // Delete user/admin API call
   const deleteItem = async (itemId: number) => {
@@ -151,69 +164,109 @@ export default function Applications() {
     }
   };
 
-  // Convert API data to table format (COMPLETELY REMOVE ID from table data)
-  const convertToTableData = useCallback((users: UserData[]): TableRowData[] => {
-  if (viewMode === "hosts") {
-    return users.map(user => ({
-      "Host Name": user.name,
-      "Email": user.email,
-      "Listed Properties": user._count.applications,
-      "Certified Properties": user._count.certifications,
-      "Account Created": new Date(user.createdAt).toLocaleDateString('en-US', { 
-        month: 'short', 
-        day: '2-digit', 
-        year: 'numeric' 
-      }),
-      "Status": normalizeStatus(user.status),
-    }));
-  } else {
-    return users.map(user => ({
-      "Admin Name": user.name,
-      "Email": user.email,
-      "Status": normalizeStatus(user.status),
-    }));
-  }
-}, [viewMode]);
+  // NEW: Function to open edit drawer
+  const openEditDrawer = (userId: number) => {
+    const currentData = viewMode === "hosts" ? hostsData : adminsData;
+    const userToEdit = currentData.find(user => user.id === userId);
+    
+    if (userToEdit) {
+      setEditingUserId(userId);
+      setEditingUserData(userToEdit);
+      setIsEditDrawerOpen(true);
+    }
+  };
 
-  // Handle search and applied filter changes
-  // Handle search and applied filter changes
-useEffect(() => {
-  const timeoutId = setTimeout(() => {
-    // Don't fetch any data if search term has 1-3 characters
-    if (searchTerm && searchTerm.length <= 3) {
-      return;
-    }
-    
-    const params: GetUsersParams = {};
-    
-    if (searchTerm && searchTerm.length > 3) {
-      params.search = searchTerm;
-    }
-    
-    if (viewMode === "hosts") {
-      // Apply all certification filters cumulatively
-      if (appliedCertificationFilters.status) {
-        params.status = getApiStatus(appliedCertificationFilters.status);
+  // NEW: Function to handle user update
+  const handleUserUpdate = async (updatedData: UpdateData) => {
+    try {
+      if (viewMode === "hosts") {
+        await managementApi.updateUser(editingUserId!, updatedData);
+      } else {
+        await managementApi.updateAdmin(editingUserId!, updatedData);
       }
       
-      // Convert Listed Properties filter to min/max
-      if (appliedCertificationFilters["Listed Properties"]) {
-        const [min, max] = appliedCertificationFilters["Listed Properties"].split("-").map(Number);
-        if (!isNaN(min)) params.minListedProperties = min;
-        if (!isNaN(max)) params.maxListedProperties = max;
-      }
-    } else {
-      // Apply all admin filters cumulatively
-      if (appliedAdminFilters.status) {
-        params.status = getApiStatus(appliedAdminFilters.status);
-      }
+      // Refresh data after successful update
+      fetchData();
+      setIsEditDrawerOpen(false);
+      setEditingUserId(null);
+      setEditingUserData(null);
+      
+      return true;
+    } catch (error) {
+      console.error(`Error updating ${viewMode.slice(0, -1)}:`, error);
+      return false;
     }
-    
-    fetchData(params);
-  }, 500); // Debounce search
+  };
 
-  return () => clearTimeout(timeoutId);
-}, [searchTerm, appliedCertificationFilters, appliedAdminFilters, viewMode, currentPage,fetchData]);
+  // NEW: Function to close edit drawer
+  const closeEditDrawer = () => {
+    setIsEditDrawerOpen(false);
+    setEditingUserId(null);
+    setEditingUserData(null);
+  };
+
+  // Convert API data to table format (COMPLETELY REMOVE ID from table data)
+  const convertToTableData = useCallback((users: UserData[]): TableRowData[] => {
+    if (viewMode === "hosts") {
+      return users.map(user => ({
+        "Host Name": user.name,
+        "Email": user.email,
+        "Listed Properties": user._count.applications,
+        "Certified Properties": user._count.certifications,
+        "Account Created": new Date(user.createdAt).toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: '2-digit', 
+          year: 'numeric' 
+        }),
+        "Status": normalizeStatus(user.status),
+      }));
+    } else {
+      return users.map(user => ({
+        "Admin Name": user.name,
+        "Email": user.email,
+        "Status": normalizeStatus(user.status),
+      }));
+    }
+  }, [viewMode]);
+
+  // Handle search and applied filter changes
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      // Don't fetch any data if search term has 1-3 characters
+      if (searchTerm && searchTerm.length <= 3) {
+        return;
+      }
+      
+      const params: GetUsersParams = {};
+      
+      if (searchTerm && searchTerm.length > 3) {
+        params.search = searchTerm;
+      }
+      
+      if (viewMode === "hosts") {
+        // Apply all certification filters cumulatively
+        if (appliedCertificationFilters.status) {
+          params.status = getApiStatus(appliedCertificationFilters.status);
+        }
+        
+        // Convert Listed Properties filter to min/max
+        if (appliedCertificationFilters["Listed Properties"]) {
+          const [min, max] = appliedCertificationFilters["Listed Properties"].split("-").map(Number);
+          if (!isNaN(min)) params.minListedProperties = min;
+          if (!isNaN(max)) params.maxListedProperties = max;
+        }
+      } else {
+        // Apply all admin filters cumulatively
+        if (appliedAdminFilters.status) {
+          params.status = getApiStatus(appliedAdminFilters.status);
+        }
+      }
+      
+      fetchData(params);
+    }, 500); // Debounce search
+
+    return () => clearTimeout(timeoutId);
+  }, [searchTerm, appliedCertificationFilters, appliedAdminFilters, viewMode, currentPage, fetchData]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -224,7 +277,7 @@ useEffect(() => {
   useEffect(() => {
     fetchData();
     setSelectedRows(new Set());
-  }, [viewMode,fetchData]);
+  }, [viewMode, fetchData]);
 
   const handleAddAdminNote = () => {
     setIsAddAdminDrawerOpen(true);
@@ -316,7 +369,7 @@ useEffect(() => {
   const currentData = useMemo(() => {
     const data = viewMode === "hosts" ? hostsData : adminsData;
     return convertToTableData(data);
-  }, [viewMode, hostsData, adminsData,convertToTableData]);
+  }, [viewMode, hostsData, adminsData, convertToTableData]);
 
   const currentApiData = useMemo(() => {
     return viewMode === "hosts" ? hostsData : adminsData;
@@ -391,6 +444,14 @@ useEffect(() => {
         window.location.href = `/super-admin/dashboard/user-management/${viewMode.slice(0, -1)}/detail/${originalId}`;
       },
     },
+    // NEW: Add Edit option to dropdown
+    {
+      label: `Edit ${viewMode === "hosts" ? "Host" : "Admin"}`,
+      onClick: (row: TableRowData, index: number) => {
+        const originalId = currentApiData[index].id;
+        openEditDrawer(originalId);
+      },
+    },
     {
       label: `Delete ${viewMode === "hosts" ? "Host" : "Admin"}`,
       onClick: (row: TableRowData, index: number) => {
@@ -443,6 +504,17 @@ useEffect(() => {
         <TicketDrawer
           onClose={() => setIsAddAdminDrawerOpen(false)}
           onNoteSubmit={handleAddAdminNote}
+        />
+      )}
+
+      {/* NEW: Edit User Drawer */}
+      {isEditDrawerOpen && editingUserData && (
+        <EditUser
+          isOpen={isEditDrawerOpen}
+          onClose={closeEditDrawer}
+          userData={editingUserData}
+          onSave={handleUserUpdate}
+          userType={viewMode.slice(0, -1) as "host" | "admin"}
         />
       )}
 

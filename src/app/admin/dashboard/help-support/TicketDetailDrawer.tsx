@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import { supportApi } from "@/app/api/Admin/support";
 
 interface Attachment {
   name: string;
@@ -18,22 +19,26 @@ interface Ticket {
   createdOn: string;
   status: string;
   attachment?: Attachment;
-  data : string;
+  data: string;
 }
 
 interface TicketDetailDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   ticket: Ticket | null;
+  onTicketUpdated?: () => void; // Add callback for when ticket is updated
 }
 
 export default function TicketDetailDrawer({
   isOpen,
   onClose,
   ticket,
+  onTicketUpdated,
 }: TicketDetailDrawerProps) {
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [note, setNote] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateMessage, setUpdateMessage] = useState("");
 
   // ✅ Set status from table (ticket data)
   useEffect(() => {
@@ -41,6 +46,102 @@ export default function TicketDetailDrawer({
       setSelectedStatus(ticket.status);
     }
   }, [ticket]);
+
+  // ✅ Handle status update
+  const handleStatusUpdate = async () => {
+    if (!ticket || !selectedStatus || selectedStatus === ticket.status) {
+      return; // No changes or no ticket
+    }
+
+    setIsUpdating(true);
+    setUpdateMessage("");
+
+    try {
+      const ticketId = ticket.ticketId || ticket.id;
+      
+      if (!ticketId) {
+        throw new Error("Ticket ID not found");
+      }
+
+      console.log("🟡 Updating ticket status:", {
+        ticketId,
+        currentStatus: ticket.status,
+        newStatus: selectedStatus,
+        note
+      });
+
+      // Map UI status to API status
+      const apiStatus = selectedStatus.toUpperCase();
+      
+      // Call the API to update ticket status
+      const response = await supportApi.resolveTicket(ticketId, apiStatus);
+      
+      console.log("🟢 Ticket status updated successfully:", response);
+      
+      setUpdateMessage("Ticket status updated successfully!");
+      
+      // Notify parent component to refresh data
+      if (onTicketUpdated) {
+        onTicketUpdated();
+      }
+
+      // Close drawer after successful update (optional)
+      // setTimeout(() => {
+      //   onClose();
+      // }, 2000);
+
+    } catch (error) {
+      console.error("🔴 Error updating ticket status:", error);
+      setUpdateMessage("Error updating ticket status. Please try again.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // ✅ Handle resolve ticket (if status is "Resolved")
+  const handleResolveTicket = async () => {
+    if (!ticket) return;
+
+    setIsUpdating(true);
+    setUpdateMessage("");
+
+    try {
+      const ticketId = ticket.ticketId || ticket.id;
+      
+      if (!ticketId) {
+        throw new Error("Ticket ID not found");
+      }
+
+      console.log("🟡 Resolving ticket:", ticketId);
+
+      // Use the resolveTicket API method which includes resolution notes
+      const response = await supportApi.resolveTicket(ticketId, note || "Ticket resolved");
+      
+      console.log("🟢 Ticket resolved successfully:", response);
+      
+      setUpdateMessage("Ticket resolved successfully!");
+      
+      // Notify parent component to refresh data
+      if (onTicketUpdated) {
+        onTicketUpdated();
+      }
+
+    } catch (error) {
+      console.error("🔴 Error resolving ticket:", error);
+      setUpdateMessage("Error resolving ticket. Please try again.");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  // ✅ Handle save based on selected status
+  const handleSave = async () => {
+    if (selectedStatus.toLowerCase() === "resolved") {
+      await handleResolveTicket();
+    } else {
+      await handleStatusUpdate();
+    }
+  };
 
   if (!isOpen || !ticket) return null;
 
@@ -141,6 +242,7 @@ export default function TicketDetailDrawer({
                   checked={selectedStatus === status}
                   onChange={() => setSelectedStatus(status)}
                   className="accent-[#E5F266] cursor-pointer w-4 h-4"
+                  disabled={isUpdating}
                 />
               </label>
             ))}
@@ -159,17 +261,38 @@ export default function TicketDetailDrawer({
             placeholder="Add a note"
             className="w-full px-3 py-2 text-gray-300 focus:outline-none focus:border-[#E5F266] rounded-[10px]
               bg-[radial-gradient(75%_81%_at_50%_18.4%,#202020_0%,#101010_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.10)]"
+            disabled={isUpdating}
           />
         </div>
+
+        {/* Update Message */}
+        {updateMessage && (
+          <div className={`p-3 rounded-md ${
+            updateMessage.includes("Error") 
+              ? "bg-red-500/20 text-red-300" 
+              : "bg-green-500/20 text-green-300"
+          }`}>
+            {updateMessage}
+          </div>
+        )}
       </div>
 
       {/* Footer */}
-      <div className="p-7 flex-shrink-0">
+      <div className="p-7 flex-shrink-0 flex gap-3">
         <button
           onClick={onClose}
-          className="yellow-btn cursor-pointer w-full text-black px-[40px] py-[16px] rounded-[8px] font-semibold text-[18px] leading-[22px] hover:bg-[#E5F266] transition-colors duration-300"
+          className="flex-1 bg-gray-600 text-white px-[40px] py-[16px] rounded-[8px] font-semibold text-[18px] leading-[22px] hover:bg-gray-700 transition-colors duration-300 disabled:opacity-50"
+          disabled={isUpdating}
         >
-          Go Back
+          Cancel
+        </button>
+        
+        <button
+          onClick={handleSave}
+          disabled={isUpdating || selectedStatus === ticket.status}
+          className="flex-1 yellow-btn cursor-pointer text-black px-[40px] py-[16px] rounded-[8px] font-semibold text-[18px] leading-[22px] hover:bg-[#E5F266] transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isUpdating ? "Updating..." : "Update Status"}
         </button>
       </div>
     </div>

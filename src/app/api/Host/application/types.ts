@@ -169,6 +169,9 @@ export interface FileUploadResponse {
   count: number;
   uploaded: UploadedFile[];
   success?: boolean;
+  urls:string
+  images :File[]
+  
 }
 
 export interface UploadDocumentPayload {

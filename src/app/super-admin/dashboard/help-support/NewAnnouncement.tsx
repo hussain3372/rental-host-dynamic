@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import Image from "next/image";
 import { supportApi } from "@/app/api/super-admin/support";
+import { uploadImage } from "@/app/api/super-admin/support";
 import toast from "react-hot-toast";
 
 type AddAnnouncementsDrawerProps = {
@@ -28,6 +29,12 @@ interface ApiError {
     message?: string;
 }
 
+interface FormErrors {
+    title?: string;
+    description?: string;
+    image?: string;
+}
+
 export default function AddAnnouncementsDrawer({ onClose, onSuccess }: AddAnnouncementsDrawerProps) {
     const [formData, setFormData] = useState<CreateAnnouncementData>({
         title: "",
@@ -37,6 +44,22 @@ export default function AddAnnouncementsDrawer({ onClose, onSuccess }: AddAnnoun
     });
     const [image, setImage] = useState<File | null>(null);
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState<FormErrors>({});
+
+    const validateForm = (): boolean => {
+        const newErrors: FormErrors = {};
+
+        if (!formData.title.trim()) {
+            newErrors.title = "Title is required";
+        }
+
+        if (!formData.description.trim()) {
+            newErrors.description = "Description is required";
+        }
+
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
 
     const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
         const { name, value } = e.target;
@@ -44,6 +67,14 @@ export default function AddAnnouncementsDrawer({ onClose, onSuccess }: AddAnnoun
             ...prev,
             [name]: value
         }));
+
+        // Clear error when user starts typing
+        if (errors[name as keyof FormErrors]) {
+            setErrors(prev => ({
+                ...prev,
+                [name]: undefined
+            }));
+        }
     };
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -52,96 +83,141 @@ export default function AddAnnouncementsDrawer({ onClose, onSuccess }: AddAnnoun
             
             // Validate file size (5MB max)
             if (file.size > 5 * 1024 * 1024) {
-                toast.error("File size must be less than 5MB");
+                setErrors(prev => ({
+                    ...prev,
+                    image: "File size must be less than 5MB"
+                }));
                 return;
             }
             
             // Validate file type
             const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
             if (!validTypes.includes(file.type)) {
-                toast.error("Please upload a valid image (JPG, PNG, GIF)");
+                setErrors(prev => ({
+                    ...prev,
+                    image: "Please upload a valid image (JPG, PNG, GIF)"
+                }));
                 return;
             }
             
             setImage(file);
+            setErrors(prev => ({
+                ...prev,
+                image: undefined
+            }));
         }
     };
 
-const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.title.trim()) {
-        toast.error("Title is required");
-        return;
-    }
-    
-    if (!formData.description.trim()) {
-        toast.error("Description is required");
-        return;
-    }
-
-    setLoading(true);
-
-    try {
-        // Create object URL for the uploaded image
-        const imageUrl = image ? URL.createObjectURL(image) : "";
-
-        // Prepare the payload with the image URL
-        const payload: CreateAnnouncementData = {
-            title: formData.title.trim(),
-            description: formData.description.trim(),
-            tags: ["announcement"],
-            imageUrl: imageUrl || undefined // Simple URL from the uploaded file
-        };
-
-        console.log("🟢 Creating announcement with payload:", payload);
-
-        // Call the API
-        const response = await supportApi.createAnnouncement(payload);
-        
-        console.log("🟢 Full API Response:", response);
-        
-        if (response.data) {
-            toast.success(response.message || "Announcement created successfully!");
-            onSuccess();
+    const uploadImageToServer = async (file: File): Promise<string> => {
+        try {
+            console.log("🟡 Uploading image:", file.name);
+            const response = await uploadImage(file);
             
-            // Reset form
-            setFormData({
-                title: "",
-                description: "",
-                imageUrl: "",
-                tags: []
-            });
-            setImage(null);
-            onClose();
-        } else {
-            toast.error(response.message || "Failed to create announcement");
+            if (response.data && response.data.data && response.data.data.url) {
+                console.log("🟢 Image uploaded successfully:", response.data.data.url);
+                return response.data.data.url;
+            } else {
+                throw new Error("Failed to get image URL from response");
+            }
+        } catch (error: unknown) {
+            console.error("🔴 Image upload failed:", error);
+            throw new Error( "Image upload failed");
         }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
         
-    } catch (error: unknown) {
-        console.error("🔴 Error creating announcement:", error);
-        
-        const apiError = error as ApiError;
-        
-        if (apiError.response?.data?.success) {
-            toast.success(apiError.response.data.message || "Announcement created successfully!");
-            setFormData({
-                title: "",
-                description: "",
-                imageUrl: "",
-                tags: []
-            });
-            setImage(null);
-            onSuccess();
-            onClose();
-        } else {
-            const errorMessage = apiError.response?.data?.message || apiError.message || "Failed to create announcement. Please try again.";
-            toast.error(errorMessage);
+        // Validate form
+        if (!validateForm()) {
+            return;
         }
-    } finally {
-        setLoading(false);
-    }
-};
+
+        setLoading(true);
+
+        try {
+            let imageUrl = "";
+
+            // Upload image first if exists
+            if (image) {
+                try {
+                    imageUrl = await uploadImageToServer(image);
+                } catch (uploadError: unknown) {
+                    if (uploadError instanceof Error) {
+                        
+                        toast.error(`Image upload failed: ${uploadError.message}`);
+                        setLoading(false);
+                        return;
+                    }
+                }
+            }
+
+            // Prepare the payload with the uploaded image URL
+            const payload: CreateAnnouncementData = {
+                title: formData.title.trim(),
+                description: formData.description.trim(),
+                tags: ["announcement"],
+                imageUrl: imageUrl || undefined
+            };
+
+            console.log("🟢 Creating announcement with payload:", payload);
+
+            // Call the API
+            const response = await supportApi.createAnnouncement(payload);
+            
+            console.log("🟢 Full API Response:", response);
+            
+            if (response.data) {
+                toast.success(response.message || "Announcement created successfully!");
+                onSuccess();
+                
+                // Reset form
+                setFormData({
+                    title: "",
+                    description: "",
+                    imageUrl: "",
+                    tags: []
+                });
+                setImage(null);
+                setErrors({});
+                onClose();
+            } else {
+                toast.error(response.message || "Failed to create announcement");
+            }
+            
+        } catch (error: unknown) {
+            console.error("🔴 Error creating announcement:", error);
+            
+            const apiError = error as ApiError;
+            
+            if (apiError.response?.data?.success) {
+                toast.success(apiError.response.data.message || "Announcement created successfully!");
+                setFormData({
+                    title: "",
+                    description: "",
+                    imageUrl: "",
+                    tags: []
+                });
+                setImage(null);
+                setErrors({});
+                onSuccess();
+                onClose();
+            } else {
+                const errorMessage = apiError.response?.data?.message || apiError.message || "Failed to create announcement. Please try again.";
+                toast.error(errorMessage);
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const removeImage = () => {
+        setImage(null);
+        setErrors(prev => ({
+            ...prev,
+            image: undefined
+        }));
+    };
 
     return (
         <div className="h-full flex flex-col text-white">
@@ -168,14 +244,16 @@ const handleSubmit = async (e: React.FormEvent) => {
                             placeholder="Enter title"
                             className={`
                                 w-full p-3 pr-10 rounded-[10px]
-                                border border-[#404040]         
+                                border ${errors.title ? 'border-red-500' : 'border-[#404040]'}         
                                 bg-gradient-to-b from-[#202020] to-[#101010]
                                 text-white placeholder:text-white/40
                                 focus:outline-none focus:border-[#EFFC76]
                                 transition duration-200 ease-in-out
                             `}
-                            required
                         />
+                        {errors.title && (
+                            <p className="text-red-400 text-xs mt-1">{errors.title}</p>
+                        )}
                     </div>
 
                     {/* Description Input */}
@@ -191,15 +269,17 @@ const handleSubmit = async (e: React.FormEvent) => {
                             rows={4}
                             className={`
                                 w-full p-3 pr-10 rounded-[10px]
-                                border border-[#404040]         
+                                border ${errors.description ? 'border-red-500' : 'border-[#404040]'}         
                                 bg-gradient-to-b from-[#202020] to-[#101010]
                                 text-white placeholder:text-white/40
                                 focus:outline-none focus:border-[#EFFC76]
                                 transition duration-200 ease-in-out
                                 resize-vertical
                             `}
-                            required
                         />
+                        {errors.description && (
+                            <p className="text-red-400 text-xs mt-1">{errors.description}</p>
+                        )}
                     </div>
 
                     {/* Image Upload */}
@@ -208,7 +288,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                             Attach Image (Optional)
                         </label>
                         <label
-                            className="flex flex-col justify-center items-center mt-2 text-center rounded-[10px] border-2 border-dashed border-[#EFFC76] bg-gradient-to-b from-[#202020] to-[#101010] hover:border-[#E5F266] transition-colors duration-200"
+                            className={`flex flex-col justify-center items-center mt-2 text-center rounded-[10px] border-2 border-dashed ${
+                                errors.image ? 'border-red-500' : 'border-[#EFFC76]'
+                            } bg-gradient-to-b from-[#202020] to-[#101010] hover:border-[#E5F266] transition-colors duration-200`}
                             style={{ height: "180px", padding: "12px", cursor: "pointer" }}
                         >
                             <input
@@ -219,26 +301,25 @@ const handleSubmit = async (e: React.FormEvent) => {
                             />
                             {image ? (
                                 <div className="mt-3 w-full flex flex-col items-center">
-                                    <Image
-                                        src={URL.createObjectURL(image)}
-                                        alt="Preview"
-                                        width={80}
-                                        height={80}
-                                        className="rounded-lg object-cover w-[80px] h-[80px] mb-2"
-                                    />
+                                    <div className="relative">
+                                        <Image
+                                            src={URL.createObjectURL(image)}
+                                            alt="Preview"
+                                            width={80}
+                                            height={80}
+                                            className="rounded-lg object-cover w-[80px] h-[80px] mb-2"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={removeImage}
+                                            className="absolute -top-2 -right-2 bg-red-500 rounded-full w-6 h-6 flex items-center justify-center text-white text-xs"
+                                        >
+                                            ×
+                                        </button>
+                                    </div>
                                     <p className="text-[#FFFFFF99] text-[12px]">
                                         {image.name}
                                     </p>
-                                    <button
-                                        type="button"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setImage(null);
-                                        }}
-                                        className="text-red-400 text-xs mt-2 hover:text-red-300"
-                                    >
-                                        Remove
-                                    </button>
                                 </div>
                             ) : (
                                 <>
@@ -258,6 +339,9 @@ const handleSubmit = async (e: React.FormEvent) => {
                                 </>
                             )}
                         </label>
+                        {errors.image && (
+                            <p className="text-red-400 text-xs mt-1">{errors.image}</p>
+                        )}
                     </div>
                 </form>
             </div>
@@ -267,11 +351,11 @@ const handleSubmit = async (e: React.FormEvent) => {
                 <button
                     onClick={handleSubmit}
                     disabled={loading}
-                    className={`yellow-btn cursor-pointer w-full text-black px-[40px] py-[16px] rounded-[8px] font-semibold text-[18px] leading-[22px] transition-colors duration-300 ${
-                        loading 
-                            ? "bg-gray-400 cursor-not-allowed" 
-                            : "hover:bg-[#E5F266]"
-                    }`}
+                    className={`
+                        yellow-btn cursor-pointer w-full text-black px-[40px] py-[16px] rounded-[8px] font-semibold text-[18px] leading-[22px] 
+                        hover:bg-[#E5F266] transition-colors duration-300
+                        ${loading ? 'opacity-50 cursor-not-allowed' : ''}
+                    `}
                 >
                     {loading ? "Creating..." : "Create Announcement"}
                 </button>

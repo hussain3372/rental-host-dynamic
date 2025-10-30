@@ -85,27 +85,7 @@ export default function Checklist({ notes, application }: ChecklistProps) {
 
   return (
     <div className="pb-5 pt-[60px]">
-      {notes.length > 0 && (
-        <div className="mb-8">
-          <h3 className="font-semibold text-[16px] leading-[20px] tracking-normal pb-3">
-            Your Notes
-          </h3>
-          <div className="space-y-3">
-            {notes.map((note, index) => (
-              <div
-                key={index}
-                className="p-3 bg-gradient-to-b from-[#202020] via-[#101010] to-[#101010] border border-[#323232] rounded-lg"
-              >
-                <div className="flex items-start gap-3">
-                  <p className="text-white font-regular text-[16px] leading-[18px] tracking-normal">
-                    {note}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      
 
       <h3 className="font-semibold text-[16px] leading-[20px] tracking-normal pb-5">
         Compliance Checklist
@@ -161,6 +141,27 @@ export default function Checklist({ notes, application }: ChecklistProps) {
           </div>
         </div>
       )}
+      {notes.length > 0 && (
+        <div className="mb-8">
+          <h3 className="font-semibold text-[16px] leading-[20px] tracking-normal pb-3">
+            Your Notes
+          </h3>
+          <div className="space-y-3">
+            {notes.map((note, index) => (
+              <div
+                key={index}
+                className="p-3 bg-gradient-to-b from-[#202020] via-[#101010] to-[#101010] border border-[#323232] rounded-lg"
+              >
+                <div className="flex items-start gap-3">
+                  <p className="text-white font-regular text-[16px] leading-[18px] tracking-normal">
+                    {note}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {showActionButtons && (
         <div className="pt-15 flex w-full justify-end gap-3">
@@ -168,7 +169,7 @@ export default function Checklist({ notes, application }: ChecklistProps) {
             onClick={() => handleApproveReject("reject")}
             disabled={isLoading}
             className="hollow-btn font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
+            >
             {isLoading ? "Processing..." : "Reject"}
           </button>
           <button
@@ -180,6 +181,8 @@ export default function Checklist({ notes, application }: ChecklistProps) {
           </button>
         </div>
       )}
+
+
     </div>
   );
 }

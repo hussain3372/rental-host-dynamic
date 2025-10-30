@@ -30,7 +30,7 @@ const getNotificationImage = (type: string, status: string): string => {
     if (status === "SUBMITTED") return "/images/notification2.png";
     if (status === "DRAFT") return "/images/notification1.png";
   }
-  return "/images/notification-default.png";
+  return "/images/notification1.png";
 };
 
 const transformNotifications = (apiNotifications: ApiNotification[]): Notification[] => {

@@ -162,7 +162,7 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
     }
   } catch (error) {
     console.error("Error fetching checklist:", error);
-    toast.error("Failed to load checklist");
+    // toast.error("Failed to load checklist");
   } finally {
     setLoadingChecklist(false);
   }

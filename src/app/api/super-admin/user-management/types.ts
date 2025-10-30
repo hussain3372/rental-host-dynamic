@@ -352,3 +352,58 @@ export interface ApplicationsResponse{
     nextPage : number
   }
 }
+
+// In your types file
+export interface UpdateUserPayload {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  status?: string;
+  phone?: string | null;
+  companyName?: string | null;
+}
+
+export interface UpdateUserResponse {
+  status: string;
+  message: string;
+  data: {
+    id: number;
+    email: string;
+    name: string;
+    firstName: string;
+    lastName: string;
+    companyName: string | null;
+    phone: string | null;
+    role: string;
+    status: string;
+    emailVerified: boolean;
+    updatedAt: string;
+  };
+}
+
+// Same for admin
+export interface UpdateAdminPayload {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+  status?: string;
+  phone?: string | null;
+  companyName?: string | null;
+}
+export interface UpdateAdminResponse extends UpdateUserResponse {
+    status: string;
+  message: string;
+  data: {
+    id: number;
+    email: string;
+    name: string;
+    firstName: string;
+    lastName: string;
+    companyName: string | null;
+    phone: string | null;
+    role: string;
+    status: string;
+    emailVerified: boolean;
+    updatedAt: string;
+  };
+}

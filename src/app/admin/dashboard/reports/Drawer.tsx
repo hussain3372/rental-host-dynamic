@@ -5,7 +5,6 @@ import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import { reports } from "@/app/api/Admin/reports";
 import { toast } from "react-hot-toast"; // or your toast library
-import { ReportDetailResponse } from "@/app/api/Admin/reports/types";
 
 interface DrawerProps {
   onClose: () => void;

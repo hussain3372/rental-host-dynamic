@@ -40,7 +40,7 @@ export default function Reports() {
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
 
   const [showReportTypeDropdown, setShowReportTypeDropdown] = useState(false);
-  const [showFormatDropdown, setShowFormatDropdown] = useState(false);
+  // const [showFormatDropdown, setShowFormatDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   const [certificationFilters, setCertificationFilters] = useState({
@@ -50,7 +50,7 @@ export default function Reports() {
   });
 
   const [allReportsData, setAllReportsData] = useState<ReportItem[]>([]);
-  const [totalPages, setTotalPages] = useState(1);
+  // const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
   const Credentials = [
@@ -105,7 +105,7 @@ export default function Reports() {
 
       if (response.success && response.data) {
         setAllReportsData(response.data.reports);
-        setTotalPages(response.data.totalPages);
+        // setTotalPages(response.data.totalPages);
         setTotalItems(response.data.total);
       }
     } catch (error) {
@@ -382,14 +382,14 @@ export default function Reports() {
   const dropdownItems = [
     {
       label: "Download Report",
-      onClick: (row: Record<string, string>, index: number) => {
+      onClick: (row: Record<string, string>) => {
         const reportId = row["Report ID"];
         handleDownloadReport(reportId);
       },
     },
     {
       label: "Delete Report",
-      onClick: (row: Record<string, string>, index: number) => {
+      onClick: (row: Record<string, string>) => {
         const reportId = row["Report ID"];
         openDeleteSingleModal(row, reportId);
       },
@@ -507,7 +507,7 @@ export default function Reports() {
           title="Reports"
           control={tableControl}
           showDeleteButton={true}
-          onDeleteSingle={(row, index) => {
+          onDeleteSingle={(row) => {
             const reportId = row["Report ID"];
             openDeleteSingleModal(row, reportId);
           }}

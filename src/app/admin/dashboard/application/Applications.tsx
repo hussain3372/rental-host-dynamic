@@ -38,6 +38,7 @@ interface PaginationData {
 export default function Applications() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(6);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,14 +83,27 @@ export default function Applications() {
   const [allStatuses, setAllStatuses] = useState<string[]>([]);
   const [allOwnerships, setAllOwnerships] = useState<string[]>([]);
 
+  // Debounce search term - only update if 3+ characters or empty
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchTerm.trim().length >= 3 || searchTerm.trim() === "") {
+        setDebouncedSearchTerm(searchTerm);
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
   const hasActiveFilters = useMemo(() => {
     return (
-      searchTerm.trim() !== "" ||
+      debouncedSearchTerm.trim() !== "" ||
       appliedFilters.ownership.trim() !== "" ||
       appliedFilters.status.trim() !== "" ||
       appliedFilters.submittedDate !== ""
     );
-  }, [searchTerm, appliedFilters]);
+  }, [debouncedSearchTerm, appliedFilters]);
 
   const fetchFilterOptions = useCallback(async () => {
     try {
@@ -158,7 +172,7 @@ export default function Applications() {
 
   const fetchApplications = useCallback(async () => {
     try {
-      setIsLoading(true);
+      // setIsLoading(true);
 
       const queryParams: ApiParams = {};
 
@@ -174,8 +188,9 @@ export default function Applications() {
         }
       }
 
-      if (searchTerm.trim()) {
-        queryParams.search = searchTerm.trim();
+      // Only include search if it has 3+ characters
+      if (debouncedSearchTerm.trim().length >= 3) {
+        queryParams.search = debouncedSearchTerm.trim();
       }
 
       if (appliedFilters.ownership.trim()) {
@@ -242,7 +257,7 @@ export default function Applications() {
       setIsLoading(false);
     }
   }, [
-    searchTerm,
+    debouncedSearchTerm,
     appliedFilters.ownership,
     appliedFilters.status,
     appliedFilters.submittedDate,
@@ -374,7 +389,7 @@ export default function Applications() {
   useEffect(() => {
     setCurrentPage(1);
   }, [
-    searchTerm,
+    debouncedSearchTerm,
     appliedFilters.ownership,
     appliedFilters.status,
     appliedFilters.submittedDate,
@@ -391,6 +406,7 @@ export default function Applications() {
     setAppliedFilters(resetFilters);
     setSubmittedDate(null);
     setSearchTerm("");
+    setDebouncedSearchTerm("");
     setCurrentPage(1);
     setIsFilterOpen(false);
   };
@@ -423,6 +439,14 @@ export default function Applications() {
 
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+  };
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    // Only reset page if we're actually going to search (3+ chars) or clearing search
+    if (term.trim().length >= 3 || term.trim() === "") {
+      setCurrentPage(1);
+    }
   };
 
   const dropdownItems = [
@@ -499,7 +523,7 @@ export default function Applications() {
           rowIds={allCertificationData.map((item) => item.id)}
           dropdownItems={dropdownItems}
           searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          onSearchChange={handleSearch}
           currentPage={currentPage}
           onPageChange={handlePageChange}
           itemsPerPage={paginationData.pageSize}

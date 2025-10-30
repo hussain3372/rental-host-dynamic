@@ -87,8 +87,8 @@ export default function HostTicketTable({
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
 
   // State for filter options - from API
-  const [allSubjects, setAllSubjects] = useState<string[]>([]);
-  const [allProperties, setAllProperties] = useState<string[]>([]);
+  const [, setAllSubjects] = useState<string[]>([]);
+  const [, setAllProperties] = useState<string[]>([]);
   const [allStatuses, setAllStatuses] = useState<string[]>([]);
 
   // Debounced search - same as HelpSupport

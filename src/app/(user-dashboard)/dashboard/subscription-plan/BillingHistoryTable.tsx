@@ -41,8 +41,8 @@ export default function BillingHistory() {
   const [certificationFilters, setCertificationFilters] = useState({
     planName: "",
     status: "",
-    purchaseDate: "", // Store as ISO string for consistent comparison
-    endDate: "", // Store as ISO string for consistent comparison
+    purchaseDate: "",
+    endDate: "",
   });
 
   // State for date pickers
@@ -63,9 +63,9 @@ export default function BillingHistory() {
         console.log("Fetching billing data with query parameters...");
 
         const response = await setting.getBillingWithParams({
-          status: "COMPLETED",
+          // status: "COMPLETED",
           skip: 0,
-          take: 100,
+          take: 10,
         });
 
         console.log("API Response:", response);
@@ -309,7 +309,7 @@ export default function BillingHistory() {
           title="Billing History"
           control={tableControl}
           showDeleteButton={false}
-          showPagination={false}
+          showPagination={true}
           clickable={true}
           onRowClick={handleRowClick}
           dropdownItems={dropdownItems}

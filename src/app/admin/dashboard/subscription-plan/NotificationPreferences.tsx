@@ -8,7 +8,7 @@ import ChangePasswordDrawer from "./ChangePasswordDrawer";
 import ToggleSwitch from "@/app/shared/Toggles";
 import { Modal } from "@/app/shared/Modal";
 import toast from "react-hot-toast";
-import { setting } from "@/app/api/Host/setting";
+import { setting } from "@/app/api/Admin/setting";
 
 interface PreferenceItemProps {
   title: string;

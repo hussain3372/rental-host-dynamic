@@ -10,8 +10,6 @@ type HelpSupportDrawerProps = {
     onTicketCreated?: () => void; // Callback to refresh tickets list
 };
 
-
-
 export default function HelpSupportDrawer({ onClose, onTicketCreated }: HelpSupportDrawerProps) {
     const [issueDropdownOpen, setIssueDropdownOpen] = useState(false);
     const [issueType, setIssueType] = useState("");
@@ -22,6 +20,7 @@ export default function HelpSupportDrawer({ onClose, onTicketCreated }: HelpSupp
     const [image, setImage] = useState<File | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState("");
+    const [, setUploadedImageUrl] = useState<string>("");
 
     // Refs for dropdown containers
     const issueDropdownRef = useRef<HTMLDivElement>(null);
@@ -46,7 +45,40 @@ export default function HelpSupportDrawer({ onClose, onTicketCreated }: HelpSupp
 
     const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
-            setImage(e.target.files[0]);
+            const file = e.target.files[0];
+            
+            // Validate file size (10MB max)
+            if (file.size > 10 * 1024 * 1024) {
+                setError("File size must be less than 10MB");
+                return;
+            }
+            
+            // Validate file type
+            const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'application/pdf'];
+            if (!validTypes.includes(file.type)) {
+                setError("Please upload a PDF, JPG, or PNG file");
+                return;
+            }
+            
+            setImage(file);
+            setError(""); // Clear any previous errors
+        }
+    };
+
+    const uploadImageToServer = async (file: File): Promise<string> => {
+        try {
+            console.log("🟡 Uploading image:", file.name);
+            const response = await supportApi.uploadImage(file);
+            
+            if (response.data && response.data.data && response.data.data.url) {
+                console.log("🟢 Image uploaded successfully:", response.data.data.url);
+                return response.data.data.url;
+            } else {
+                throw new Error("Failed to get image URL from response");
+            }
+        } catch (error: unknown) {
+            console.error("🔴 Image upload failed:", error);
+            throw new Error( "Image upload failed");
         }
     };
 
@@ -88,19 +120,35 @@ export default function HelpSupportDrawer({ onClose, onTicketCreated }: HelpSupp
             setIsSubmitting(true);
             setError("");
 
-            // Prepare the payload
+            const attachmentUrls: string[] = [];
+
+            // Upload image first if exists
+            if (image) {
+                try {
+                    const imageUrl = await uploadImageToServer(image);
+                    // attachmentUrls = [imageUrl];
+                    setUploadedImageUrl(imageUrl);
+                } catch  {
+                    // setError(`Image upload failed: ${uploadError.message}`);
+                    setIsSubmitting(false);
+                    return;
+                }
+            }
+
+            // Prepare the payload for ticket creation
             const payload = {
                 subject: subject.trim(),
                 description: description.trim(),
-                category: issueType, // Map to category in API
-                priority: priority,
-                attachmentUrls: image ? [URL.createObjectURL(image)] : [], // You might need to upload the image first
-                tags: [] // Add tags if needed
+                category: issueType,
+                priority: priority as "LOW" | "MEDIUM" | "HIGH" | "URGENT",
+                // attachments: attachmentUrls, // Use the uploaded image URL
+                // Remove property field if not needed, or add if required by your API
+                // property: "", 
             };
 
             console.log("🟡 Creating ticket with payload:", payload);
 
-            // Call the API
+            // Call the API to create ticket
             const response = await supportApi.createTicket(payload);
             
             console.log("🟢 Ticket created successfully:", response);
@@ -111,6 +159,7 @@ export default function HelpSupportDrawer({ onClose, onTicketCreated }: HelpSupp
             setDescription("");
             setPriority("");
             setImage(null);
+            setUploadedImageUrl("");
             
             // Call the callback to refresh tickets list
             if (onTicketCreated) {
@@ -121,14 +170,21 @@ export default function HelpSupportDrawer({ onClose, onTicketCreated }: HelpSupp
             onClose();
 
         } catch (error: unknown) {
-            if (error instanceof Error) {
-                
-                setError(error.message || "Failed to create ticket. Please try again.");
-            }
             console.error("🔴 Error creating ticket:", error);
+            
+            if (error instanceof Error) {
+                setError(error.message || "Failed to create ticket. Please try again.");
+            } else {
+                setError("An unexpected error occurred. Please try again.");
+            }
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const removeImage = () => {
+        setImage(null);
+        setUploadedImageUrl("");
     };
 
     return (
@@ -285,23 +341,39 @@ export default function HelpSupportDrawer({ onClose, onTicketCreated }: HelpSupp
                     </label>
                     <label
                         className="flex flex-col justify-center items-center text-center rounded-[10px] border border-dashed border-[#EFFC76] bg-[radial-gradient(75%_81%_at_50%_18.4%,_#202020_0%,_#101010_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)]"
-                        style={{ height: "180px", padding: "12px", cursor: "pointer" }}
+                        style={{ height: "180px", padding: "12px", cursor: image ? 'default' : 'pointer' }}
                     >
                         <input
                             type="file"
                             accept=".pdf,.jpg,.jpeg,.png"
                             onChange={handleImageUpload}
                             className="hidden"
+                            disabled={!!image}
                         />
                         {image ? (
-                            <div className="mt-3 w-full flex justify-center">
-                                <Image
-                                    src={URL.createObjectURL(image)}
-                                    alt="Preview"
-                                    width={100}
-                                    height={100}
-                                    className="rounded-lg object-contain w-[100px] h-[100px]"
-                                />
+                            <div className="mt-3 w-full flex flex-col items-center">
+                                <div className="relative">
+                                    <Image
+                                        src={URL.createObjectURL(image)}
+                                        alt="Preview"
+                                        width={100}
+                                        height={100}
+                                        className="rounded-lg object-contain w-[100px] h-[100px]"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={removeImage}
+                                        className="absolute -top-2 -right-2 bg-red-500 rounded-full w-6 h-6 flex items-center justify-center text-white text-xs"
+                                    >
+                                        ×
+                                    </button>
+                                </div>
+                                <p className="text-[#FFFFFF99] text-[12px] mt-2">
+                                    {image.name}
+                                </p>
+                                <p className="text-[#EFFC76] text-[10px] mt-1">
+                                    Click the X to remove
+                                </p>
                             </div>
                         ) : (
                             <>

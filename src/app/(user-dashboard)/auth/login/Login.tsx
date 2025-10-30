@@ -138,7 +138,7 @@ export default function LoginPage() {
         localStorage.setItem("userMfaEnabled", "true");
 
         setLoading(false);
-        toast.success("Redirecting to verification screen...");
+        toast.loading("Redirecting to verification screen...");
         router.push("/auth/verify-otp");
         return;
       }

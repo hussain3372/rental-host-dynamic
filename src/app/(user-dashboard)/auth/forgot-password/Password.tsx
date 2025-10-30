@@ -25,8 +25,8 @@ export default function Password() {
       });
       
       if (response.success) {
-        toast.success(response.message || "Reset link sent successfully!");
-        window.location.href = "/auth/email-verification";
+        toast.success("Reset link sent successfully!");
+        // window.location.href = "/auth/email-verification";
       } else {
         toast.error(response.message || "Failed to send reset link");
       }

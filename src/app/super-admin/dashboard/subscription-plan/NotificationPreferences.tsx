@@ -288,11 +288,11 @@ const NotificationPreferences: React.FC = () => {
   };
 
   // handle OTP verification flow (used by drawer)
-  const handleVerifyOtp = (otp: string) => {
-    console.log("Entered OTP:", otp);
-    setIsDrawerOpen(false);
-    setIsAuthModalOpen(true);
-  };
+  // const handleVerifyOtp = (otp: string) => {
+  //   console.log("Entered OTP:", otp);
+  //   setIsDrawerOpen(false);
+  //   setIsAuthModalOpen(true);
+  // };
 
   // const handleContinueFromModal = () => {
   //   setIs2FAModalOpen(false);

@@ -9,9 +9,9 @@ import { Certification } from "@/app/api/Admin/certificate/types";
 interface CertificationData {
   id: number;
   "Certificate ID": string;
-  "Host ID": string;
   "Property Name": string;
-  "Host Name": string;
+  "Host ID": string;
+  // "Host Name": string;
   "Issue Date": string;
   "Expiry Date": string;
   Status: "active" | "revoked" | "expired";
@@ -103,9 +103,9 @@ export default function Certificates() {
           return {
             id: parseInt(cert.id.replace(/\D/g, '')) || Date.now(),
             "Certificate ID": cert.certificateNumber,
-            "Host ID": cert.hostId.toString(),
             "Property Name": cert.application.propertyDetails.propertyName,
-            "Host Name": cert.host.name,
+            "Host ID": cert.hostId.toString(),
+            // "Host Name": cert.host.name,
             "Issue Date": formatDate(cert.issuedAt),
             "Expiry Date": formatDate(cert.expiresAt),
             Status: status,
@@ -144,7 +144,6 @@ export default function Certificates() {
             .toLowerCase()
             .includes(searchTerm.toLowerCase()) ||
           item["Host ID"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item["Host Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
           item["Issue Date"].toLowerCase().includes(searchTerm.toLowerCase()) ||
           item["Expiry Date"].toLowerCase().includes(searchTerm.toLowerCase())
       );

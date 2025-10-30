@@ -3,6 +3,7 @@ import { apiClient, ApiResponse } from "../../core/client";
 import Cookies from "js-cookie";
 import {
   GetTicketsResponse,
+  ImageUploadResponse,
   
 } from "@/app/api/Admin/support/types";
 
@@ -12,6 +13,18 @@ const getAuthHeaders = () => ({
   "Content-Type": "application/json",
   Authorization: `Bearer ${token}`,
 });
+
+export const uploadImage = async (file: File): Promise<ApiResponse<ImageUploadResponse>> => {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  return apiClient.post<ImageUploadResponse>("/applications/image-upload", formData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      // Let the browser set Content-Type with boundary for FormData
+    },
+  });
+};
 
 // Announcement types
 interface Announcement {

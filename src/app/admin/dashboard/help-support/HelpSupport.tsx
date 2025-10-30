@@ -21,6 +21,7 @@ interface CertificationData {
 export default function HelpSupport() {
   const [activeTab, setActiveTab] = useState("host");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;

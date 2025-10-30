@@ -82,8 +82,6 @@ export default function MyTicketsTable({
 
   const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([]);
   const [totalItems, setTotalItems] = useState(0);
-const [, setSelectedTicketDetails] = useState<DetailedTicket | null>(null);
-const [, setIsDetailDrawerOpen] = useState(false);
   // ✅ FIXED: Sync temp filters when filter drawer opens
   useEffect(() => {
     if (isFilterOpen) {
@@ -96,60 +94,60 @@ const [, setIsDetailDrawerOpen] = useState(false);
     }
   }, [isFilterOpen, appliedFilters]);
 // ✅ Add function to fetch detailed ticket data
-const fetchTicketDetails = useCallback(async (ticketId: string) => {
-  try {
-    console.log("🟡 Fetching detailed ticket data for:", ticketId);
+// const fetchTicketDetails = useCallback(async (ticketId: string) => {
+//   try {
+//     console.log("🟡 Fetching detailed ticket data for:", ticketId);
     
-    // Assuming you have an API method to get single ticket details
-    const response = await supportApi.getTicketById(ticketId);
-    console.log("🔵 Detailed Ticket API Response:", response);
+//     // Assuming you have an API method to get single ticket details
+//     const response = await supportApi.getTicketById(ticketId);
+//     console.log("🔵 Detailed Ticket API Response:", response);
 
-    // Adjust this based on your API response structure
-    const ticketData = response.data || response.data;
+//     // Adjust this based on your API response structure
+//     const ticketData = response.data || response.data;
     
-    if (ticketData) {
-      const detailedTicket: DetailedTicket = {
-        id: ticketData.id,
-        ticketId: ticketData.id, // or ticketData.ticketId if available
-        issueType: ticketData.category,
-        subject: ticketData.subject,
-        description: ticketData.description || "No description available",
-        createdOn: new Date(ticketData.createdAt).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        }),
-        status: ticketData.status,
-        attachment: ticketData.attachmentUrls && ticketData.attachmentUrls.length > 0 ? {
-          name: "Attachment", // You might want to get the actual file name from API
-          size: "N/A", // You might want to get the actual file size from API
-          url: ticketData.attachmentUrls[0] // Get the first attachment
-        } : undefined
-      };
+//     if (ticketData) {
+//       const detailedTicket: DetailedTicket = {
+//         id: ticketData.id,
+//         ticketId: ticketData.id, // or ticketData.ticketId if available
+//         issueType: ticketData.category,
+//         subject: ticketData.subject,
+//         description: ticketData.description || "No description available",
+//         createdOn: new Date(ticketData.createdAt).toLocaleDateString("en-US", {
+//           month: "short",
+//           day: "numeric",
+//           year: "numeric",
+//         }),
+//         status: ticketData.status,
+//         attachment: ticketData.attachmentUrls && ticketData.attachmentUrls.length > 0 ? {
+//           name: "Attachment", // You might want to get the actual file name from API
+//           size: "N/A", // You might want to get the actual file size from API
+//           url: ticketData.attachmentUrls[0] // Get the first attachment
+//         } : undefined
+//       };
       
-      setSelectedTicketDetails(detailedTicket);
-      setIsDetailDrawerOpen(true);
-    }
-  } catch (error) {
-    console.error("🔴 Error fetching ticket details:", error);
-    // Fallback to basic data if detailed fetch fails
-    const basicTicket = allCertificationData.find(ticket => ticket["Ticket Id"] === ticketId);
-    if (basicTicket) {
-      const fallbackTicket: DetailedTicket = {
-        id: basicTicket["Ticket Id"],
-        ticketId: basicTicket["Ticket Id"],
-        issueType: basicTicket["Issue Type"],
-        subject: basicTicket.Subject,
-        description: "Description not available",
-        createdOn: basicTicket["Created On"],
-        status: basicTicket.Status,
-        attachment: undefined
-      };
-      setSelectedTicketDetails(fallbackTicket);
-      setIsDetailDrawerOpen(true);
-    }
-  }
-}, [allCertificationData]);
+//       setSelectedTicketDetails(detailedTicket);
+//       setIsDetailDrawerOpen(true);
+//     }
+//   } catch (error) {
+//     console.error("🔴 Error fetching ticket details:", error);
+//     // Fallback to basic data if detailed fetch fails
+//     const basicTicket = allCertificationData.find(ticket => ticket["Ticket Id"] === ticketId);
+//     if (basicTicket) {
+//       const fallbackTicket: DetailedTicket = {
+//         id: basicTicket["Ticket Id"],
+//         ticketId: basicTicket["Ticket Id"],
+//         issueType: basicTicket["Issue Type"],
+//         subject: basicTicket.Subject,
+//         description: "Description not available",
+//         createdOn: basicTicket["Created On"],
+//         status: basicTicket.Status,
+//         attachment: undefined
+//       };
+//       setSelectedTicketDetails(fallbackTicket);
+//       setIsDetailDrawerOpen(true);
+//     }
+//   }
+// }, [allCertificationData]);
   // Format date for API
   const formatDateForAPI = (date: Date | null): string => {
     if (!date) return "";
@@ -212,7 +210,7 @@ const fetchTicketDetails = useCallback(async (ticketId: string) => {
             "Ticket Id": item.id,
             "Issue Type": item.category,
             Subject: item.subject,
-            "Host Name": item.user?.name || "N/A",
+            // "Host Name": item.user?.name || "N/A", 
             "Created On": new Date(item.createdAt).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",

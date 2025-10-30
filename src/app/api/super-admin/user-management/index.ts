@@ -1,6 +1,6 @@
 import { apiClient, ApiResponse } from "../../core/client";
 import Cookies from "js-cookie";
-import { UsersResponse, AddAdminPayload, AddAdminResponse , GetUsersParams , UserDetail , PropertyResponse , GetUserPropertiesParams , BillingHistoryResponse , GetUserBillingParams,PropertyType,PropertyTypeApiResponse , Application , AdminData,ApplicationsResponse,GetAdminReviewedApplicationsParams} from "./types";
+import { UsersResponse, AddAdminPayload, AddAdminResponse , GetUsersParams , UserDetail , PropertyResponse , GetUserPropertiesParams , BillingHistoryResponse , GetUserBillingParams,PropertyType,PropertyTypeApiResponse , Application , AdminData,ApplicationsResponse,GetAdminReviewedApplicationsParams,UpdateUserPayload,UpdateAdminPayload,UpdateAdminResponse,UpdateUserResponse} from "./types";
 
 const getAuthHeaders = () => {
   const token = Cookies.get("superAdminAccessToken");
@@ -27,6 +27,7 @@ export const managementApi = {
     return apiClient.get<UsersResponse>(url, {
       headers: getAuthHeaders(),
       requiresAuth: false,
+      
     });
   },
 
@@ -216,4 +217,31 @@ export const managementApi = {
     requiresAuth: false,
   });
 },
+
+   updateUser: async (userId: number, payload: UpdateUserPayload): Promise<ApiResponse<UpdateUserResponse>> => {
+    try {
+      return await apiClient.put<UpdateUserResponse>(`/super-admin/users/${userId}`, payload, {
+        headers: getAuthHeaders(),
+        requiresAuth: false,
+      });
+    } catch (error: unknown) {
+      console.error('Error updating user:', error);
+      throw new Error( 'Failed to update user');
+    }
+  },
+
+  // UPDATE ADMIN API
+  updateAdmin: async (adminId: number, payload: UpdateAdminPayload): Promise<ApiResponse<UpdateAdminResponse>> => {
+    try {
+      return await apiClient.put<UpdateAdminResponse>(`/super-admin/admins/${adminId}`, payload, {
+        headers: getAuthHeaders(),
+        requiresAuth: false,
+      });
+    } catch (error: unknown) {
+      console.error('Error updating admin:', error);
+      throw new Error( 'Failed to update admin');
+    }
+  },
+
+
 };
