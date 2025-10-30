@@ -84,11 +84,11 @@ export const supportApi = {
   },
 
   // ✅ Delete Multiple Tickets
-  deleteMultipleTickets: async (ticketIds: string[]): Promise<ApiResponse<void>> => {
-    // Convert array to multiple query parameters
-    const queryParams = ticketIds.map(id => `ids=${id}`).join('&');
-    return apiClient.delete<void>(`/support/tickets?${queryParams}`, {
-      headers: getAuthHeaders(),
-    });
-  },
+ // ✅ Delete Multiple Tickets
+deleteMultipleTickets: async (ticketIds: string[]): Promise<ApiResponse<void>> => {
+  return apiClient.delete<void>(`/support/tickets`, {
+    headers: getAuthHeaders(),
+    body: { ticketIds: ticketIds }  // ✅ Add body here
+  });
+},
 };

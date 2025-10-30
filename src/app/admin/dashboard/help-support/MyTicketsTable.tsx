@@ -162,8 +162,21 @@ const fetchTicketDetails = useCallback(async (ticketId: string) => {
   // ✅ FIXED: Fetch tickets function with proper filter application
   const fetchTickets = useCallback(async () => {
     try {
-      setLoading(true);
-      console.log("🟡 Fetching admin tickets...");
+      // setLoading(true);
+
+       if (
+      searchTerm.trim().length > 0 && 
+      searchTerm.trim().length < 3 &&
+      !appliedFilters.status &&
+      !appliedFilters.submittedDate 
+    ) {
+      console.log("🟡 Skipping API call - search term too short and no filters applied");
+      // setAllCertificationData([]);
+      // setTotalItems(0);
+      setLoading(false);
+      return;
+    }
+
 
       const response = await supportApi.getAdminTickets(
         currentPage,
@@ -406,6 +419,7 @@ const fetchTicketDetails = useCallback(async (ticketId: string) => {
     setAppliedFilters(resetFilters);
     setSubmittedDate(null);
     onFilterToggle(false);
+    fetchTickets()
   };
 
   // ✅ FIXED: Enhanced apply filter function like Applications table
@@ -512,7 +526,7 @@ const fetchTicketDetails = useCallback(async (ticketId: string) => {
           onFilterToggle={onFilterToggle}
           onDeleteAll={handleDeleteSelected}
           isDeleteAllDisabled={
-            selectedRows.size === 0 || selectedRows.size < displayData.length
+            selectedRows.size < 2
           }
           showActionColumn={true}
           disableClientSidePagination={true}

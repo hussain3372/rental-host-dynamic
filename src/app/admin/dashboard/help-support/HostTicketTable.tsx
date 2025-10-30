@@ -3,8 +3,8 @@ import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { Table } from "@/app/shared/tables/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "../../../shared/tables/Filter";
-import { supportApi } from "@/app/api/Host/support";
-import { Ticket } from "@/app/api/Host/support/types";
+import { supportApi } from "@/app/api/Admin/support";
+import { Ticket } from "@/app/api/Admin/support/types";
 
 interface CertificationData {
   id: number;
@@ -222,7 +222,23 @@ export default function HostTicketTable({
   // Fetch tickets - same pattern but with Host Name
   const fetchTickets = useCallback(async () => {
     try {
-      setLoading(true);
+      // setLoading(true);
+
+       if (
+      debouncedSearchTerm.trim().length > 0 && 
+      debouncedSearchTerm.trim().length < 3 &&
+      !appliedFilters.subject &&
+      !appliedFilters.property &&
+      !appliedFilters.status &&
+      !appliedFilters.submittedDate
+    ) {
+      console.log("🟡 Skipping API call - search term too short and no filters applied");
+      // setAllCertificationData([]);
+      // setTotalItems(0);
+      setLoading(false);
+      return;
+    }
+
 
       // Build API parameters correctly - same as HelpSupport
       const apiParams: TicketApiParams = {
@@ -621,7 +637,7 @@ export default function HostTicketTable({
           onFilterToggle={onFilterToggle}
           onDeleteAll={handleDeleteSelected}
           isDeleteAllDisabled={
-            selectedRows.size === 0 || selectedRows.size < displayData.length
+            selectedRows.size < 2
           }
           showActionColumn={true}
           disableClientSidePagination={true}
@@ -678,20 +694,7 @@ export default function HostTicketTable({
           if (key === "status") setStatusDropdownOpen(value);
         }}
         fields={[
-          {
-            label: "Subject",
-            key: "subject",
-            type: "dropdown",
-            placeholder: "Select subject",
-            options: allSubjects,
-          },
-          {
-            label: "Ticket ID",
-            key: "property",
-            type: "dropdown",
-            placeholder: "Select ticket ID",
-            options: allProperties,
-          },
+         
           {
             label: "Status",
             key: "status",

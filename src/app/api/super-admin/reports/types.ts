@@ -56,6 +56,6 @@ export interface DeleteReport{
   success: boolean;
   message: string;
   data : string;
-    fileName:string;
+  fileName:string;
   filePath:string
 }

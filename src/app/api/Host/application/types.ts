@@ -259,6 +259,7 @@ export interface CheckListApiResponse {
   success: boolean;
   message?: string;
   status?: number;
+  checklists : string[]
 }
 export interface ApiChecklistItem {
   id: string | number;

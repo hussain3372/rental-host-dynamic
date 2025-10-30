@@ -233,7 +233,7 @@ export default function ApplicationDetail() {
       <nav className="mb-4">
         <div className="flex items-center text-[12px] sm:text-[16px] gap-3 font-regular leading-[20px] text-white/60 ">
           <Link
-            href="/super-admin/dashboard/application"
+            href="/super-admin/dashboard/applications"
             className="hover:text-[#EFFC76]"
           >
             My Applications

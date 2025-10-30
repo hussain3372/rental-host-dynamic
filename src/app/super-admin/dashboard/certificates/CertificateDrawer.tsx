@@ -157,82 +157,78 @@ const AddCertificateDrawer: React.FC<DrawerProps> = ({
   }, [isOpen, isMounted]);
 
   // Handle form submission
-  const handleSubmitCertificate = async () => {
-    // Validation
-    if (!certificateName.trim()) {
-      alert("Please enter certificate name");
-      return;
-    }
-    if (!propertyTypeId) {
-      alert("Please select property type");
-      return;
-    }
-    if (!validity) {
-      alert("Please select certificate validity");
-      return;
-    }
+const handleSubmitCertificate = async () => {
+  // ... validation code ...
 
-    setIsSubmitting(true);
+  setIsSubmitting(true);
 
-    try {
-      const payload = {
-        propertyTypeId,
-        name: certificateName,
-        description:
-          description || `Default certificate for ${propertyTypeName}`,
-        imageUrl: imageUrl || "",
-        validityMonths,
-      };
+  try {
+    const payload = {
+      propertyTypeId,
+      name: certificateName,
+      description: description || `Default certificate for ${propertyTypeName}`,
+      imageUrl: imageUrl || "",
+      validityMonths,
+    };
 
-      if (certificate) {
-        // Update existing certificate
-        await certificateTemplate.updateCertificateTemplate(certificate.id, {
-          propertyTypeId: payload.propertyTypeId,
-          name: payload.name,
-          description: payload.description,
-          imageUrl: payload.imageUrl,
-          validityMonths: payload.validityMonths,
-        });
-        toast.success("Certificate updated successfully!");
-      } else {
-        try {
-          // Create new certificate
-          const response = await certificateTemplate.createCertificateTemplate({
-            propertyTypeId: payload.propertyTypeId,
-            name: payload.name,
-            description: payload.description,
-            imageUrl: payload.imageUrl,
-            validityMonths: payload.validityMonths,
-          });
-          if (response.success) {
-            toast.success("Certificate created successfully!");
-          }
-        } catch (error) {
-          console.log(error);
-        }
+    if (certificate) {
+      // Update existing certificate
+      const response = await certificateTemplate.updateCertificateTemplate(certificate.id, {
+        propertyTypeId: payload.propertyTypeId,
+        name: payload.name,
+        description: payload.description,
+        imageUrl: payload.imageUrl,
+        validityMonths: payload.validityMonths,
+      });
+      
+      // Check if response indicates failure
+      if (!response.success) {
+        throw new Error(response.message || "Failed to update certificate");
       }
-
-      // Reset form
-      setCertificateName("");
-      setPropertyTypeId("");
-      setPropertyTypeName("");
-      setValidity("");
-      setValidityMonths(12);
-      setImageUrl("");
-      setDescription("");
-      setIsVisible(false);
-      setTimeout(onClose, 300);
-    } catch (error) {
-      console.error("Failed to save certificate:", error);
-      toast.error(
-        `Failed to ${
-          certificate ? "update" : "create"
-        } certificate. Please try again.`
-      );
-    } finally {
-      setIsSubmitting(false);
+      
+      toast.success("Certificate updated successfully!");
+    } else {
+      // Create new certificate
+      const response = await certificateTemplate.createCertificateTemplate({
+        propertyTypeId: payload.propertyTypeId,
+        name: payload.name,
+        description: payload.description,
+        imageUrl: payload.imageUrl,
+        validityMonths: payload.validityMonths,
+      });
+      
+      // Check if response indicates failure
+      if (!response.success) {
+        throw new Error(response.message || "Failed to create certificate");
+      }
+      
+      toast.success("Certificate created successfully!");
     }
-  };
+
+    // Reset form and close drawer
+    setCertificateName("");
+    setPropertyTypeId("");
+    setPropertyTypeName("");
+    setValidity("");
+    setValidityMonths(12);
+    setImageUrl("");
+    setDescription("");
+    setIsVisible(false);
+    setTimeout(onClose, 300);
+    
+  } catch (error) {
+    console.error("Failed to save certificate:", error);
+    
+    // Type-safe error handling
+    if (error instanceof Error) {
+      toast.error(error.message);
+    } else {
+      toast.error(`Failed to ${certificate ? "update" : "create"} certificate. Please try again.`);
+    }
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   // Close drawer when clicking outside
   useEffect(() => {

@@ -33,10 +33,11 @@ export const supportApi = {
     // ✅ Get Ticket by ID
     getTicketById: async (ticketId: string): Promise<ApiResponse<Ticket>> => {
         return apiClient.get<Ticket>(
-            `/support/tickets/${ticketId}`,
+            `/support/tickets/`,
             {
                 headers: getAuthHeaders(),
             }
+            
         );
     },
     getTickets: async (params: {
@@ -117,9 +118,9 @@ export const supportApi = {
     // ✅ Delete Multiple Tickets
     deleteMultipleTickets: async (ticketIds: string[]): Promise<ApiResponse<void>> => {
         // Convert array to multiple query parameters
-        const queryParams = ticketIds.map(id => `ids=${id}`).join('&');
-        return apiClient.delete<void>(`/support/tickets?${queryParams}`, {
+        return apiClient.delete<void>(`/support/tickets`, {
             headers: getAuthHeaders(),
+            body: { ticketIds: ticketIds } 
         });
     },
     // ✅ Update Ticket

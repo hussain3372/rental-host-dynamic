@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Dropdown from "@/app/shared/InputDropDown";
-import { supportApi } from "@/app/api/Host/support";
+import { supportApi } from "@/app/api/Admin/support";
 
 type HelpSupportDrawerProps = {
     isOpen: boolean;
@@ -174,7 +174,7 @@ export default function HelpSupportDrawer({ onClose, onTicketCreated }: HelpSupp
                             alt="dropdown"
                             width={16}
                             height={16}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                            className="absolute right-3 bottom-4 transform -translate-y-1/2 cursor-pointer"
                         />
                     </div>
 
@@ -218,7 +218,7 @@ export default function HelpSupportDrawer({ onClose, onTicketCreated }: HelpSupp
                             alt="dropdown"
                             width={16}
                             height={16}
-                            className="absolute right-3 top-1/2 transform -translate-y-1/2 cursor-pointer"
+                            className="absolute right-3 bottom-4 transform -translate-y-1/2 cursor-pointer"
                         />
                     </div>
 

@@ -30,7 +30,7 @@ export default function HelpSupport() {
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
   const [selectedTicket, setSelectedTicket] = useState<CertificationData | null>(null);
-  const [, setRefreshTrigger] = useState(0); 
+const [refreshTrigger, setRefreshTrigger] = useState(0);
 
   const handleViewDetails = (ticket: CertificationData) => {
     setSelectedTicket(ticket);
@@ -43,6 +43,8 @@ export default function HelpSupport() {
     // You might also want to reset to first page
     setCurrentPage(1);
   };
+
+  
 
   // Handle tab content rendering - pass refreshTrigger to tables
   const renderTabContent = () => {
@@ -58,6 +60,7 @@ export default function HelpSupport() {
             isFilterOpen={isFilterOpen}
             onFilterToggle={setIsFilterOpen}
             onViewDetails={handleViewDetails}
+          
           />
         );
       case "my":
@@ -71,6 +74,8 @@ export default function HelpSupport() {
             isFilterOpen={isFilterOpen}
             onFilterToggle={setIsFilterOpen}
             onViewDetails={handleViewDetails}
+            refreshTrigger={refreshTrigger} 
+
           />
         );
       default:

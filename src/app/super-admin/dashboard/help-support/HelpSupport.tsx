@@ -25,6 +25,8 @@ export default function HelpSupport() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [openAnnounce, setOpenAnnounce] = useState(false);
+  const [refreshAnnouncements, setRefreshAnnouncements] = useState(false);
+
   const itemsPerPage = 6;
 
   // Modal and drawer statesa
@@ -39,6 +41,11 @@ export default function HelpSupport() {
     setSelectedTicket(ticket);
     setIsDetailDrawerOpen(true);
   };
+
+
+  const closeDrawer = ()=>{
+    setOpenAnnounce(false)
+  }
 
   // Handle tab content rendering
   const renderTabContent = () => {
@@ -57,7 +64,7 @@ export default function HelpSupport() {
           />
         );
       case "announcements":
-        return <Announcements />;
+        return <Announcements refresh={refreshAnnouncements} />;
       default:
         return null;
     }
@@ -161,21 +168,26 @@ export default function HelpSupport() {
       </div>
 
       <div
-        className={`fixed inset-0 bg-[#121315CC] z-[3000000002] flex justify-end transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-[#121315CC] z-[9000] flex justify-end transition-opacity duration-300 ${
           openAnnounce ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setOpenAnnounce(false)}
       >
         <div
-          className={`w-full lg:max-w-[608px] md:max-w-[500px] max-w-[280px] p-5 sm:p-7 bg-[#0A0C0B] h-full overflow-auto scrollbar-hide rounded-[12px] border border-[#FFFFFF1F] transform transition-transform duration-300 ease-in-out ${
+          className={`w-full lg:max-w-[608px]  md:max-w-[500px] max-w-[280px] p-5 sm:p-7 bg-[#0A0C0B] h-full overflow-auto scrollbar-hide rounded-[12px] border border-[#FFFFFF1F] transform transition-transform duration-300 ease-in-out ${
             openAnnounce ? "translate-x-0" : "translate-x-full"
           }`}
           onClick={(e) => e.stopPropagation()}
         >
-          <AddAnnouncementsDrawer
-            isOpen={openAnnounce}
-            onClose={() => setOpenAnnounce(false)}
-          />
+         <AddAnnouncementsDrawer
+  isOpen={openAnnounce}
+  onClose={closeDrawer}
+  onSuccess={() => {
+    setRefreshAnnouncements(prev => !prev); // trigger re-fetch
+    closeDrawer();
+  }}
+/>
+
         </div>
       </div>
     </>

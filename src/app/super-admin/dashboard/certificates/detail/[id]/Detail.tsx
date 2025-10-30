@@ -3,6 +3,7 @@ import React, { useMemo, useState, useEffect } from "react";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "@/app/shared/tables/Filter";
+import { useRouter } from "next/navigation";
 
 interface Certificate {
   id: string;
@@ -243,7 +244,19 @@ export default function Detail({ certificates }: DetailProps) {
     setIsFilterOpen(false);
   };
 
+  const router = useRouter();
+
   const dropdownItems = [
+     {
+      label: "View Details",
+      onClick: (row: Record<string, string>, index: number) => {
+        const globalIndex = (currentPage - 1) * itemsPerPage + index;
+        const originalRow = filteredCertificationData[globalIndex];
+        router.push(
+          `/super-admin/dashboard/certificates/certificate-detail/${originalRow.id}`
+        );
+      },
+    },
     {
       label: "Delete Application",
       onClick: (row: Record<string, string>, index: number) => {

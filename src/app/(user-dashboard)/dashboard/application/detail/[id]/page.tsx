@@ -13,54 +13,54 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchApplication = async () => {
-      if (!id) {
-        setError("No application ID provided");
-        setLoading(false);
-        return;
-      }
+  const fetchApplication = async () => {
+    if (!id) {
+      setError("No application ID provided");
+      setLoading(false);
+      return;
+    }
 
-      setLoading(true);
-      setError(null);
-      try {
-        console.log("🔄 Parent - Fetching application with ID:", id);
-        const response = await applicationApi.getApplicationById(id as string); // Uncomment this
-        console.log("📡 Parent - Full API Response:", response);
+    setLoading(true);
+    setError(null);
+    try {
+      console.log("🔄 Parent - Fetching application with ID:", id);
+      const response = await applicationApi.getApplicationById(id as string); // Uncomment this
+      console.log("📡 Parent - Full API Response:", response);
 
-        let appData: ApplicationData | null = null;
+      let appData: ApplicationData | null = null;
 
-        if (response?.success) {
-          if (response.data && typeof response.data === "object") {
-            if ("application" in response.data) {
-              appData = response.data.application;
-              console.log("✅ Parent - Found application in nested structure");
-            } else {
-              appData = response.data as ApplicationData;
-              console.log("✅ Parent - Found application in direct structure");
-            }
+      if (response?.success) {
+        if (response.data && typeof response.data === "object") {
+          if ("application" in response.data) {
+            appData = response.data.application || null;
+            console.log("✅ Parent - Found application in nested structure");
+          } else {
+            appData = response.data as ApplicationData;
+            console.log("✅ Parent - Found application in direct structure");
           }
         }
-
-        if (appData) {
-          setApplication(appData);
-          console.log("✅ Parent - Application data set:", appData);
-        } else {
-          console.warn(
-            "❌ Parent - No application data found in response",
-            response
-          );
-          setError("Application not found in response");
-        }
-      } catch (err) {
-        console.error("🚨 Parent - Error fetching application:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to load application"
-        );
-      } finally {
-        setLoading(false);
       }
-    };
+
+      if (appData) {
+        setApplication(appData);
+        console.log("✅ Parent - Application data set:", appData);
+      } else {
+        console.warn(
+          "❌ Parent - No application data found in response",
+          response
+        );
+        setError("Application not found in response");
+      }
+    } catch (err) {
+      console.error("🚨 Parent - Error fetching application:", err);
+      setError(
+        err instanceof Error ? err.message : "Failed to load application"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+  useEffect(() => {
 
     fetchApplication();
   }, [id]);
@@ -114,7 +114,7 @@ export default function Page() {
 
   return (
     <div className="space-y-[60px]">
-      <Detail application={application} />
+      <Detail  onApplicationUpdate={fetchApplication} application={application} />
       <Checklist application={application} />
     </div>
   );

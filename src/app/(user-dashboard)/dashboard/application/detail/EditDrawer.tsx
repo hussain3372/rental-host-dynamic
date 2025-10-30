@@ -1,34 +1,66 @@
 "use client";
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { Check } from "lucide-react";
+import { Check, ChevronRight, ChevronLeft } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { application } from "@/app/api/Host/application"; 
 
 type Tab = "property" | "compliances" | "documents";
 
+interface ChecklistItem {
+  id: string | number;  // Allow both string and number
+  name: string;
+  description: string | null;
+}
+
+interface ApiChecklistItem {
+  id: string | number;
+  name: string;
+  description?: string;
+  isActive?: boolean;
+}
+
+// OR create a separate interface for API response
 
 
-type ComplianceData = {
-  fireSafety: boolean;
-  buildingCode: boolean;
-  energyEfficiency: boolean;
-  accessibility: boolean;
-};
+interface FileData {
+  name: string;
+  size: number;
+  file: File;
+  documentType: "ID_DOCUMENT" | "SAFETY_PERMIT" | "INSURANCE_CERTIFICATE" | "PROPERTY_DEED";
+  originalName: string;
+}
 
-type DocumentData = {
-  governmentId: File | null;
-  ownershipProof: File | null;
-  safetyPermits: File | null;
-  insurance: File | null;
-};
+interface UploadedDocument {
+  documentType: string;
+  fileName: string;
+  originalName: string;
+  mimeType: string;
+  size: number;
+  url?: string;
+}
 
-type DocumentPreviews = {
-  governmentId: string | null;
-  ownershipProof: string | null;
-  safetyPermits: string | null;
-  insurance: string | null;
-};
+interface ApplicationData {
+  id: string;
+  propertyDetails?: {
+    propertyName?: string;
+    address?: string;
+    ownership?: string;
+    propertyType?: string;
+    description?: string;
+    images?: string[];
+    rent?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    currency?: string;
+    maxGuests?: number;
+  };
+  complianceChecklist?: {
+    [key: string]: boolean;
+  };
+  
+  documents?: UploadedDocument[];
+}
 
 type HelpSupportDrawerProps = {
   onClose: () => void;
@@ -40,6 +72,9 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
   const [isVisible, setIsVisible] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
+  const [loadingChecklist, setLoadingChecklist] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
 
   // Property Details State
@@ -48,30 +83,19 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
   const [description, setDescription] = useState("");
   const [uploadedImages, setUploadedImages] = useState<File[]>([]);
   const [previewImages, setPreviewImages] = useState<string[]>([]);
+  const [existingImages, setExistingImages] = useState<string[]>([]);
 
-  // Compliances State
-  const [compliances, setCompliances] = useState<ComplianceData>({
-    fireSafety: false,
-    buildingCode: false,
-    energyEfficiency: false,
-    accessibility: false,
-  });
+  // Compliances State - dynamic based on API
+  const [compliances, setCompliances] = useState<{ [key: string]: boolean }>({});
 
-  // Documents State
-  const [documents, setDocuments] = useState<DocumentData>({
-    governmentId: null,
-    ownershipProof: null,
-    safetyPermits: null,
-    insurance: null,
-  });
+  // Documents State using FileData structure
+  const [documents, setDocuments] = useState<FileData[]>([]);
 
-  // Document Previews State
-  const [documentPreviews, setDocumentPreviews] = useState<DocumentPreviews>({
-    governmentId: null,
-    ownershipProof: null,
-    safetyPermits: null,
-    insurance: null,
-  });
+  // Existing document URLs from API
+  const [existingDocuments, setExistingDocuments] = useState<UploadedDocument[]>([]);
+
+  // Track completed steps
+  const [completedSteps, setCompletedSteps] = useState<Set<Tab>>(new Set());
 
   // Error states
   const [errors, setErrors] = useState<{
@@ -97,56 +121,112 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
     }, 300);
   }, [onClose]);
 
+  // Fetch checklist from API
+ const fetchChecklist = async () => {
+  setLoadingChecklist(true);
+  try {
+    const response = await application.getCheckList();
+    if (response.success && response.data) {
+      let checklistData: ChecklistItem[] = [];
+      
+      // Handle different response structures
+      if (Array.isArray(response.data)) {
+        checklistData = response.data.map((item: ApiChecklistItem) => ({
+          id: item.id,
+          name: item.name,
+          description: item.description ?? null
+        }));
+      } else if (response.data.data && Array.isArray(response.data.data)) {
+        checklistData = response.data.data.map((item: ApiChecklistItem) => ({
+          id: item.id,
+          name: item.name,
+          description: item.description ?? null
+        }));
+      } else if (response.data.checklists && Array.isArray(response.data.checklists)) {
+        // Handle string arrays by converting them to ChecklistItem objects
+        checklistData = response.data.checklists.map((item: string, index: number) => ({
+          id: index,
+          name: item,
+          description: null
+        }));
+      }
+
+      setChecklistItems(checklistData);
+      
+      // Initialize compliance state with all items unchecked
+      const initialCompliances: { [key: string]: boolean } = {};
+      checklistData.forEach(item => {
+        initialCompliances[item.name] = false;
+      });
+      setCompliances(initialCompliances);
+    }
+  } catch (error) {
+    console.error("Error fetching checklist:", error);
+    toast.error("Failed to load checklist");
+  } finally {
+    setLoadingChecklist(false);
+  }
+};
   // Fetch application data when component mounts or applicationId changes
   useEffect(() => {
     const fetchApplicationData = async () => {
-      if (!applicationId) {
+      let appId = applicationId;
+      
+      if (!appId) {
         // Try to get from localStorage if no applicationId provided
         const stored = localStorage.getItem("applicationData");
         const storedData = stored ? JSON.parse(stored) : null;
         if (!storedData?.id) return;
         
-        applicationId = storedData.id;
+        appId = storedData.id;
       }
 
       setIsLoading(true);
       try {
-        const response = await application.getApplicationById(applicationId||"");
+        const response = await application.getApplicationById(appId || "");
         
-        if (response.success && response.data?.application) {
-          const appData = response.data.application;
-          
+        if (response.success && response.data) {
+         const appData = ((response.data as { application?: ApplicationData }).application ?? response.data) as ApplicationData;
+          console.log('Application data loaded:', appData);
+
           // Populate property details
           if (appData.propertyDetails) {
             setPropertyName(appData.propertyDetails.propertyName || "");
             setPropertyAddress(appData.propertyDetails.address || "");
             setDescription(appData.propertyDetails.description || "");
             
-            // Handle existing images - you might need to fetch and convert them
+            // Handle existing images
             if (appData.propertyDetails.images && appData.propertyDetails.images.length > 0) {
-              // Note: This would require additional logic to convert URLs back to File objects
-              // For now, we'll just show a message that images are already uploaded
-              toast.success("Existing property images loaded");
+              setExistingImages(appData.propertyDetails.images);
             }
           }
 
-          // Populate compliance checklist if available
-          if (appData.complianceChecklist && Array.isArray(appData.complianceChecklist)) {
-            const complianceData: ComplianceData = {
-              fireSafety: appData.complianceChecklist.includes("Fire safety measures in place") || 
-                         appData.complianceChecklist.some(item => item.includes?.("fire") || item.includes?.("safety")),
-              buildingCode: appData.complianceChecklist.includes("Building code compliance") || 
-                           appData.complianceChecklist.some(item => item.includes?.("building") || item.includes?.("code")),
-              energyEfficiency: appData.complianceChecklist.includes("Energy efficiency standards met") || 
-                               appData.complianceChecklist.some(item => item.includes?.("energy") || item.includes?.("efficiency")),
-              accessibility: appData.complianceChecklist.includes("Accessibility compliance") || 
-                            appData.complianceChecklist.some(item => item.includes?.("accessibility")),
-            };
-            setCompliances(complianceData);
+          // Populate existing documents if available
+          if (appData.documents && appData.documents.length > 0) {
+            setExistingDocuments(appData.documents);
           }
 
-          console.log("Application data loaded:", appData);
-          toast.success("Application data loaded successfully");
+          // Fetch checklist and then populate compliance data
+          await fetchChecklist();
+          
+          // Populate compliance checklist if available (after checklist is loaded)
+          if (appData.complianceChecklist) {
+            setCompliances(appData.complianceChecklist);
+          }
+
+          // Mark completed steps based on existing data
+          const completed = new Set<Tab>();
+          if (appData.propertyDetails?.propertyName && appData.propertyDetails?.address) {
+            completed.add("property");
+          }
+          if (appData.complianceChecklist && Object.keys(appData.complianceChecklist).length > 0) {
+            completed.add("compliances");
+          }
+          if (appData.documents && appData.documents.length > 0) {
+            completed.add("documents");
+          }
+          setCompletedSteps(completed);
+
         }
       } catch (error) {
         console.error("Error fetching application data:", error);
@@ -191,17 +271,14 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
       if (!description.trim()) {
         newErrors.description = "Description is required";
       }
-      if (uploadedImages.length === 0) {
+      if (uploadedImages.length === 0 && existingImages.length === 0) {
         newErrors.images = "At least one image is required";
       }
     }
 
     // Compliances tab validation
     if (activeTab === "compliances") {
-      const allUnchecked = !compliances.fireSafety && 
-                          !compliances.buildingCode && 
-                          !compliances.energyEfficiency && 
-                          !compliances.accessibility;
+      const allUnchecked = Object.values(compliances).every(checked => !checked);
       if (allUnchecked) {
         newErrors.compliances = "At least one compliance must be selected";
       }
@@ -209,11 +286,7 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
 
     // Documents tab validation
     if (activeTab === "documents") {
-      const allMissing = !documents.governmentId && 
-                        !documents.ownershipProof && 
-                        !documents.safetyPermits && 
-                        !documents.insurance;
-      if (allMissing) {
+      if (documents.length === 0 && existingDocuments.length === 0) {
         newErrors.documents = "At least one document must be uploaded";
       }
     }
@@ -224,52 +297,65 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    if (files.length + uploadedImages.length > 3) {
-      toast.error("Maximum 3 images allowed");
+    if (files.length + uploadedImages.length + existingImages.length > 5) {
+      toast.error("Maximum 5 images allowed");
       return;
     }
 
-    const newImages = [...uploadedImages, ...files].slice(0, 3);
+    const newImages = [...uploadedImages, ...files].slice(0, 5 - existingImages.length);
     setUploadedImages(newImages);
 
     const newPreviews = newImages.map((file) => URL.createObjectURL(file));
     setPreviewImages(newPreviews);
 
     // Clear image error when images are uploaded
-    if (newImages.length > 0) {
+    if (newImages.length > 0 || existingImages.length > 0) {
       setErrors(prev => ({ ...prev, images: undefined }));
     }
   };
 
-  const handleDocumentUpload = (type: keyof DocumentData, file: File | null) => {
-    setDocuments((prev) => ({ ...prev, [type]: file }));
+  const handleDocumentUpload = (type: FileData['documentType'], file: File) => {
+    // Remove existing document of same type
+    const filteredDocuments = documents.filter(doc => doc.documentType !== type);
     
-    // Create preview URL for the document
-    if (file) {
-      const previewUrl = URL.createObjectURL(file);
-      setDocumentPreviews((prev) => ({ ...prev, [type]: previewUrl }));
-      
-      // Clear documents error when a document is uploaded
-      setErrors(prev => ({ ...prev, documents: undefined }));
-    } else {
-      setDocumentPreviews((prev) => ({ ...prev, [type]: null }));
-    }
+    const newDocument: FileData = {
+      name: file.name,
+      size: file.size,
+      file: file,
+      documentType: type,
+      originalName: file.name
+    };
+
+    setDocuments([...filteredDocuments, newDocument]);
+    
+    // Clear documents error when a document is uploaded
+    setErrors(prev => ({ ...prev, documents: undefined }));
   };
 
   const handleDocumentInputChange = 
-    (type: keyof DocumentData) => (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0] || null;
-      handleDocumentUpload(type, file);
+    (type: FileData['documentType']) => (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+        handleDocumentUpload(type, file);
+      }
     };
 
-  const handleDocumentBoxClick = (type: keyof DocumentData) => {
+  const handleDocumentBoxClick = (type: FileData['documentType']) => {
     const refs = {
-      governmentId: governmentIdRef,
-      ownershipProof: ownershipProofRef,
-      safetyPermits: safetyPermitsRef,
-      insurance: insuranceRef,
+      "ID_DOCUMENT": governmentIdRef,
+      "PROPERTY_DEED": ownershipProofRef,
+      "SAFETY_PERMIT": safetyPermitsRef,
+      "INSURANCE_CERTIFICATE": insuranceRef,
     };
     refs[type].current?.click();
+  };
+
+  const getDocumentByType = (type: FileData['documentType']) => {
+    return documents.find(doc => doc.documentType === type);
+  };
+
+  const getExistingDocumentByType = (type: string) => {
+    return existingDocuments.find(doc => doc.documentType === type);
   };
 
   const handleUpload = () => {
@@ -345,29 +431,16 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
     }
   };
 
-  const uploadDocuments = async (): Promise<void> => {
-    const documentFiles = Object.entries(documents)
-      .filter(([_, file]) => file !== null)
-      .map(([type, file]) => ({ type, file: file! }));
-
-    if (documentFiles.length === 0) return;
+  const uploadDocuments = async (files: FileData[]): Promise<UploadedDocument[]> => {
+    if (files.length === 0) return [];
 
     try {
       const formData = new FormData();
 
-      documentFiles.forEach(({ type, file }) => {
-        formData.append("files", file);
-        
-        // Map your document types to the API expected types
-        const documentTypeMap: Record<string, string> = {
-          governmentId: "ID_DOCUMENT",
-          ownershipProof: "PROPERTY_DEED", 
-          safetyPermits: "SAFETY_PERMIT",
-          insurance: "INSURANCE_CERTIFICATE"
-        };
-        
-        formData.append("documentType", documentTypeMap[type] || "OTHER");
-        formData.append("originalNames", file.name);
+      files.forEach((fileData) => {
+        formData.append("files", fileData.file);
+        formData.append("documentType", fileData.documentType);
+        formData.append("originalNames", fileData.originalName);
       });
 
       const response = await application.uploadDocuments(formData);
@@ -376,110 +449,206 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
         throw new Error("No response data received from document upload");
       }
 
-      toast.success("Documents uploaded successfully!");
+      // Simple approach - assume response.data is the array of documents
+      const uploadedDocs = Array.isArray(response.data) ? response.data : [];
+
+      return uploadedDocs;
     } catch (error) {
       console.error("Document upload error:", error);
-      throw error;
+      throw new Error(
+        error instanceof Error
+          ? `Failed to upload documents: ${error.message}`
+          : "Failed to upload documents due to server error"
+      );
     }
   };
 
-  const updateApplicationData = async (): Promise<boolean> => {
-    setIsUpdating(true);
-    const toastId = toast.loading("Updating application...");
+const updateCurrentStep = async (): Promise<boolean> => {
+  setIsUpdating(true);
+  const toastId = toast.loading("Updating application...");
+
+  try {
+    const stored = localStorage.getItem("applicationData");
+    const localApplicationData = stored ? JSON.parse(stored) : null;
+    
+    if (!localApplicationData?.id) {
+      throw new Error("No application found. Please create an application first.");
+    }
+
+    let imageUrls: string[] = [...existingImages];
+
+    // Upload images if any new ones are added
+    if (uploadedImages.length > 0) {
+      const newImageUrls = await uploadFiles(uploadedImages);
+      imageUrls = [...imageUrls, ...newImageUrls];
+    }
+
+    // Upload documents separately and update state
+    if (documents.length > 0) {
+      const newDocs = await uploadDocuments(documents);
+      const updatedDocs = [...existingDocuments, ...newDocs];
+      setExistingDocuments(updatedDocs);
+      
+      // Update localStorage with new documents
+      const updatedAppData = {
+        ...localApplicationData,
+        documents: updatedDocs
+      };
+      localStorage.setItem("applicationData", JSON.stringify(updatedAppData));
+      
+      setDocuments([]);
+    }
+
+    // Prepare step data WITHOUT documents
+    const stepData = {
+      propertyDetails: {
+        propertyName,
+        address: propertyAddress,
+        description,
+        images: imageUrls,
+        propertyType: localApplicationData.propertyDetails?.propertyType || "RESIDENTIAL",
+        ownership: localApplicationData.propertyDetails?.ownership || "OWNED",
+        rent: localApplicationData.propertyDetails?.rent || 18500,
+        bedrooms: localApplicationData.propertyDetails?.bedrooms || 20,
+        bathrooms: localApplicationData.propertyDetails?.bathrooms || 20,
+        currency: localApplicationData.propertyDetails?.currency || "AED",
+        maxGuests: localApplicationData.propertyDetails?.maxGuests || 20,
+      }
+      
+    };
+
+    // Add compliance checklist only
+    if (activeTab === "compliances" || activeTab === "documents") {
+      localApplicationData.complianceChecklist = compliances;
+    }
+
+    // Documents are NOT included in step data
+
+    const stepNameMap: Record<Tab, string> = {
+      property: "PROPERTY_DETAILS",
+      compliances: "COMPLIANCE_CHECKLIST", 
+      documents: "DOCUMENT_UPLOAD"
+    };
+
+    const updatePayload = {
+      step: stepNameMap[activeTab],
+      data: stepData
+    };
+
+    const stepResponse = await application.updateStep(updatePayload);
+
+    if (stepResponse.success) {
+      // Update localStorage with latest step data (without documents)
+      const updatedAppData = {
+        ...localApplicationData,
+        ...stepData
+      };
+      localStorage.setItem("applicationData", JSON.stringify(updatedAppData));
+      
+      setCompletedSteps(prev => new Set(prev).add(activeTab));
+      
+      if (uploadedImages.length > 0) {
+        setExistingImages(imageUrls);
+        setUploadedImages([]);
+        setPreviewImages([]);
+      }
+
+      toast.success("Step completed successfully!", { id: toastId });
+      return true;
+    } else {
+      throw new Error(stepResponse.message || "Failed to update application");
+    }
+  } catch (error) {
+    console.error("Update error:", error);
+    toast.error(
+      error instanceof Error ? error.message : "Failed to update application",
+      { id: toastId }
+    );
+    return false;
+  } finally {
+    setIsUpdating(false);
+  }
+};
+
+  const submitFinalApplication = async (): Promise<boolean> => {
+    setIsSubmitting(true);
+    const toastId = toast.loading("Submitting application...");
 
     try {
-      // Get current application ID
       const stored = localStorage.getItem("applicationData");
       const localApplicationData = stored ? JSON.parse(stored) : null;
       
       if (!localApplicationData?.id) {
-        throw new Error("No application found. Please create an application first.");
+        throw new Error("No application found.");
       }
 
-      // Upload images if any
-      let imageUrls: string[] = [];
-      if (uploadedImages.length > 0) {
-        imageUrls = await uploadFiles(uploadedImages);
-      }
+      const response = await application.submitApplication();
 
-      // Upload documents if any
-      if (Object.values(documents).some(doc => doc !== null)) {
-        await uploadDocuments();
-      }
-
-      // Prepare update payload based on active tab
-      let updatePayload = {};
-      
-      if (activeTab === "property") {
-        updatePayload = {
-          propertyDetails: {
-            propertyName,
-            address: propertyAddress,
-            description,
-            images: imageUrls,
-            // Include other required fields from your existing data
-            ...(localApplicationData.propertyDetails || {})
-          }
-        };
-      } else if (activeTab === "compliances") {
-        const complianceChecklist: string[] = [];
-        if (compliances.fireSafety) complianceChecklist.push("Fire safety measures in place");
-        if (compliances.buildingCode) complianceChecklist.push("Building code compliance");
-        if (compliances.energyEfficiency) complianceChecklist.push("Energy efficiency standards met");
-        if (compliances.accessibility) complianceChecklist.push("Accessibility compliance");
+      if (response.success) {
+        toast.success("Application submitted successfully!", { id: toastId });
         
-        updatePayload = {
-          complianceChecklist
-        };
-      } else if (activeTab === "documents") {
-        // Documents are already uploaded, just update the step
-        updatePayload = {};
-      }
-
-      // Determine step name based on active tab
-      const stepNameMap: Record<Tab, string> = {
-        property: "PROPERTY_DETAILS",
-        compliances: "COMPLIANCE_CHECKLIST", 
-        documents: "DOCUMENT_UPLOAD"
-      };
-
-      const stepResponse = await application.updateStep({
-        step: stepNameMap[activeTab],
-        data: updatePayload
-      });
-
-      if (stepResponse.success) {
-        toast.success("Application updated successfully!", { id: toastId });
+        // Clean up localStorage  
+        localStorage.removeItem("applicationData");
+        localStorage.removeItem("propertyType");
+        
         return true;
       } else {
-        throw new Error(stepResponse.message || "Failed to update application");
+        throw new Error(response.message || "Failed to submit application");
       }
     } catch (error) {
-      console.error("Update error:", error);
+      console.error("Submission error:", error);
       toast.error(
-        error instanceof Error ? error.message : "Failed to update application",
+        error instanceof Error ? error.message : "Failed to submit application",
         { id: toastId }
       );
       return false;
     } finally {
-      setIsUpdating(false);
+      setIsSubmitting(false);
     }
   };
 
-  const handleSubmit = async () => {
-    // Validate current tab
-    if (!validateForm()) {
-      toast.error("Please fix the errors before submitting");
-      return;
-    }
+  const handleNextStep = async () => {
+  if (!validateForm()) {
+    toast.error("Please fix the errors before proceeding");
+    return;
+  }
 
-    try {
-      const success = await updateApplicationData();
-      if (success) {
-        handleClose();
+  try {
+    const success = await updateCurrentStep();
+    if (success) {
+      const tabs: Tab[] = ["property", "compliances", "documents"];
+      const currentIndex = tabs.indexOf(activeTab);
+      if (currentIndex < tabs.length - 1) {
+        setActiveTab(tabs[currentIndex + 1]);
+      } else {
+        const submitSuccess = await submitFinalApplication();
+        if (submitSuccess) {
+          handleClose(); // This will trigger the refetch
+        }
       }
-    } catch (error) {
-      console.error("Submit error:", error);
+    }
+  } catch (error) {
+    console.error("Step progression error:", error);
+  }
+};
+
+  const handlePreviousStep = () => {
+    const tabs: Tab[] = ["property", "compliances", "documents"];
+    const currentIndex = tabs.indexOf(activeTab);
+    if (currentIndex > 0) {
+      setActiveTab(tabs[currentIndex - 1]);
+    }
+  };
+
+  const handleComplianceToggle = (checklistName: string) => {
+    setCompliances(prev => ({
+      ...prev,
+      [checklistName]: !prev[checklistName]
+    }));
+    
+    // Clear compliance error when any item is checked
+    if (errors.compliances) {
+      setErrors(prev => ({ ...prev, compliances: undefined }));
     }
   };
 
@@ -487,11 +656,40 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
   useEffect(() => {
     return () => {
       previewImages.forEach(url => URL.revokeObjectURL(url));
-      Object.values(documentPreviews).forEach(url => {
-        if (url) URL.revokeObjectURL(url);
+      documents.forEach(doc => {
+        if (doc.file) {
+          URL.revokeObjectURL(URL.createObjectURL(doc.file));
+        }
       });
     };
-  }, [previewImages, documentPreviews]);
+  }, [previewImages, documents]);
+
+  const isLastStep = activeTab === "documents";
+  // const allStepsCompleted = completedSteps.size === 3;
+
+  // Document type mappings for display
+  const documentTypeConfig = {
+    "ID_DOCUMENT": {
+      label: "Government-issued ID",
+      description: "Upload a valid ID (passport, national ID card, or driver's license) of the property owner.",
+      ref: governmentIdRef
+    },
+    "PROPERTY_DEED": {
+      label: "Property Ownership Proof", 
+      description: "Upload legal proof of ownership (title deed, property tax receipt, or utility bill under your name).",
+      ref: ownershipProofRef
+    },
+    "SAFETY_PERMIT": {
+      label: "Safety Permits",
+      description: "Provide any required local safety approvals or compliance certificates.",
+      ref: safetyPermitsRef
+    },
+    "INSURANCE_CERTIFICATE": {
+      label: "Insurance Certificate",
+      description: "Upload proof of active property insurance covering liability or damage.",
+      ref: insuranceRef
+    }
+  };
 
   if (isLoading) {
     return (
@@ -515,45 +713,34 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
       >
         <div className="space-y-5">
           <h2 className="text-[16px] sm:text-[20px] leading-6 font-medium mb-3">
-            Complete Your Purchase
+            Complete Your Application
           </h2>
           <p className="text-[12px] sm:text-[16px] sm:leading-5 font-normal mb-10 text-[#FFFFFF99]">
-            Enter your details to activate your subscription plan and start
-            listing your property with confidence.
+            Enter your property details and upload required documents to complete your certification application.
           </p>
 
-          {/* Tabs */}
+          {/* Tabs with completion status */}
           <div className="flex gap-2 mb-6">
-            <button
-              onClick={() => setActiveTab("property")}
-              className={`px-4 py-2 rounded-lg text-[16px] cursor-pointer font-medium transition-colors ${
-                activeTab === "property"
-                  ? "bg-[#EFFC7614] text-white border border-[#EFFC7699]"
-                  : ""
-              }`}
-            >
-              Property Details
-            </button>
-            <button
-              onClick={() => setActiveTab("compliances")}
-              className={`px-4 py-2 rounded-lg text-[16px] cursor-pointer font-medium transition-colors ${
-                activeTab === "compliances"
-                  ? "bg-[#EFFC7614] text-white border border-[#EFFC7699]"
-                  : ""
-              }`}
-            >
-              Compliances Checklist
-            </button>
-            <button
-              onClick={() => setActiveTab("documents")}
-              className={`px-4 py-2 rounded-lg text-[16px] cursor-pointer font-medium transition-colors ${
-                activeTab === "documents"
-                  ? "bg-[#EFFC7614] text-white border border-[#EFFC7699]"
-                  : ""
-              }`}
-            >
-              Documents
-            </button>
+            {(["property", "compliances", "documents"] as Tab[]).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 rounded-lg text-[16px] cursor-pointer font-medium transition-colors relative ${
+                  activeTab === tab
+                    ? "bg-[#EFFC7614] text-white border border-[#EFFC7699]"
+                    : completedSteps.has(tab)
+                    ? "bg-green-500/20 text-green-300 border border-green-500"
+                    : "bg-gray-800 text-gray-300"
+                }`}
+              >
+                {tab === "property" && "Property Details"}
+                {tab === "compliances" && "Compliances"}
+                {tab === "documents" && "Documents"}
+                {completedSteps.has(tab) && (
+                  <Check className="w-3 h-3 absolute -top-1 -right-1 bg-green-500 rounded-full" />
+                )}
+              </button>
+            ))}
           </div>
 
           {/* Tab Content */}
@@ -611,21 +798,25 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
                 className="border-2 cursor-pointer border-dashed border-[#EFFC76] rounded-[10px] p-6"
               >
                 <div className="flex flex-col items-center justify-center text-center">
-                  <div className="w-12 h-12 rounded-full  flex items-center justify-center mb-3">
-                    <Image
-                      src="/images/upload.png"
-                      alt="Upload image"
-                      height={40}
-                      width={40}
-                    />
-                  </div>
-                  <p className="text-white text-[16px] font-regular mb-2">
-                    Upload Images
-                  </p>
-                  <p className="text-[#FFFFFF99] text-[12px] font-regular mb-4 max-w-[346px] text-center">
-                    Please upload a clear and readable file in PDF, JPG, or PNG
-                    format. The maximum file size allowed is 10MB.
-                  </p>
+                  
+                    <>
+                      <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3">
+                        <Image
+                          src="/images/upload.png"
+                          alt="Upload image"
+                          height={40}
+                          width={40} 
+                        />
+                      </div>
+                      <p className="text-white text-[16px] font-regular mb-2">
+                        Upload Images
+                      </p>
+                      <p className="text-[#FFFFFF99] text-[12px] font-regular mb-4 max-w-[346px] text-center">
+                        Please upload a clear and readable file in PDF, JPG, or PNG
+                        format. The maximum file size allowed is 10MB.
+                      </p>
+                    </>
+                  
                   <label className="cursor-pointer">
                     <input
                       ref={inputRef}
@@ -635,6 +826,7 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
                       className="hidden"
                       onChange={handleImageUpload}
                     />
+
                   </label>
                 </div>
               </div>
@@ -652,24 +844,47 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
                 />
                 <span>Upload at least 3 images for faster approval.</span>
               </div>
-
-              {previewImages.length > 0 && (
-                <div className="flex gap-2">
-                  {previewImages.map((url, idx) => (
-                    <div
-                      key={idx}
-                      className="w-20 h-20 rounded-lg overflow-hidden"
-                    >
-                      <Image
-                        src={url}
-                        alt={`Preview ${idx + 1}`}
-                        fill
-                        className="w-full h-full object-cover"
-                      />
+                  <div className="flex justify-center gap-3">
+                  {/* Show existing images */}
+                  {existingImages.length > 0 && (
+                    <div className="flex gap-2 mb-4 w-full">
+                      {existingImages.map((url, idx) => (
+                        <div
+                          key={idx}
+                          className="relative w-20 h-20 rounded-lg overflow-hidden"
+                        >
+                          <Image
+                            src={url}
+                            alt={`Existing ${idx + 1}`}
+                            fill
+                            className="object-cover" 
+                          />
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              )}
+                  )}
+                  
+                  {/* Show new preview images */}
+                  {previewImages.length > 0 && (
+                    <div className="flex gap-2 mb-4 w-full">
+                      {previewImages.map((url, idx) => (
+                        <div
+                          key={idx}
+                          className="relative w-20 h-20 rounded-lg overflow-hidden"
+                        >
+                          <Image
+                            src={url}
+                            alt={`Preview ${idx + 1}`}
+                            fill
+                            className="object-cover" 
+                          />
+                        </div>
+                      ))}
+                    </div>
+                    
+                  )}
+
+                  </div>
             </div>
           )}
 
@@ -679,111 +894,55 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
                 Compliances Checklist
               </h3>
 
-              {errors.compliances && (
-                <p className="text-red-500 text-[12px] mb-2">{errors.compliances}</p>
+              {loadingChecklist ? (
+                <div className="text-center py-8">
+                  <p className="text-white">Loading checklist...</p>
+                </div>
+              ) : (
+                <>
+                  {errors.compliances && (
+                    <p className="text-red-500 text-[12px] mb-2">{errors.compliances}</p>
+                  )}
+
+                  <div className="grid grid-cols-1 gap-3">
+                    {checklistItems.map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => handleComplianceToggle(item.name)}
+                        className="flex items-center justify-between p-3 rounded-[10px] bg-[radial-gradient(75%_81%_at_50%_18.4%,_#202020_0%,_#101010_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] cursor-pointer"
+                      >
+                        <div className="flex-1">
+                          <span className="text-white text-[14px] font-regular">
+                            {item.name}
+                          </span>
+                          {item.description && (
+                            <p className="text-[#FFFFFF99] text-[12px] mt-1">
+                              {item.description}
+                            </p>
+                          )}
+                        </div>
+                        <div
+                          className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ml-2 ${
+                            compliances[item.name]
+                              ? "bg-[#EFFC76] border-[#EFFC76]"
+                              : "border-white/20"
+                          }`}
+                        >
+                          {compliances[item.name] && (
+                            <Check className="w-3 h-3 text-black" />
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {checklistItems.length === 0 && (
+                    <div className="text-center py-8 text-[#FFFFFF99]">
+                      No checklist items available for this property type.
+                    </div>
+                  )}
+                </>
               )}
-
-              <div className="grid grid-cols-2 gap-3">
-                <div
-                  onClick={() =>
-                    setCompliances((prev) => ({
-                      ...prev,
-                      fireSafety: !prev.fireSafety,
-                    }))
-                  }
-                  className="flex items-center justify-between p-3 rounded-[10px] bg-[radial-gradient(75%_81%_at_50%_18.4%,_#202020_0%,_#101010_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] cursor-pointer"
-                >
-                  <span className="text-white text-[14px] font-regular">
-                    Fire safety measures in place
-                  </span>
-                  <div
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ml-2 ${
-                      compliances.fireSafety
-                        ? "bg-[#EFFC76] border-[#EFFC76]"
-                        : "border-white/20"
-                    }`}
-                  >
-                    {compliances.fireSafety && (
-                      <Check className="w-3 h-3 text-black" />
-                    )}
-                  </div>
-                </div>
-
-                <div
-                  onClick={() =>
-                    setCompliances((prev) => ({
-                      ...prev,
-                      buildingCode: !prev.buildingCode,
-                    }))
-                  }
-                  className="flex items-center justify-between p-3 rounded-[10px] bg-[radial-gradient(75%_81%_at_50%_18.4%,_#202020_0%,_#101010_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] cursor-pointer"
-                >
-                  <span className="text-white text-[14px] font-regular">
-                    Building code compliance
-                  </span>
-                  <div
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ml-2 ${
-                      compliances.buildingCode
-                        ? "bg-[#EFFC76] border-[#EFFC76]"
-                        : "border-white/20"
-                    }`}
-                  >
-                    {compliances.buildingCode && (
-                      <Check className="w-3 h-3 text-black" />
-                    )}
-                  </div>
-                </div>
-
-                <div
-                  onClick={() =>
-                    setCompliances((prev) => ({
-                      ...prev,
-                      energyEfficiency: !prev.energyEfficiency,
-                    }))
-                  }
-                  className="flex items-center justify-between p-3 rounded-[10px] bg-[radial-gradient(75%_81%_at_50%_18.4%,_#202020_0%,_#101010_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] cursor-pointer"
-                >
-                  <span className="text-white text-[14px] font-regular">
-                    Energy efficiency standards met
-                  </span>
-                  <div
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ml-2 ${
-                      compliances.energyEfficiency
-                        ? "bg-[#EFFC76] border-[#EFFC76]"
-                        : "border-white/20"
-                    }`}
-                  >
-                    {compliances.energyEfficiency && (
-                      <Check className="w-3 h-3 text-black" />
-                    )}
-                  </div>
-                </div>
-
-                <div
-                  onClick={() =>
-                    setCompliances((prev) => ({
-                      ...prev,
-                      accessibility: !prev.accessibility,
-                    }))
-                  }
-                  className="flex items-center justify-between p-3 rounded-[10px] bg-[radial-gradient(75%_81%_at_50%_18.4%,_#202020_0%,_#101010_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] cursor-pointer"
-                >
-                  <span className="text-white text-[14px] font-regular">
-                    Accessibility compliance
-                  </span>
-                  <div
-                    className={`w-5 h-5 rounded border-2 flex items-center justify-center flex-shrink-0 ml-2 ${
-                      compliances.accessibility
-                        ? "bg-[#EFFC76] border-[#EFFC76]"
-                        : "border-white/20"
-                    }`}
-                  >
-                    {compliances.accessibility && (
-                      <Check className="w-3 h-3 text-black" />
-                    )}
-                  </div>
-                </div>
-              </div>
             </div>
           )}
 
@@ -793,229 +952,98 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
                 <p className="text-red-500 text-[12px] mb-2">{errors.documents}</p>
               )}
 
-              {/* Government ID */}
-              <div
-                onClick={() => handleDocumentBoxClick("governmentId")}
-                className="border-2 cursor-pointer border-dashed border-[#EFFC76] rounded-[10px] p-6"
-              >
-                <input
-                  ref={governmentIdRef}
-                  type="file"
-                  className="hidden"
-                  onChange={handleDocumentInputChange("governmentId")}
-                  accept=".pdf,.jpg,.jpeg,.png"
-                />
-                
-                {documentPreviews.governmentId ? (
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="w-full h-40 mb-4 rounded-lg overflow-hidden">
-                      <Image
-                        src={documentPreviews.governmentId}
-                        fill
-                        alt="Government ID Preview"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                    <p className="text-[#EFFC76] text-[11px] font-medium">
-                      ✓ Government-issued ID Uploaded
-                    </p>
-                    <p className="text-[#FFFFFF99] text-[10px] mt-1">
-                      Click to change file
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3">
-                      <Image
-                        src="/images/upload.png"
-                        alt="Upload document"
-                        height={40}
-                        width={40}
-                      />
-                    </div>
-                    <p className="text-white text-[16px] font-regular mb-2">
-                      Government-issued ID
-                    </p>
-                    <p className="text-[#FFFFFF99] text-[12px] font-regular mb-4 max-w-[346px] text-center">
-                      Upload a valid ID (passport, national ID card, or driver&apos;s license) of the property owner.
-                    </p>
-                    <span className="text-[#EFFC76] text-[11px] font-medium">
-                      Upload
-                    </span>
-                  </div>
-                )}
-              </div>
+              {/* Render document upload boxes for each type */}
+              {Object.entries(documentTypeConfig).map(([type, config]) => {
+                const currentDoc = getDocumentByType(type as FileData['documentType']);
+                const existingDoc = getExistingDocumentByType(type);
+                const hasDocument = currentDoc || existingDoc;
+                const previewUrl = currentDoc ? URL.createObjectURL(currentDoc.file) : existingDoc?.url;
 
-              {/* Property Ownership Proof */}
-              <div
-                onClick={() => handleDocumentBoxClick("ownershipProof")}
-                className="border-2 cursor-pointer border-dashed border-[#EFFC76] rounded-[10px] p-6"
-              >
-                <input
-                  ref={ownershipProofRef}
-                  type="file"
-                  className="hidden"
-                  onChange={handleDocumentInputChange("ownershipProof")}
-                  accept=".pdf,.jpg,.jpeg,.png"
-                />
-                
-                {documentPreviews.ownershipProof ? (
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="w-full h-40 mb-4 rounded-lg overflow-hidden">
-                      <Image
-                      fill
-                        src={documentPreviews.ownershipProof}
-                        alt="Ownership Proof Preview"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                    <p className="text-[#EFFC76] text-[11px] font-medium">
-                      ✓ Property Ownership Proof Uploaded
-                    </p>
-                    <p className="text-[#FFFFFF99] text-[10px] mt-1">
-                      Click to change file
-                    </p>
+                return (
+                  <div
+                    key={type}
+                    onClick={() => handleDocumentBoxClick(type as FileData['documentType'])}
+                    className="border-2 cursor-pointer border-dashed border-[#EFFC76] rounded-[10px] p-0 overflow-hidden"
+                    style={{ height: '200px' }}
+                  >
+                    <input
+                      ref={config.ref}
+                      type="file"
+                      className="hidden"
+                      onChange={handleDocumentInputChange(type as FileData['documentType'])}
+                      accept=".pdf,.jpg,.jpeg,.png"
+                    />
+                    
+                    {hasDocument && previewUrl ? (
+                      <div className="w-full h-full relative">
+                        <Image
+                          src={previewUrl}
+                          alt={config.label}
+                          fill
+                          className="object-cover"
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-black/70 p-3">
+                          <p className="text-[#EFFC76] text-[11px] font-medium text-center">
+                            ✓ {config.label} Uploaded
+                          </p>
+                          <p className="text-white text-[10px] text-center mt-1">
+                            {currentDoc?.name || existingDoc?.originalName}
+                          </p>
+                          <p className="text-[#FFFFFF99] text-[9px] text-center mt-1">
+                            Click to change file
+                          </p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-center h-full p-6">
+                        <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3">
+                          <Image
+                            src="/images/upload.png"
+                            alt="Upload document"
+                            height={40}
+                            width={40}
+                          />
+                        </div>
+                        <p className="text-white text-[16px] font-regular mb-2">
+                          {config.label}
+                        </p>
+                        <p className="text-[#FFFFFF99] text-[12px] font-regular mb-4 max-w-[346px] text-center">
+                          {config.description}
+                        </p>
+                        <span className="text-[#EFFC76] text-[11px] font-medium">
+                          Upload
+                        </span>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3">
-                      <Image
-                        src="/images/upload.png"
-                        alt="Upload document"
-                        height={40}
-                        width={40}
-                      />
-                    </div>
-                    <p className="text-white text-[16px] font-regular mb-2">
-                      Property Ownership Proof
-                    </p>
-                    <p className="text-[#FFFFFF99] text-[12px] font-regular mb-4 max-w-[346px] text-center">
-                      Upload legal proof of ownership (title deed, property tax receipt, or utility bill under your name).
-                    </p>
-                    <span className="text-[#EFFC76] text-[11px] font-medium">
-                      Upload
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Safety Permits */}
-              <div
-                onClick={() => handleDocumentBoxClick("safetyPermits")}
-                className="border-2 cursor-pointer border-dashed border-[#EFFC76] rounded-[10px] p-6"
-              >
-                <input
-                  ref={safetyPermitsRef}
-                  type="file"
-                  className="hidden"
-                  onChange={handleDocumentInputChange("safetyPermits")}
-                  accept=".pdf,.jpg,.jpeg,.png"
-                />
-                
-                {documentPreviews.safetyPermits ? (
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="w-full h-40 mb-4 rounded-lg overflow-hidden">
-                      <Image
-                      fill
-                        src={documentPreviews.safetyPermits}
-                        alt="Safety Permits Preview"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                    <p className="text-[#EFFC76] text-[11px] font-medium">
-                      ✓ Safety Permits Uploaded
-                    </p>
-                    <p className="text-[#FFFFFF99] text-[10px] mt-1">
-                      Click to change file
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3">
-                      <Image
-                        src="/images/upload.png"
-                        alt="Upload document"
-                        height={40}
-                        width={40}
-                      />
-                    </div>
-                    <p className="text-white text-[16px] font-regular mb-2">
-                      Safety Permits
-                    </p>
-                    <p className="text-[#FFFFFF99] text-[12px] font-regular mb-4 max-w-[346px] text-center">
-                      Provide any required local safety approvals or compliance certificates.
-                    </p>
-                    <span className="text-[#EFFC76] text-[11px] font-medium">
-                      Upload
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              {/* Insurance Certificate */}
-              <div
-                onClick={() => handleDocumentBoxClick("insurance")}
-                className="border-2 cursor-pointer border-dashed border-[#EFFC76] rounded-[10px] p-6"
-              >
-                <input
-                  ref={insuranceRef}
-                  type="file"
-                  className="hidden"
-                  onChange={handleDocumentInputChange("insurance")}
-                  accept=".pdf,.jpg,.jpeg,.png"
-                />
-                
-                {documentPreviews.insurance ? (
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="w-full h-40 mb-4 rounded-lg overflow-hidden">
-                      <Image
-                      fill
-                        src={documentPreviews.insurance}
-                        alt="Insurance Certificate Preview"
-                        className="w-full h-full object-contain"
-                      />
-                    </div>
-                    <p className="text-[#EFFC76] text-[11px] font-medium">
-                      ✓ Insurance Certificate Uploaded
-                    </p>
-                    <p className="text-[#FFFFFF99] text-[10px] mt-1">
-                      Click to change file
-                    </p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center justify-center text-center">
-                    <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3">
-                      <Image
-                        src="/images/upload.png"
-                        alt="Upload document"
-                        height={40}
-                        width={40}
-                      />
-                    </div>
-                    <p className="text-white text-[16px] font-regular mb-2">
-                      Insurance Certificate
-                    </p>
-                    <p className="text-[#FFFFFF99] text-[12px] font-regular mb-4 max-w-[346px] text-center">
-                      Upload proof of active property insurance covering liability or damage.
-                    </p>
-                    <span className="text-[#EFFC76] text-[11px] font-medium">
-                      Upload
-                    </span>
-                  </div>
-                )}
-              </div>
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* Submit button */}
-        <div className="mt-6">
+        {/* Navigation buttons */}
+        <div className="mt-6 flex gap-3">
+          {activeTab !== "property" && (
+            <button
+              onClick={handlePreviousStep}
+              disabled={isUpdating || isSubmitting}
+              className="flex-1 py-3 bg-gray-600 text-white rounded-lg font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+            >
+              <ChevronLeft className="w-4 h-4" />
+              Previous
+            </button>
+          )}
+          
           <button
-            onClick={handleSubmit}
-            disabled={isUpdating}
-            className="w-full py-3 bg-[#EFFC76] text-[#121315] rounded-lg font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            onClick={handleNextStep}
+            disabled={isUpdating || isSubmitting}
+            className={`flex-1 py-3 bg-[#EFFC76] text-[#121315] rounded-lg font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+              activeTab === "property" ? "flex-1" : "flex-1"
+            }`}
           >
-            {isUpdating ? "Updating..." : "Save Changes"}
+            {isUpdating ? "Updating..." : isSubmitting ? "Submitting..." : isLastStep ? "Submit Application" : "Next Step"}
+            {!isLastStep && <ChevronRight className="w-4 h-4" />}
           </button>
         </div>
       </div>

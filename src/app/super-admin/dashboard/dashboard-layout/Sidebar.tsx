@@ -3,11 +3,13 @@ import React, { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Menu } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import SearchDrawer from "@/app/shared/SuperAdminSearch";
 import SearchDrawerShortcut from "@/app/shared/SearchDrawerShortcut";
 import { useNotificationContext } from "@/app/shared/context/SuperAdminNotifications";
-// import { allProperties } from "@/app/(main)/search-page/data/properties";
+import { LogoutModal } from "../profile/LogoutModal";
+import Cookies from "js-cookie";
+
 interface SidebarProps {
   onCollapseChange: (isCollapsed: boolean) => void;
 }
@@ -15,6 +17,7 @@ interface SidebarProps {
 export function Sidebar({ onCollapseChange }: SidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isModalOpen , setIsModalOpen] = useState(false)
   const sidebarRef = useRef<HTMLDivElement>(null);
   const pathname = usePathname();
 
@@ -27,6 +30,22 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
       onCollapseChange(newCollapsedState);
     }
   };
+
+  const openModal = ()=>{
+    setIsModalOpen(true)
+  }
+  const closeModal = ()=>{
+    setIsModalOpen(false)
+  }
+
+  const router = useRouter()
+
+  const handleLogout = ()=>{
+    Cookies.remove('superAdminAccessToken')
+    setIsModalOpen(false)
+    router.push('/super-admin/auth/login')
+  }
+
 
   const { notificationCount } = useNotificationContext();
 
@@ -91,7 +110,6 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
 
           {/* Search & Notifications */}
           <div className="border-b border-b-[#3f4041] pb-[32px] mb-[32px] ml-[-14px]">
-           
             <div
               className={`flex justify-between items-center cursor-pointer mb-[20px]`}
             >
@@ -614,6 +632,35 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
                 Help & Support
               </p>
             </Link>
+
+            <button
+              onClick={openModal}
+              className={`flex gap-[8px] w-full items-center px-[12px] py-[8px] rounded-[6px] cursor-pointer group transition-all duration-200 mb-[16px] hover:bg-[#4a5439] 
+                   
+              `}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                className="group-hover:stroke-[#eefb75] stroke-white"
+              >
+                <path
+                  d="M5.83333 2.5C5.05833 2.5 4.67083 2.5 4.35333 2.585C3.92927 2.69854 3.54259 2.92175 3.23217 3.23217C2.92175 3.54259 2.69854 3.92927 2.585 4.35333C2.5 4.67083 2.5 5.05833 2.5 5.83333V14.1667C2.5 14.9417 2.5 15.3292 2.585 15.6467C2.69854 16.0707 2.92175 16.4574 3.23217 16.7678C3.54259 17.0783 3.92927 17.3015 4.35333 17.415C4.67083 17.5 5.05833 17.5 5.83333 17.5M13.75 13.75C13.75 13.75 17.5 10.9883 17.5 10C17.5 9.01167 13.75 6.25 13.75 6.25M16.6667 10H6.66667"
+                  // stroke="white"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+
+              <p
+                className={`font-normal text-[#ffffff] group-hover:text-[#eefb75] text-[16px] leading-[20px] ${isCollapsed ? "hidden" : "block"}`}
+              >
+                Logout
+              </p>
+            </button>
           </div>
         </div>
 
@@ -644,6 +691,13 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
         onClose={() => setIsSearchOpen(false)}
         // data={allProperties} // your JSON array
       />
+
+          {
+            isModalOpen && (
+              <LogoutModal isOpen={ isModalOpen } onClose={ closeModal }  onConfirm={handleLogout} />
+            )
+          }
+
     </>
   );
 }

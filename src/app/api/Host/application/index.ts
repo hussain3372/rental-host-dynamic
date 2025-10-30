@@ -114,7 +114,7 @@ export const application = {
 
   getApplicationById: async (
     id: string
-  ): Promise<ApiResponse<{ application: ApplicationData }>> => {
+  ): Promise<ApiResponse<{ application?: ApplicationData }>> => {
     const token = getToken();
     return apiClient.get<{ application: ApplicationData }>(
       `/applications/${id}`,

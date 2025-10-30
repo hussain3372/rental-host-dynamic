@@ -32,6 +32,7 @@ export default function RootLayout({ children }: RootLayoutProps) {
             style: {
               background: "white",
               color: "black",
+              zIndex:"9000000000"
             },
             success: {
               duration: 3000,

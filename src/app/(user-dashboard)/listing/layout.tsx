@@ -9,7 +9,6 @@ type ListingLayoutProps = {
 
 export default function ListingLayout({ children }: ListingLayoutProps) {
   return (
-    // Remove <html> and <body> tags - just return the content directly
     <>
       <Toaster
         position="top-right"
@@ -18,6 +17,7 @@ export default function ListingLayout({ children }: ListingLayoutProps) {
           style: {
             background: "white",
             color: "black",
+            zIndex:"9000000000000"
           },
           success: {
             duration: 3000,

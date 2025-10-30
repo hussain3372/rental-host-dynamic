@@ -1,5 +1,10 @@
 import { apiClient, ApiResponse } from "../../core/client";
-import { SettingData, TwoFactorAuth ,ChangePasswordResponse , PaymentResponse } from "./types";
+import {
+  SettingData,
+  TwoFactorAuth,
+  ChangePasswordResponse,
+  PaymentResponse,
+} from "./types";
 import Cookies from "js-cookie";
 
 const token = Cookies.get("accessToken");
@@ -40,9 +45,10 @@ export const setting = {
     });
   },
 
-  changePassword: async (
-    payload: { currentPassword: string; newPassword: string }
-  ): Promise<ApiResponse<ChangePasswordResponse>> => {
+  changePassword: async (payload: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<ApiResponse<ChangePasswordResponse>> => {
     return apiClient.put<ChangePasswordResponse>(
       "/auth/change-password",
       payload,
@@ -53,32 +59,34 @@ export const setting = {
         },
       }
     );
-    },
+  },
 
-     // In your settings/index.ts file, add this function:
+  // In your settings/index.ts file, add this function:
 
-getBillingWithParams: async (params: {
-  status?: string;
-  skip?: number;
-  take?: number;
-}): Promise<ApiResponse<PaymentResponse>> => {
-  // Build query string from parameters
-  const queryParams = new URLSearchParams();
-  
-  if (params.status) queryParams.append('status', params.status);
-  if (params.skip !== undefined) queryParams.append('skip', params.skip.toString());
-  if (params.take !== undefined) queryParams.append('take', params.take.toString());
-  
-  const queryString = queryParams.toString();
-  const url = `/payments/my-payments${queryString ? `?${queryString}` : ''}`;
-  
-  console.log("Making API call to:", url);
-  
-  return apiClient.get<PaymentResponse>(url, {
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-  });
-},
+  getBillingWithParams: async (params: {
+    status?: string;
+    skip?: number;
+    take?: number;
+  }): Promise<ApiResponse<PaymentResponse>> => {
+    // Build query string from parameters
+    const queryParams = new URLSearchParams();
+
+    if (params.status) queryParams.append("status", params.status);
+    if (params.skip !== undefined)
+      queryParams.append("skip", params.skip.toString());
+    if (params.take !== undefined)
+      queryParams.append("take", params.take.toString());
+
+    const queryString = queryParams.toString();
+    const url = `/payments/my-payments${queryString ? `?${queryString}` : ""}`;
+
+    console.log("Making API call to:", url);
+
+    return apiClient.get<PaymentResponse>(url, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  },
 };
