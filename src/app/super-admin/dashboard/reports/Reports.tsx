@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import { reports } from "@/app/api/super-admin/reports";
@@ -17,13 +17,27 @@ interface CertificationData {
   Format: string;
 }
 
+interface ReportStats {
+  total: number;
+  active: number;
+  expired: number;
+  revoked: number;
+}
+
+interface ReportParams {
+  search?: string;
+  reportType?: "WEEKLY" | "MONTHLY" | "CUSTOM" | "ALL";
+  certificationStatus?: "ALL" | "ACTIVE" | "EXPIRED" | "REVOKED";
+  generatedDateTo?: string;
+}
+
 export default function Reports() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isExportDrawerOpen, setIsExportDrawerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
-  const [data, setData] = useState({
+  const [data, setData] = useState<ReportStats>({
     total: 0,
     active: 0,
     expired: 0,
@@ -40,7 +54,6 @@ export default function Reports() {
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
 
   const [showReportTypeDropdown, setShowReportTypeDropdown] = useState(false);
-  // const [showFormatDropdown, setShowFormatDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
   const [certificationFilters, setCertificationFilters] = useState({
@@ -50,8 +63,9 @@ export default function Reports() {
   });
 
   const [allReportsData, setAllReportsData] = useState<ReportItem[]>([]);
-  // const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
+
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const Credentials = [
     {
@@ -81,31 +95,34 @@ export default function Reports() {
   ];
 
   // Fetch reports from API
-  const fetchReports = async () => {
+  const fetchReports = useCallback(async () => {
     try {
       setIsLoading(true);
-      const params = {
-        search: searchTerm,
-        reportType: certificationFilters.reportType as
-          | "WEEKLY"
-          | "MONTHLY"
-          | "CUSTOM"
-          | "ALL"
-          | undefined,
-        certificationStatus: certificationFilters.certificationStatus as
-          | "ALL"
-          | "ACTIVE"
-          | "EXPIRED"
-          | "REVOKED"
-          | undefined,
-        generatedDateTo: certificationFilters.generatedDateTo,
-      };
+      const params: ReportParams = {};
+
+      // Only add search to params if it has 3 or more characters
+      if (searchTerm && searchTerm.length >= 3) {
+        params.search = searchTerm;
+      }
+
+      if (certificationFilters.reportType) {
+        params.reportType = certificationFilters.reportType as ReportParams["reportType"];
+      }
+
+      if (certificationFilters.certificationStatus) {
+        params.certificationStatus = certificationFilters.certificationStatus as ReportParams["certificationStatus"];
+      }
+
+      if (certificationFilters.generatedDateTo) {
+        params.generatedDateTo = certificationFilters.generatedDateTo;
+      }
+
+      console.log("API Call with params:", params);
 
       const response = await reports.getReports(params);
 
       if (response.success && response.data) {
         setAllReportsData(response.data.reports);
-        // setTotalPages(response.data.totalPages);
         setTotalItems(response.data.total);
       }
     } catch (error) {
@@ -114,31 +131,63 @@ export default function Reports() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [
+    searchTerm,
+    certificationFilters.reportType,
+    certificationFilters.certificationStatus,
+    certificationFilters.generatedDateTo,
+  ]);
 
-  const fetchStats = async () => {
+  const fetchStats = useCallback(async () => {
     try {
       const response = await reports.getReportStats();
-
-      setData(response.data);
-      console.log(response);
+      if (response.data) {
+        setData(response.data);
+      }
     } catch (error) {
-      console.log(error);
+      console.error("Error fetching stats:", error);
     }
-  };
-  // Fetch reports on mount and when filters change
+  }, []);
+
+  // Debounced search effect
   useEffect(() => {
-    fetchReports();
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // If search term is less than 3 characters and not empty, don't make API call
+    if (searchTerm.length > 0 && searchTerm.length < 3) {
+      return;
+    }
+
+    // Set timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      fetchReports();
+    }, 500); // 500ms debounce
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm, fetchReports]);
+
+  // Fetch stats on mount
+  useEffect(() => {
     fetchStats();
-  }, [searchTerm, certificationFilters]);
+  }, [fetchStats]);
 
   // Get unique values for filter options
-  const uniqueReportTypes = [
-    ...new Set(allReportsData.map((item) => item.reportType)),
-  ];
-  const uniqueStatuses = [
-    ...new Set(allReportsData.map((item) => item.certificationStatus)),
-  ];
+  const uniqueReportTypes = useMemo(() => 
+    [...new Set(allReportsData.map((item) => item.reportType))],
+    [allReportsData]
+  );
+
+  const uniqueStatuses = useMemo(() => 
+    [...new Set(allReportsData.map((item) => item.certificationStatus))],
+    [allReportsData]
+  );
 
   // Transform API data to display format
   const transformedData: CertificationData[] = useMemo(() => {
@@ -210,7 +259,7 @@ export default function Reports() {
   }, [transformedData, selectedRows, isAllDisplayedSelected]);
 
   // Delete multiple reports
-  const handleDeleteApplications = async (selectedRowIds: Set<string>) => {
+  const handleDeleteApplications = useCallback(async (selectedRowIds: Set<string>) => {
     try {
       setIsLoading(true);
       const deletePromises = Array.from(selectedRowIds).map((id) =>
@@ -231,11 +280,10 @@ export default function Reports() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [fetchReports]);
 
   // Delete single report
-  const handleDeleteSingleApplication = async (
-    row: Record<string, string>,
+  const handleDeleteSingleApplication = useCallback(async (
     id: string
   ) => {
     try {
@@ -262,72 +310,35 @@ export default function Reports() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [fetchReports, totalItems, currentPage, itemsPerPage]);
 
-  const handlePageChange = (page: number) => {
+  const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
-  };
+  }, []);
 
-  const openDeleteSingleModal = (row: Record<string, string>, id: string) => {
+  const openDeleteSingleModal = useCallback((row: Record<string, string>, id: string) => {
     setSingleRowToDelete({ row, id });
     setModalType("single");
     setIsModalOpen(true);
-  };
+  }, []);
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = useCallback(() => {
     if (selectedRows.size > 0) {
       setModalType("multiple");
       setIsModalOpen(true);
     }
-  };
+  }, [selectedRows.size]);
 
-  const handleModalConfirm = () => {
+  const handleModalConfirm = useCallback(() => {
     if (modalType === "multiple" && selectedRows.size > 0) {
       handleDeleteApplications(selectedRows);
     } else if (modalType === "single" && singleRowToDelete) {
-      handleDeleteSingleApplication(
-        singleRowToDelete.row,
-        singleRowToDelete.id
-      );
+      handleDeleteSingleApplication(singleRowToDelete.id);
     }
-  };
+  }, [modalType, selectedRows, singleRowToDelete, handleDeleteApplications, handleDeleteSingleApplication]);
 
   // Download report
-  // const handleDownloadReport = async (reportId: string) => {
-  //   try {
-  //     setIsLoading(true);
-  //     const response = await reports.downloadReport(reportId);
-
-  //     if (response.success && response.data) {
-  //       // Create blob and download
-  //       const blob = new Blob([response.data as any], {
-  //         type: "application/octet-stream",
-  //       });
-  //       const url = window.URL.createObjectURL(blob);
-  //       const link = document.createElement("a");
-  //       link.href = url;
-
-  //       // Get filename from the report
-  //       const report = allReportsData.find((r) => r.id === reportId);
-  //       link.download = report?.fileName || `report-${reportId}.pdf`;
-
-  //       document.body.appendChild(link);
-  //       link.click();
-  //       document.body.removeChild(link);
-  //       window.URL.revokeObjectURL(url);
-
-  //       toast.success("Report downloaded successfully");
-  //     }
-  //   } catch (error) {
-  //     console.error("Error downloading report:", error);
-  //     toast.error("Failed to download report");
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-
-  // Re-download report
-  const handleDownloadReport = async (reportId: string) => {
+  const handleDownloadReport = useCallback(async (reportId: string) => {
     try {
       setIsLoading(true);
       const response = await reports.reDownloadReport(reportId);
@@ -351,7 +362,7 @@ export default function Reports() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const displayData = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -359,27 +370,29 @@ export default function Reports() {
     return transformedData
       .slice(startIndex, endIndex)
       .map(({ ...rest }) => rest);
-  }, [transformedData, currentPage]);
+  }, [transformedData, currentPage, itemsPerPage]);
 
   useEffect(() => {
     setCurrentPage(1);
     setSelectedRows(new Set());
   }, [searchTerm, certificationFilters]);
 
-  const handleResetFilter = () => {
+  const handleResetFilter = useCallback(() => {
     setCertificationFilters({
       reportType: "",
       certificationStatus: "",
       generatedDateTo: "",
     });
     setSearchTerm("");
-  };
+    setCurrentPage(1);
+  }, []);
 
-  const handleApplyFilter = () => {
+  const handleApplyFilter = useCallback(() => {
     setIsFilterOpen(false);
-  };
+    setCurrentPage(1);
+  }, []);
 
-  const dropdownItems = [
+  const dropdownItems = useMemo(() => [
     {
       label: "Download Report",
       onClick: (row: Record<string, string>) => {
@@ -394,9 +407,9 @@ export default function Reports() {
         openDeleteSingleModal(row, reportId);
       },
     },
-  ];
+  ], [handleDownloadReport, openDeleteSingleModal]);
 
-  const tableControl = {
+  const tableControl = useMemo(() => ({
     hover: true,
     striped: false,
     bordered: false,
@@ -414,7 +427,7 @@ export default function Reports() {
     headerBorder: true,
     borderColor: "#374151",
     highlightRowOnHover: true,
-  };
+  }), []);
 
   return (
     <>

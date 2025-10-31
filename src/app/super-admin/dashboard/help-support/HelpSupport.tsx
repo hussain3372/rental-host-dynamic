@@ -8,7 +8,8 @@ import HelpSupportDrawer from "./HelpSupportDrawer";
 import TicketDetailDrawer from "./TicketDetailDrawer";
 import { Modal } from "@/app/shared/Modal";
 import AddAnnouncementsDrawer from "./NewAnnouncement";
-
+import { supportApi } from "@/app/api/Admin/support";
+import { Ticket as ApiTicket } from "@/app/api/Admin/support/types"; 
 interface CertificationData {
   id: number;
   "Ticket Id": string;
@@ -17,6 +18,13 @@ interface CertificationData {
   "Host Name"?: string;
   "Created On": string;
   Status: string;
+}
+
+// Define the API response structure
+interface ApiResponse {
+  success: boolean;
+  message: string;
+  data: ApiTicket;
 }
 
 export default function HelpSupport() {
@@ -29,23 +37,61 @@ export default function HelpSupport() {
 
   const itemsPerPage = 6;
 
-  // Modal and drawer statesa
+  // Modal and drawer states
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] =
-    useState<CertificationData | null>(null);
+  const [selectedTicket, setSelectedTicket] = useState<ApiTicket | null>(null);
+  const [loadingTicket, setLoadingTicket] = useState(false);
 
-  // Handle view details from both tables
-  const handleViewDetails = (ticket: CertificationData) => {
-    setSelectedTicket(ticket);
+  const handleViewDetails = async (ticket: CertificationData) => {
+    console.log("🟡 Fetching ticket details for:", ticket["Ticket Id"]);
+    setLoadingTicket(true);
     setIsDetailDrawerOpen(true);
+    
+    try {
+      const response = await supportApi.getTicketById(ticket["Ticket Id"]);
+      console.log("🔵 Full API Response:", response);
+      
+      // ✅ FIXED: Debug the response structure with proper typing
+      console.log("🔵 Response.data:", response.data);
+      console.log("🔵 Response.data type:", typeof response.data);
+      
+      let ticketData: ApiTicket | null = null;
+      
+      // If response.data is the nested structure {success, message, data}
+      if (response.data && typeof response.data === 'object') {
+        const apiData = response.data as ApiResponse | ApiTicket;
+        
+        // Check if it has the nested structure (ApiResponse)
+        if ('success' in apiData && apiData.success && apiData.data) {
+          ticketData = apiData.data;
+          console.log("✅ Found nested structure, ticket data:", ticketData);
+        } 
+        // If response.data is directly the ticket (ApiTicket)
+        else if ('id' in apiData) {
+          ticketData = apiData as ApiTicket;
+          console.log("✅ Found direct ticket structure:", ticketData);
+        }
+      }
+      
+      if (ticketData) {
+        setSelectedTicket(ticketData);
+        console.log("✅ Ticket data set:", ticketData.id);
+      } else {
+        console.error("🔴 Could not find ticket data in response");
+        console.error("🔴 Response structure:", JSON.stringify(response.data, null, 2));
+      }
+    } catch (error) {
+      console.error("🔴 Failed to fetch ticket details:", error);
+    } finally {
+      setLoadingTicket(false);
+    }
   };
 
-
-  const closeDrawer = ()=>{
-    setOpenAnnounce(false)
-  }
+  const closeDrawer = () => {
+    setOpenAnnounce(false);
+  };
 
   // Handle tab content rendering
   const renderTabContent = () => {
@@ -82,6 +128,13 @@ export default function HelpSupport() {
           image="/images/delete-modal.png"
           confirmText="Confirm"
         />
+      )}
+
+      {/* Loading overlay for ticket details */}
+      {loadingTicket && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[3000000002] flex items-center justify-center">
+          <div className="text-white text-lg">Loading ticket details...</div>
+        </div>
       )}
 
       <div className="flex flex-col gap-3 sm:gap-0 sm:flex-row items-start justify-between mb-[22px]">
@@ -133,7 +186,7 @@ export default function HelpSupport() {
         </div>
       </div>
 
-      {/* Ticket Detail Drawer */}
+      {/* ✅ UPDATED: Ticket Detail Drawer */}
       <div
         className={`fixed inset-0 bg-[#121315CC] z-[3000000001] flex justify-end transition-opacity duration-300 ${
           isDetailDrawerOpen ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -150,18 +203,7 @@ export default function HelpSupport() {
             <TicketDetailDrawer
               isOpen={isDetailDrawerOpen}
               onClose={() => setIsDetailDrawerOpen(false)}
-              ticket={
-                selectedTicket
-                  ? {
-                      id: String(selectedTicket.id),
-                      ticketId: selectedTicket["Ticket Id"],
-                      issueType: selectedTicket["Issue Type"],
-                      subject: selectedTicket["Subject"],
-                      createdOn: selectedTicket["Created On"],
-                      status: selectedTicket["Status"],
-                    }
-                  : null
-              }
+              ticket={selectedTicket}
             />
           </div>
         </div>
@@ -179,15 +221,14 @@ export default function HelpSupport() {
           }`}
           onClick={(e) => e.stopPropagation()}
         >
-         <AddAnnouncementsDrawer
-  isOpen={openAnnounce}
-  onClose={closeDrawer}
-  onSuccess={() => {
-    setRefreshAnnouncements(prev => !prev); // trigger re-fetch
-    closeDrawer();
-  }}
-/>
-
+          <AddAnnouncementsDrawer
+            isOpen={openAnnounce}
+            onClose={closeDrawer}
+            onSuccess={() => {
+              setRefreshAnnouncements((prev) => !prev);
+              closeDrawer();
+            }}
+          />
         </div>
       </div>
     </>

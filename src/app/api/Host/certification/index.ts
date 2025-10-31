@@ -1,28 +1,32 @@
 import { apiClient } from "../../core/client";
 import { ApiResponse } from "../../core/client";
 import Cookies from "js-cookie";
-import { CertificationResponse, CertificationData } from "./types";
+import { CertificationResponse, CertificationData , ApiParams } from "./types";
 
 const getToken = () => Cookies.get("accessToken");
 
 export const certifications = {
-  getCertifications: async (
-    params?: Partial<{
-      propertyName: string;
-      status: string;
-      expiryDate: string;
-      search: string;
-      page: number;
-      pageSize: number;
-    }>
+    getCertifications: async (
+    params?: ApiParams
   ): Promise<ApiResponse<CertificationResponse>> => {
     const token = Cookies.get("accessToken");
+    
+    // Clean up params - remove undefined values
+    const cleanParams: Record<string, string | number> = {};
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== "") {
+          cleanParams[key] = value;
+        }
+      });
+    }
+
     return apiClient.get<CertificationResponse>("/certifications", {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      params: params as Record<string, string | number | boolean | undefined>,
+      params: cleanParams,
     });
   },
 

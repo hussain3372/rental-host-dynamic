@@ -82,7 +82,7 @@ export default function Verification({ certificate }: VerificationProps) {
         <div className="col-span-12 lg:col-span-5">
 
           {/* Verification Details Section */}
-          <div className='flex flex-col bg-[#121315] rounded-md p-5 gap-[28px] w-full lg:w-auto'>
+          <div className='flex flex-col bg-[#121315] rounded-md p-5 gap-[28px] h-full w-full lg:w-auto'>
             {verification.map((item, index) => (
               <div key={item.id}>
                 <h2 className='font-semibold text-[12px] pt-3 sm:text-[18px]  leading-[18px] sm:leading-[22px]  text-white'>

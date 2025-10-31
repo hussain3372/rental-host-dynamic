@@ -2,13 +2,12 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
-import FilterDrawer from "@/app/admin/tables-essentials/Filter";
+import FilterDrawer from "@/app/shared/tables/Filter";
 import { application } from "@/app/api/Admin/application";
-import type { Application } from "@/app/api/Admin/application/types";
 
 interface ApiParams {
-  page: number;
-  pageSize: number;
+  page?: number;
+  pageSize?: number;
   search?: string;
   ownership?: string;
   status?: string;
@@ -25,9 +24,23 @@ interface CertificationData {
   "Submitted Date": string;
 }
 
+interface PaginationData {
+  total: number;
+  pageSize: number;
+  currentPage: number;
+  totalPages: number;
+  nextPage: number | null;
+  prevPage: number | null;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
 export default function Applications() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(6);
   const [isLoading, setIsLoading] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -38,11 +51,9 @@ export default function Applications() {
   } | null>(null);
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
 
-  // Dropdown states
   const [showOwnershipDropdown, setShowOwnershipDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
-  // Separate state for applied filters vs temporary filter selections
   const [appliedFilters, setAppliedFilters] = useState({
     ownership: "",
     status: "",
@@ -58,7 +69,59 @@ export default function Applications() {
   const [submittedDate, setSubmittedDate] = useState<Date | null>(null);
 
   const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([]);
-  const [, setTotalItems] = useState(0);
+  const [paginationData, setPaginationData] = useState<PaginationData>({
+    total: 0,
+    pageSize: 6,
+    currentPage: 1,
+    totalPages: 1,
+    nextPage: null,
+    prevPage: null,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
+
+  const [allStatuses, setAllStatuses] = useState<string[]>([]);
+  const [allOwnerships, setAllOwnerships] = useState<string[]>([]);
+
+  // Debounce search term - only update if 3+ characters or empty
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchTerm.trim().length >= 3 || searchTerm.trim() === "") {
+        setDebouncedSearchTerm(searchTerm);
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  const fetchFilterOptions = useCallback(async () => {
+    try {
+      const response = await application.getAllApplicationsForFilters();
+
+      if (response.success && response.data) {
+        const applications = response.data.applications;
+        
+        const statuses = [...new Set(applications.map((app) => 
+          app.status ? app.status.toUpperCase() : ''
+        ))].filter(Boolean);
+        
+        const ownerships = [...new Set(applications.map((app) => 
+          app.propertyDetails?.ownership || ''
+        ))].filter(Boolean);
+
+        setAllStatuses(statuses);
+        setAllOwnerships(ownerships);
+      }
+    } catch (error) {
+      console.error("Error fetching filter options:", error);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchFilterOptions();
+  }, [fetchFilterOptions]);
 
   useEffect(() => {
     if (isFilterOpen) {
@@ -71,7 +134,6 @@ export default function Applications() {
     }
   }, [isFilterOpen, appliedFilters]);
 
-  // Helper function to format date
   const formatDate = (dateString: string): string => {
     const date = new Date(dateString);
     return date.toLocaleDateString("en-US", {
@@ -81,100 +143,128 @@ export default function Applications() {
     });
   };
 
-  const capitalizeStatus = (status: string): string => {
+  const formatDateForAPI = (date: Date | null): string => {
+    if (!date) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const capitalizeStatusForDisplay = (status: string): string => {
+    if (!status) return "";
     return status.charAt(0) + status.slice(1).toLowerCase();
   };
 
+  const getStatusForAPI = (status: string): string => {
+    if (!status) return "";
+    return status.toUpperCase();
+  };
+
+  // FIXED: Always include pagination parameters
   const fetchApplications = useCallback(async () => {
     try {
-      setIsLoading(true);
+      // setIsLoading(true);
 
-      const apiParams: ApiParams = {
-        page: 1,
-        pageSize: 100,
+      const queryParams: ApiParams = {
+        page: currentPage, // ALWAYS include page
+        pageSize: itemsPerPage, // ALWAYS include pageSize
       };
 
-      if (searchTerm) apiParams.search = searchTerm.trim();
-      if (appliedFilters.ownership)
-        apiParams.ownership = appliedFilters.ownership.trim();
-      if (appliedFilters.status)
-        apiParams.status = appliedFilters.status.trim();
-      if (appliedFilters.submittedDate)
-        apiParams.submittedAt = appliedFilters.submittedDate;
+      // Only include search if it has 3+ characters
+      if (debouncedSearchTerm.trim().length >= 3) {
+        queryParams.search = debouncedSearchTerm.trim();
+      }
 
-      console.log("🔹 API Parameters:", apiParams);
+      if (appliedFilters.ownership.trim()) {
+        queryParams.ownership = appliedFilters.ownership.trim();
+      }
+      
+      if (appliedFilters.status.trim()) {
+        queryParams.status = getStatusForAPI(appliedFilters.status.trim());
+      }
+      
+      if (appliedFilters.submittedDate) {
+        queryParams.submittedAt = appliedFilters.submittedDate;
+      }
 
-      const response = await application.getApplication(apiParams);
-      console.log("🔹 API Response:", response);
+      console.log("🚀 HITTING API WITH PARAMS:", queryParams);
+
+      const response = await application.getApplication(queryParams);
 
       if (response.success && response.data) {
-        // 🔹 Step 1: Convert API response into table data
-        let transformedData: CertificationData[] =
-          response.data.applications.map((app: Application) => ({
-            id: app.id,
-            "Application ID": app.id.substring(0, 8) + "...",
-            "Property Name": app.propertyDetails?.propertyName || "N/A",
-            Address: app.propertyDetails?.address || "N/A",
-            Ownership: app.propertyDetails?.ownership || "N/A",
-            Status: capitalizeStatus(app.status),
-            "Submitted Date": app.submittedAt
-              ? formatDate(app.submittedAt)
-              : "—",
-          }));
+        const transformedData: CertificationData[] = response.data.applications.map((app) => ({
+          id: app.id,
+          "Application ID": app.id.substring(0, 8) + "...",
+          "Property Name": app.propertyDetails?.propertyName || "N/A",
+          Address: app.propertyDetails?.address || "N/A", 
+          Ownership: app.propertyDetails?.ownership || "N/A",
+          Status: capitalizeStatusForDisplay(app.status),
+          "Submitted Date": app.submittedAt ? formatDate(app.submittedAt) : "—",
+        }));
 
-        // 🔹 Step 2: Apply ownership filter client-side (if backend doesn't filter)
-        if (appliedFilters.ownership) {
-          const ownershipFilter = appliedFilters.ownership.toLowerCase();
-          transformedData = transformedData.filter(
-            (item) => item.Ownership.toLowerCase() === ownershipFilter
-          );
-        }
-
-        // 🔹 Step 3: Update the UI
-        console.log("🔹 Filtered data count:", transformedData.length);
         setAllCertificationData(transformedData);
-        setTotalItems(transformedData.length);
+
+        if (response.data.pagination) {
+          setPaginationData(response.data.pagination);
+          console.log("📊 Pagination data received:", response.data.pagination);
+        }
       } else {
         console.error("❌ Unexpected response:", response);
         setAllCertificationData([]);
-        setTotalItems(0);
+        setPaginationData({
+          total: 0,
+          pageSize: itemsPerPage,
+          currentPage: 1,
+          totalPages: 1,
+          nextPage: null,
+          prevPage: null,
+          hasNextPage: false,
+          hasPrevPage: false
+        });
       }
     } catch (error) {
       console.error("🚨 Error fetching applications:", error);
       setAllCertificationData([]);
-      setTotalItems(0);
+      setPaginationData({
+        total: 0,
+        pageSize: itemsPerPage,
+        currentPage: 1,
+        totalPages: 1,
+        nextPage: null,
+        prevPage: null,
+        hasNextPage: false,
+        hasPrevPage: false
+      });
     } finally {
       setIsLoading(false);
     }
   }, [
-    searchTerm,
+    debouncedSearchTerm,
     appliedFilters.ownership,
     appliedFilters.status,
     appliedFilters.submittedDate,
+    currentPage,
+    itemsPerPage,
+    // Removed hasActiveFilters dependency as it's not needed
   ]);
 
   useEffect(() => {
     fetchApplications();
   }, [fetchApplications]);
 
-  // 🔹 Only show first 5 applications
-  const limitedData = useMemo(() => {
-    return allCertificationData.slice(0, 5);
-  }, [allCertificationData]);
-
   const displayData = useMemo(() => {
-    return limitedData.map(({ id, ...rest }) => {
-      console.log("Application ID:", id);
+    return allCertificationData.map(({ id, ...rest }) => {
       return rest;
     });
-  }, [limitedData]);
+  }, [allCertificationData]);
 
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set(selectedRows);
     if (checked) {
-      limitedData.forEach((item) => newSelected.add(item.id));
+      allCertificationData.forEach((item) => newSelected.add(item.id));
     } else {
-      limitedData.forEach((item) => newSelected.delete(item.id));
+      allCertificationData.forEach((item) => newSelected.delete(item.id));
     }
     setSelectedRows(newSelected);
   };
@@ -191,17 +281,17 @@ export default function Applications() {
 
   const isAllDisplayedSelected = useMemo(() => {
     return (
-      limitedData.length > 0 &&
-      limitedData.every((item) => selectedRows.has(item.id))
+      allCertificationData.length > 0 &&
+      allCertificationData.every((item) => selectedRows.has(item.id))
     );
-  }, [limitedData, selectedRows]);
+  }, [allCertificationData, selectedRows]);
 
   const isSomeDisplayedSelected = useMemo(() => {
     return (
-      limitedData.some((item) => selectedRows.has(item.id)) &&
+      allCertificationData.some((item) => selectedRows.has(item.id)) &&
       !isAllDisplayedSelected
     );
-  }, [limitedData, selectedRows, isAllDisplayedSelected]);
+  }, [allCertificationData, selectedRows, isAllDisplayedSelected]);
 
   const handleDeleteApplications = async (selectedRowIds: Set<string>) => {
     try {
@@ -210,10 +300,7 @@ export default function Applications() {
       );
 
       await Promise.all(deletePromises);
-
-      // Refresh the applications list
       await fetchApplications();
-
       setIsModalOpen(false);
       setSelectedRows(new Set());
     } catch (error) {
@@ -227,13 +314,9 @@ export default function Applications() {
   ) => {
     try {
       await application.deleteApplication(id);
-
-      // Refresh the applications list
       await fetchApplications();
-
       setIsModalOpen(false);
       setSingleRowToDelete(null);
-
       const newSelected = new Set(selectedRows);
       newSelected.delete(id);
       setSelectedRows(newSelected);
@@ -286,14 +369,16 @@ export default function Applications() {
     highlightRowOnHover: true,
   };
 
-  const uniqueStatuses = [
-    ...new Set(allCertificationData.map((item) => item["Status"])),
-  ];
-  const uniqueOwnerships = [
-    ...new Set(allCertificationData.map((item) => item["Ownership"])),
-  ];
+  // Reset to page 1 when filters or search change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    debouncedSearchTerm,
+    appliedFilters.ownership,
+    appliedFilters.status,
+    appliedFilters.submittedDate,
+  ]);
 
-  // ✅ ENHANCED RESET FILTER FUNCTION
   const handleResetFilter = () => {
     const resetFilters = {
       ownership: "",
@@ -304,19 +389,25 @@ export default function Applications() {
     setTempFilters(resetFilters);
     setAppliedFilters(resetFilters);
     setSubmittedDate(null);
+    setSearchTerm("");
+    setDebouncedSearchTerm("");
+    setCurrentPage(1);
     setIsFilterOpen(false);
   };
 
   const handleApplyFilter = () => {
+    const dateString = formatDateForAPI(submittedDate);
+    
     const filtersToApply = {
-      ...tempFilters,
-      submittedDate: submittedDate
-        ? submittedDate.toISOString().split("T")[0]
-        : "",
+      ownership: tempFilters.ownership,
+      status: tempFilters.status,
+      submittedDate: dateString,
     };
 
-    console.log("Applying filters:", filtersToApply);
+    console.log("🟢 APPLYING FILTERS:", filtersToApply);
+
     setAppliedFilters(filtersToApply);
+    setCurrentPage(1);
     setIsFilterOpen(false);
   };
 
@@ -330,18 +421,27 @@ export default function Applications() {
     setIsFilterOpen(false);
   };
 
+  const handlePageChange = (page: number) => {
+    console.log("📄 Page changing to:", page);
+    setCurrentPage(page);
+  };
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+  };
+
   const dropdownItems = [
     {
       label: "View Details",
       onClick: (row: Record<string, string>, index: number) => {
-        const originalRow = limitedData[index];
+        const originalRow = allCertificationData[index];
         window.location.href = `/admin/dashboard/application/detail/${originalRow.id}`;
       },
     },
     {
       label: "Delete Application",
       onClick: (row: Record<string, string>, index: number) => {
-        const originalRow = limitedData[index];
+        const originalRow = allCertificationData[index];
         openDeleteSingleModal(row, originalRow.id);
       },
     },
@@ -373,18 +473,27 @@ export default function Applications() {
         />
       )}
 
-      <div className="flex flex-col justify-between pt-5">
+      <div>
+        <h2 className="font-semibold text-[20px] leading-[20px]">
+          Review Applications
+        </h2>
+        <p className="font-regular text-[16px] leading-5 mb-[22px] pt-2 text-[#FFFFFF99]">
+          Review and manage all submitted property certification applications in
+          one place.
+        </p>
+      </div>
+
+      <div className="flex flex-col justify-between">
         <Table
-          setHeight={false}
           data={displayData}
           title="Applications"
           control={tableControl}
           showDeleteButton={true}
           onDeleteSingle={(row, index) => {
-            const originalRow = limitedData[index];
+            const originalRow = allCertificationData[index];
             openDeleteSingleModal(row, originalRow.id);
           }}
-          showPagination={false} // 🔹 Remove pagination
+          showPagination={true}
           clickable={true}
           selectedRows={selectedRows}
           setSelectedRows={setSelectedRows}
@@ -392,18 +501,19 @@ export default function Applications() {
           onSelectRow={handleSelectRow}
           isAllSelected={isAllDisplayedSelected}
           isSomeSelected={isSomeDisplayedSelected}
-          rowIds={limitedData.map((item) => item.id)}
+          rowIds={allCertificationData.map((item) => item.id)}
           dropdownItems={dropdownItems}
           searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          totalItems={limitedData.length}
+          onSearchChange={handleSearch}
+          currentPage={currentPage}
+          onPageChange={handlePageChange}
+          itemsPerPage={paginationData.pageSize}
+          totalItems={paginationData.total || 0}
           showFilter={true}
           onFilterToggle={setIsFilterOpen}
           onDeleteAll={handleDeleteSelected}
-          isDeleteAllDisabled={
-            selectedRows.size === 0 || selectedRows.size < displayData.length
-          }
-          
+          isDeleteAllDisabled={selectedRows.size === 0}
+          disableClientSidePagination={true}
         />
       </div>
 
@@ -416,12 +526,21 @@ export default function Applications() {
         onReset={handleResetFilter}
         buttonLabel="Apply Filter"
         onApply={handleApplyFilter}
-        filterValues={tempFilters}
-        onFilterChange={(filters) => {
-          setTempFilters((prev) => ({
-            ...prev,
-            ...filters,
-          }));
+        filterValues={{
+          ownership: tempFilters.ownership,
+          status: tempFilters.status,
+          "Submitted On": submittedDate,
+        }}
+        onFilterChange={(newValues) => {
+          if (newValues.ownership !== undefined) {
+            setTempFilters(prev => ({ ...prev, ownership: newValues.ownership as string }));
+          }
+          if (newValues.status !== undefined) {
+            setTempFilters(prev => ({ ...prev, status: newValues.status as string }));
+          }
+          if (newValues["Submitted On"] !== undefined) {
+            setSubmittedDate(newValues["Submitted On"] as Date | null);
+          }
         }}
         dropdownStates={{
           ownership: showOwnershipDropdown,
@@ -437,18 +556,18 @@ export default function Applications() {
             key: "ownership",
             type: "dropdown",
             placeholder: "Select ownership",
-            options: uniqueOwnerships,
+            options: allOwnerships,
           },
           {
             label: "Status",
             key: "status",
             type: "dropdown",
             placeholder: "Select status",
-            options: uniqueStatuses,
+            options: allStatuses.map(status => capitalizeStatusForDisplay(status)),
           },
           {
             label: "Submitted On",
-            key: "submittedDate",
+            key: "Submitted On",
             type: "date",
             placeholder: "Select date",
           },

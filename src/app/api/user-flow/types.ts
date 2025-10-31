@@ -95,18 +95,24 @@ export interface SearchData {
 }
 
 // Main Search Response Interface
+// Fix the SearchResponse interface to match the actual API structure
 export interface SearchResponse {
-  data: Property[];
-  pagination: {
+  status: string;
+  message: string;
+  data: {
+    certifications: Certification[];
+    total: number;
     page: number;
     limit: number;
-    total: number;
     totalPages: number;
-    hasNext: boolean;
-    hasPrev: boolean;
+    searchTime: number;
+    highlightedTerms: string[];
+    facets: Record<string, unknown>;
+    appliedFilters: Record<string, unknown>;
   };
-  
 }
+
+// Then use:
 
 // For backward compatibility with legacy search responses
 export interface LegacySearchResponse {

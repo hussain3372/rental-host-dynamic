@@ -12,7 +12,7 @@ interface CertificationSetupProps {
 
 export default function CertificationSetup({
   certificateData,
-  templateId,
+  // templateId,
 }: CertificationSetupProps) {
   const [showCertificateDrawer, setShowCertificateDrawer] = useState(false);
 

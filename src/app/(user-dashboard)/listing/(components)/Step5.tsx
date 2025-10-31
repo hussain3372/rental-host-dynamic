@@ -193,6 +193,54 @@ export default function ReviewSubmission() {
   const nextDoc = () =>
     setDocIndex((prev) => (prev === documents.length - 1 ? 0 : prev + 1));
 
+  const handleUpdateApplicationWithImages = async (images: string[]) => {
+  try {
+    setIsSubmitting(true);
+
+    const updatePayload: UpdatePayload = {
+      propertyDetails: {
+        propertyName: propertyDetails.name,
+        address: propertyDetails.address,
+        propertyType: propertyDetails.type,
+        ownership: propertyDetails.ownership,
+        description: description,
+        images: images, // Use the images parameter directly
+      }
+    };
+
+    console.log("📤 Update payload with NEW images:", updatePayload);
+
+    const response = await application.updateApplication(
+      updatePayload as never
+    );
+
+    if (response.success) {
+      toast.success("Images updated successfully!");
+      
+      // Update localStorage with new data
+      const stored = localStorage.getItem("applicationData");
+      if (stored) {
+        const storedData = JSON.parse(stored);
+        const updatedData = {
+          ...storedData,
+          propertyDetails: {
+            ...storedData.propertyDetails,
+            images: images
+          }
+        };
+        localStorage.setItem("applicationData", JSON.stringify(updatedData));
+      }
+    } else {
+      throw new Error(response.message || "Failed to update application");
+    }
+  } catch (error) {
+    console.error("Update application error:", error);
+    toast.error((error as Error).message || "Failed to update application");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
 const handleImageUpload = async (files: FileList | null) => {
   if (!files || files.length === 0) return;
 
@@ -213,14 +261,12 @@ const handleImageUpload = async (files: FileList | null) => {
       
       let uploadedUrls: string[] = [];
 
-      // Define proper interface for uploaded items
       interface UploadedFile {
         url: string;
         key: string;
         name: string;
       }
 
-      // Check if response has uploaded array
       if (response.data.uploaded && Array.isArray(response.data.uploaded)) {
         console.log("📁 Found uploaded array with items:", response.data.uploaded.length);
         
@@ -244,7 +290,6 @@ const handleImageUpload = async (files: FileList | null) => {
       }
 
       console.log("🎯 Final extracted URLs:", uploadedUrls);
-      console.log("📊 Current propertyImages before update:", propertyImages);
 
       if (uploadedUrls.length > 0) {
         const newImages = [...propertyImages, ...uploadedUrls];
@@ -268,15 +313,12 @@ const handleImageUpload = async (files: FileList | null) => {
         
         toast.success(`${uploadedUrls.length} image(s) uploaded successfully`);
         
-        // Auto-save to backend
-        setEditing("photos");
-        setTimeout(() => {
-          handleUpdateApplication();
-        }, 100);
+        // ✅ FIX: Call update with the new images directly
+        await handleUpdateApplicationWithImages(newImages);
         
       } else {
-        console.warn("❌ No valid URLs found in upload response. Response data:", response.data);
-        toast.error("Upload successful but no image URLs received. Check console for details.");
+        console.warn("❌ No valid URLs found in upload response.");
+        toast.error("Upload successful but no image URLs received.");
       }
     } else {
       console.error("❌ Upload failed:", response.message);

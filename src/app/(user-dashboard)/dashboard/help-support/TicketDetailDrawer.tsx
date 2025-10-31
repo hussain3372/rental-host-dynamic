@@ -46,7 +46,7 @@ export default function TicketDetailDrawer({
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex justify-between items-center px-4 py-3 flex-shrink-0">
-        <h2 className="text-lg font-semibold">{ticket.id || "0001"}</h2>
+        <h2 className="text-lg font-semibold">TIK-{ticket.id || "0001"}</h2>
       </div>
 
       {/* Body - Scrollable content */}

@@ -4,13 +4,37 @@ import { useState } from "react";
 import Image from "next/image";
 import StatusPill from "@/app/shared/StatusPills";
 import { Property } from "@/app/api/user-flow/types";
+import Loader from "@/app/shared/loaders"; 
 
 interface PropertyDetailPageProps {
   property: Property;
+  isLoading?: boolean; // Add isLoading prop
 }
 
-export default function PropertyDetailPage({ property }: PropertyDetailPageProps) {
+export default function PropertyDetailPage({ property, isLoading = false }: PropertyDetailPageProps) {
   const [currentStep, setCurrentStep] = useState(0);
+
+  // Show loader when data is loading
+  if (isLoading) {
+    return (
+      <div className="sm:pt-[80px] pt-0 px-4 sm:px-6 lg:px-[120px]">
+        <div className="flex flex-col items-center justify-center min-h-[500px]">
+          <Loader 
+            type="moon" 
+            size="large" 
+            color="#EFFC76" 
+            className="mb-6"
+          />
+          <h3 className="text-[24px] leading-7 font-medium text-white mb-2">
+            Loading Property Details
+          </h3>
+          <p className="text-[16px] leading-5 text-[#FFFFFF99] font-normal">
+            Fetching property information...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const images = property.images && property.images.length > 0 
     ? property.images 

@@ -58,7 +58,7 @@ export const application = {
       applications: applicationsData?.applications || [],
       pagination: applicationsData?.pagination || {
         total: 0,
-        pageSize: 10,
+        pageSize: 6,
         currentPage: 1,
         totalPages: 0,
         nextPage: null,
@@ -177,7 +177,7 @@ export const application = {
       applications: applicationsData?.applications || [],
       pagination: applicationsData?.pagination || {
         total: 0,
-        pageSize: 10,
+        pageSize: 6,
         currentPage: 1,
         totalPages: 0,
         nextPage: null,

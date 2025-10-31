@@ -45,6 +45,9 @@ interface TableProps<T> {
   totalItems?: number;
   showPagination?: boolean;
   showFilter?: boolean;
+    totalPages?: number; // Add this
+  hasNextPage?: boolean; // Add this
+  hasPrevPage?: boolean; // Add this
   onFilterToggle?: (isOpen: boolean) => void;
 
   // DELETE FUNCTIONALITY - Make all delete-related props optional

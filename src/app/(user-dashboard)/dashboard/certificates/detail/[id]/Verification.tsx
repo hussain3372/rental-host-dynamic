@@ -108,7 +108,7 @@ export default function Verification() {
 
         {/* Right Section - Verification Details */}
         <div className="col-span-12 lg:col-span-5">
-          <div className="flex flex-col bg-[#121315] rounded-md p-5 gap-[28px] w-full lg:w-auto">
+          <div className="flex flex-col bg-[#121315] rounded-md p-5 gap-[28px] h-full w-full lg:w-auto">
             {verification.length > 0 ? (
               verification.map((item, index) => (
                 <div key={item.id}>

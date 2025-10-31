@@ -1,37 +1,38 @@
 "use client";
-import Image from "next/image";
-import React, { useState, useMemo, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { Table } from "@/app/shared/tables/Tables";
-import "react-datepicker/dist/react-datepicker.css";
 import FilterDrawer from "@/app/shared/tables/Filter";
 import { certifications } from "@/app/api/Host/certification/index";
 import { dashboard } from "@/app/api/Host/dashboard";
 import { useRouter } from "next/navigation";
 
-interface CustomDateInputProps {
-  value?: string;
-  onClick?: () => void;
+interface ApiParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  status?: string;
+  propertyName?: string;
+  issuedAt?: string;
+  expiresAt?: string;
 }
 
-interface CertificationDataItem {
-  id: number;
+interface CertificationData {
+  id: string;
   "Property Name": string;
   Address: string;
   "Certificate Expiry Date": string;
   Status: string;
-  [key: string]: string | number;
 }
 
-interface CertificationApiItem {
-  id: string;
-  status?: string;
-  expiresAt?: string | null;
-  application?: {
-    propertyDetails?: {
-      propertyName?: string;
-      address?: string;
-    };
-  };
+interface PaginationData {
+  total: number;
+  pageSize: number;
+  currentPage: number;
+  totalPages: number;
+  nextPage: number | null;
+  prevPage: number | null;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
 }
 
 interface ApplicationTrackerData {
@@ -45,12 +46,11 @@ interface ApplicationTrackerData {
 export default function Tracking() {
   const router = useRouter();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  // const [, ] = useState<"certification" | "application">(
-  //   "certification"
-  // );
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(6);
+  const [isLoading, setIsLoading] = useState(false);
 
   const [appliedFilters, setAppliedFilters] = useState({
     listedProperty: "",
@@ -66,18 +66,23 @@ export default function Tracking() {
 
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-
   const [expiryDate, setExpiryDate] = useState<Date | null>(null);
 
-  const [certificationData, setCertificationData] = useState<
-    CertificationDataItem[]
-  >([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([]);
+  const [paginationData, setPaginationData] = useState<PaginationData>({
+    total: 0,
+    pageSize: 6,
+    currentPage: 1,
+    totalPages: 1,
+    nextPage: null,
+    prevPage: null,
+    hasNextPage: false,
+    hasPrevPage: false
+  });
 
   const [trackingData, setTrackingData] = useState<ApplicationTrackerData[]>([]);
   const [isTrackerLoading, setIsTrackerLoading] = useState(false);
 
-  // State for tooltip
   const [tooltip, setTooltip] = useState({
     show: false,
     text: "",
@@ -86,6 +91,50 @@ export default function Tracking() {
     y: 0
   });
 
+  const [allProperties, setAllProperties] = useState<string[]>([]);
+  const [allStatuses, setAllStatuses] = useState<string[]>([]);
+
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchTerm.trim().length >= 3 || searchTerm.trim() === "") {
+        setDebouncedSearchTerm(searchTerm);
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+
+  // Fetch filter options
+ const fetchFilterOptions = useCallback(async () => {
+  try {
+    const response = await certifications.getCertifications();
+    
+    if (response?.data?.certifications && Array.isArray(response.data.certifications)) {
+      const properties = [...new Set(response.data.certifications.map((item) => 
+        item.application?.propertyDetails?.propertyName || ""
+      ))].filter(Boolean);
+      
+      const statuses = [...new Set(response.data.certifications.map((item) => 
+        item.status ? capitalizeStatus(item.status) : ""
+      ))].filter(Boolean);
+
+      setAllProperties(properties as string[]);
+      setAllStatuses(statuses as string[]);
+    }
+  } catch (error) {
+    console.error("Error fetching filter options:", error);
+  }
+}, []);
+
+  useEffect(() => {
+    fetchFilterOptions();
+  }, [fetchFilterOptions]);
+
+  // Sync temp filters with applied filters when drawer opens
   useEffect(() => {
     if (isFilterOpen) {
       setTempFilters(appliedFilters);
@@ -97,47 +146,111 @@ export default function Tracking() {
     }
   }, [isFilterOpen, appliedFilters]);
 
+  const formatDateForAPI = (date: Date | null): string => {
+    if (!date) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const capitalizeStatus = (status: string): string => {
+    return status.charAt(0).toUpperCase() + status.slice(1).toLowerCase().replace("_", " ");
+  };
+
+  const getStatusForAPI = (status: string): string => {
+    if (!status) return "";
+    return status.toUpperCase().replace(" ", "_");
+  };
+
+ const buildApiParams = useCallback((): ApiParams => {
+  const params: ApiParams = {
+    page: currentPage,
+    pageSize: itemsPerPage,
+  };
+
+  // Add search param only if we have at least 3 characters
+  if (debouncedSearchTerm.trim().length >= 3) {
+    params.search = debouncedSearchTerm.trim();
+  }
+
+  // Add ALL active filters simultaneously
+  if (appliedFilters.listedProperty.trim()) {
+    params.propertyName = appliedFilters.listedProperty.trim(); // Use propertyName param
+  }
+
+  if (appliedFilters.status.trim()) {
+    params.status = getStatusForAPI(appliedFilters.status.trim());
+  }
+
+  if (appliedFilters.expiryDate) {
+    params.issuedAt = appliedFilters.expiryDate;
+    params.expiresAt = appliedFilters.expiryDate;
+  }
+
+  return params;
+}, [debouncedSearchTerm, appliedFilters, currentPage, itemsPerPage]);
   const fetchCertifications = useCallback(async () => {
     try {
-      setIsLoading(true);
-      const response = await certifications.getCertifications();
+      // setIsLoading(true);
+      const params = buildApiParams();
 
-      if (
-        response?.data?.certifications &&
-        Array.isArray(response.data.certifications)
-      ) {
-        const mappedData: CertificationDataItem[] =
-          response.data.certifications.map(
-            (item: CertificationApiItem, index: number) => ({
-              id: index + 1,
-              "Property Name":
-                item.application?.propertyDetails?.propertyName ||
-                "Coastal Hillside Estate",
-              Address:
-                item.application?.propertyDetails?.address ||
-                "762 Evergreen Terrace",
-              "Certificate Expiry Date": item.expiresAt
-                ? new Date(item.expiresAt).toLocaleDateString("en-US", {
-                    month: "short",
-                    day: "numeric",
-                    year: "numeric",
-                  })
-                : "Aug 12, 2025",
-              Status: item.status ? capitalizeStatus(item.status) : "Verified",
-            })
-          );
+      console.log("🚀 HITTING CERTIFICATIONS API WITH PARAMS:", params);
 
-        setCertificationData(mappedData);
+      const response = await certifications.getCertifications(params);
+
+      if (response?.data?.certifications && Array.isArray(response.data.certifications)) {
+        const mappedData: CertificationData[] = response.data.certifications.map(
+          (item, index: number) => ({
+            id: item.id || `cert-${index}`,
+            "Property Name": item.application?.propertyDetails?.propertyName || "Coastal Hillside Estate",
+            Address: item.application?.propertyDetails?.address || "762 Evergreen Terrace",
+            "Certificate Expiry Date": item.expiresAt
+              ? new Date(item.expiresAt).toLocaleDateString("en-US", {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })
+              : "Aug 12, 2025",
+            Status: item.status ? capitalizeStatus(item.status) : "Verified",
+          })
+        );
+
+        setAllCertificationData(mappedData);
+
+        // Set pagination data if available from API
+       
       } else {
-        setCertificationData([]);
+        console.error("❌ Unexpected certifications response:", response);
+        setAllCertificationData([]);
+        setPaginationData({
+          total: 0,
+          pageSize: itemsPerPage,
+          currentPage: 1,
+          totalPages: 1,
+          nextPage: null,
+          prevPage: null,
+          hasNextPage: false,
+          hasPrevPage: false
+        });
       }
     } catch (error) {
-      console.error("Error fetching certifications:", error);
-      setCertificationData([]);
+      console.error("🚨 Error fetching certifications:", error);
+      setAllCertificationData([]);
+      setPaginationData({
+        total: 0,
+        pageSize: itemsPerPage,
+        currentPage: 1,
+        totalPages: 1,
+        nextPage: null,
+        prevPage: null,
+        hasNextPage: false,
+        hasPrevPage: false
+      });
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [buildApiParams, currentPage, itemsPerPage]);
 
   useEffect(() => {
     fetchCertifications();
@@ -150,12 +263,8 @@ export default function Tracking() {
 
       if (response?.data?.data && Array.isArray(response.data.data)) {
         const firstFourProperties = response.data.data.slice(0, 4);
-
-        const something = response.data
-
-        console.log("Final Data : " , something)
         
-        const mappedTrackerData: ApplicationTrackerData[] = firstFourProperties.map((item, index) => {
+        const mappedTrackerData: ApplicationTrackerData[] = firstFourProperties.map((item, index: number) => {
           const colorIndex = index % 4;
           const colors = [
             { bg: "#aae6ff", minibg: "#2185AF" }, 
@@ -190,26 +299,6 @@ export default function Tracking() {
   useEffect(() => {
     fetchApplicationTracker();
   }, [fetchApplicationTracker]);
-
-  // ✅ FIXED: Added the missing handleFilterChange function
-  const handleFilterChange = (
-    filters: Record<string, string | Date | null>
-  ) => {
-    // Filter out Date and null values, only keep string values for tempFilters
-    const stringFilters: Record<string, string> = {};
-
-    Object.entries(filters).forEach(([key, value]) => {
-      if (typeof value === "string") {
-        stringFilters[key] = value;
-      }
-      // Ignore Date and null values as they are handled separately by the date picker state
-    });
-
-    setTempFilters((prev) => ({
-      ...prev,
-      ...stringFilters,
-    }));
-  };
 
   // Tooltip handlers
   const handleMouseEnter = (e: React.MouseEvent, text: string, bgColor: string) => {
@@ -247,48 +336,84 @@ export default function Tracking() {
     });
   };
 
-  const capitalizeStatus = (status: string): string => {
-    return (
-      status.charAt(0).toUpperCase() +
-      status.slice(1).toLowerCase().replace("_", " ")
-    );
+  const handleFilterChange = (filters: Record<string, string | Date | null>) => {
+    const updatedFilters = { ...tempFilters };
+
+    if (filters.listedProperty !== undefined) {
+      updatedFilters.listedProperty = filters.listedProperty as string;
+    }
+    if (filters.status !== undefined) {
+      updatedFilters.status = filters.status as string;
+    }
+    if (filters.expiryDate !== undefined) {
+      setExpiryDate(filters.expiryDate as Date | null);
+    }
+
+    setTempFilters(updatedFilters);
   };
 
-  const formatDateForComparison = (dateString: string): string => {
-    if (dateString === "—") return "";
+  const handleResetFilter = () => {
+    const resetFilters = {
+      listedProperty: "",
+      status: "",
+      expiryDate: "",
+    };
 
-    const date = new Date(dateString);
-    return date.toISOString().split("T")[0];
+    setTempFilters(resetFilters);
+    setAppliedFilters(resetFilters);
+    setExpiryDate(null);
+    setSearchTerm("");
+    setDebouncedSearchTerm("");
+    setCurrentPage(1);
+    setIsFilterOpen(false);
   };
 
-  const filteredCertificationData = useMemo(() => {
-    return certificationData.filter((item) => {
-      const matchesSearch =
-        searchTerm === "" ||
-        Object.values(item).some((value) =>
-          value.toString().toLowerCase().includes(searchTerm.toLowerCase())
-        );
+  const handleApplyFilter = () => {
+    const dateString = formatDateForAPI(expiryDate);
+    
+    const filtersToApply = {
+      listedProperty: tempFilters.listedProperty,
+      status: tempFilters.status,
+      expiryDate: dateString,
+    };
 
-      const matchesProperty =
-        appliedFilters.listedProperty === "" ||
-        item["Property Name"].toLowerCase() ===
-          appliedFilters.listedProperty.toLowerCase();
+    console.log("🟢 APPLYING CERTIFICATION FILTERS:", filtersToApply);
 
-      const matchesStatus =
-        appliedFilters.status === "" ||
-        item["Status"].toLowerCase() === appliedFilters.status.toLowerCase();
+    setAppliedFilters(filtersToApply);
+    setCurrentPage(1);
+    setIsFilterOpen(false);
+  };
 
-      const matchesDate =
-        appliedFilters.expiryDate === "" ||
-        (item["Certificate Expiry Date"] !== "—" &&
-          formatDateForComparison(item["Certificate Expiry Date"]) ===
-            appliedFilters.expiryDate);
+  const handleCloseFilter = () => {
+    // Reset temp filters to current applied state when closing without applying
+    setTempFilters(appliedFilters);
+    if (appliedFilters.expiryDate) {
+      setExpiryDate(new Date(appliedFilters.expiryDate));
+    } else {
+      setExpiryDate(null);
+    }
+    setIsFilterOpen(false);
+  };
 
-      return matchesSearch && matchesProperty && matchesStatus && matchesDate;
-    });
-  }, [certificationData, searchTerm, appliedFilters]);
+  const handleDropdownToggle = (key: string, value: boolean) => {
+    if (key === "listedProperty") {
+      setShowPropertyDropdown(value);
+    } else if (key === "status") {
+      setShowStatusDropdown(value);
+    }
+  };
 
-  // Table control - same as before
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    if (term.trim().length >= 3 || term.trim() === "") {
+      setCurrentPage(1);
+    }
+  };
+
   const tableControl = {
     hover: true,
     striped: false,
@@ -309,128 +434,23 @@ export default function Tracking() {
     highlightRowOnHover: true,
   };
 
-  const uniqueProperties = [
-    ...new Set(certificationData.map((item) => item["Property Name"])),
-  ];
-  const uniqueStatuses = [
-    ...new Set(certificationData.map((item) => item["Status"])),
-  ];
-
   const displayData = useMemo(() => {
-    return filteredCertificationData.map(({ id, ...rest }) => {
-      console.log("Application ID:", id); // ✅ Safely log the ID
-
-      // Convert all values to strings to match Table component expectations
-      const stringifiedRest: Record<string, string> = {};
-      Object.entries(rest).forEach(([key, value]) => {
-        stringifiedRest[key] = String(value);
-      });
-
-      return stringifiedRest;
+    return allCertificationData.map(({ id, ...rest }) => {
+      return rest;
     });
-  }, [filteredCertificationData]);
+  }, [allCertificationData]);
 
-
-  // ✅ FIXED: Reset to page 1 when filters or search term changes (same as application table)
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [
-    searchTerm,
-    appliedFilters.listedProperty,
-    appliedFilters.status,
-    appliedFilters.expiryDate,
-  ]);
-
-  // ✅ FIXED: Enhanced reset filter function (same as application table)
-  const handleResetFilter = () => {
-    const resetFilters = {
-      listedProperty: "",
-      status: "",
-      expiryDate: "",
-    };
-
-    setTempFilters(resetFilters);
-    setAppliedFilters(resetFilters);
-    setExpiryDate(null);
-    setIsFilterOpen(false); // Auto-close the filter
-  };
-
-  // ✅ FIXED: Enhanced apply filter function (same as application table)
-  const handleApplyFilter = () => {
-    const filtersToApply = {
-      ...tempFilters,
-      expiryDate: expiryDate ? expiryDate.toISOString().split("T")[0] : "",
-    };
-
-    setAppliedFilters(filtersToApply);
-    setIsFilterOpen(false);
-  };
-
-  // ✅ FIXED: Handle closing the drawer - reset temp filters to current applied state (same as application table)
-  const handleCloseFilter = () => {
-    setTempFilters(appliedFilters);
-    if (appliedFilters.expiryDate) {
-      setExpiryDate(new Date(appliedFilters.expiryDate));
-    } else {
-      setExpiryDate(null);
-    }
-    setIsFilterOpen(false);
-  };
-
-  // Handle dropdown toggle
-  const handleDropdownToggle = (key: string, value: boolean) => {
-    if (key === "listedProperty") {
-      setShowPropertyDropdown(value);
-    } else if (key === "status") {
-      setShowStatusDropdown(value);
-    }
-  };
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  // Dropdown items for table actions
   const dropdownItems = [
     {
       label: "View Detail",
       onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (currentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredCertificationData[globalIndex];
+        const originalRow = allCertificationData[index];
         if (originalRow && originalRow.id) {
           router.push(`/dashboard/certificates/detail/${originalRow.id}`);
         }
       },
     },
   ];
-
-  const CustomDateInput = React.forwardRef(
-    (
-      { value, onClick }: CustomDateInputProps,
-      ref: React.Ref<HTMLInputElement>
-    ) => (
-      <div className="relative">
-        <input
-          type="text"
-          value={value}
-          onClick={onClick}
-          ref={ref}
-          readOnly
-          className="w-full bg-gradient-to-b from-[#202020] to-[#101010] border rounded-xl px-4 py-3 text-sm border-[#404040] focus:border-[#EFFC76] focus:outline-none cursor-pointer text-white placeholder-white/40"
-          placeholder="Select date"
-        />
-        <div className="absolute inset-y-0 right-0 flex items-center px-3 pointer-events-none">
-          <Image
-            src="/images/calender.svg"
-            alt="Pick date"
-            width={20}
-            height={20}
-          />
-        </div>
-      </div>
-    )
-  );
-  CustomDateInput.displayName = "CustomDateInput";
 
   if (isLoading) {
     return (
@@ -442,7 +462,6 @@ export default function Tracking() {
 
   return (
     <>
-      {/* Tooltip Component */}
       {tooltip.show && (
         <div 
           className="fixed z-50 px-3 py-2 text-sm text-[#121315CC] font-semibold rounded-lg shadow-lg pointer-events-none transition-opacity duration-200"
@@ -486,7 +505,6 @@ export default function Tracking() {
                       width: `${item.percentage}%`,
                     }}
                   >
-                    {/* ✅ FIXED: Added tooltip functionality */}
                     <span 
                       className="whitespace-nowrap overflow-hidden pr-2 absolute bottom-2 left-2 right-2 cursor-help"
                       onMouseEnter={(e) => handleMouseEnter(e, item.title, item.bg)}
@@ -524,7 +542,7 @@ export default function Tracking() {
               clickable={true}
               dropdownItems={dropdownItems}
               searchTerm={searchTerm}
-              onSearchChange={setSearchTerm}
+              onSearchChange={handleSearch}
               showFilter={true}
               onFilterToggle={setIsFilterOpen}
               selectedRows={new Set()}
@@ -536,14 +554,15 @@ export default function Tracking() {
               rowIds={[]}
               currentPage={currentPage}
               onPageChange={handlePageChange}
-              itemsPerPage={itemsPerPage}
-              totalItems={filteredCertificationData.length}
+              itemsPerPage={paginationData.pageSize}
+              totalItems={paginationData.total || 0}
+              disableClientSidePagination={true}
             />
           </div>
         </div>
       </div>
 
-      {/* Filter Drawer - Using the same component as Applications */}
+      {/* Filter Drawer - Filters will persist until reset or reload */}
       <FilterDrawer
         isOpen={isFilterOpen}
         onClose={handleCloseFilter}
@@ -553,7 +572,11 @@ export default function Tracking() {
         onReset={handleResetFilter}
         buttonLabel="Apply Filter"
         onApply={handleApplyFilter}
-        filterValues={tempFilters}
+        filterValues={{
+          listedProperty: tempFilters.listedProperty,
+          status: tempFilters.status,
+          expiryDate: expiryDate,
+        }}
         onFilterChange={handleFilterChange}
         dropdownStates={{
           listedProperty: showPropertyDropdown,
@@ -566,14 +589,14 @@ export default function Tracking() {
             key: "listedProperty",
             type: "dropdown",
             placeholder: "Select property",
-            options: uniqueProperties,
+            options: allProperties,
           },
           {
             label: "Status",
             key: "status",
             type: "dropdown",
             placeholder: "Select status",
-            options: uniqueStatuses,
+            options: allStatuses,
           },
           {
             label: "Expiry date",

@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "../../tables-essentials/Filter";
@@ -11,7 +11,6 @@ interface CertificationData {
   "Certificate ID": string;
   "Property Name": string;
   "Host ID": string;
-  // "Host Name": string;
   "Issue Date": string;
   "Expiry Date": string;
   Status: "active" | "revoked" | "expired";
@@ -22,6 +21,9 @@ interface ApiFilters {
   issuedAt?: string;
   expiredAt?: string;
   status?: "ACTIVE" | "REVOKED" | "EXPIRED";
+  search?: string;
+  page?: number;
+  limit?: number;
 }
 
 export default function Certificates() {
@@ -29,6 +31,7 @@ export default function Certificates() {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [activeTab, setActiveTab] = useState<"active" | "revoked" | "expired">("active");
+  const itemsPerPage = 10;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -42,19 +45,24 @@ export default function Certificates() {
   const [expiryDate, setExpiryDate] = useState<Date | null>(null);
 
   const [apiFilters, setApiFilters] = useState<ApiFilters>({});
-  const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([]);
+  const [certificationData, setCertificationData] = useState<CertificationData[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [totalItems, setTotalItems] = useState(0);
+  const [totalPages, setTotalPages] = useState(0);
 
-  // Fetch certificates from API whenever filters or activeTab changes
-  
+const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Fetch certificates from API with all filters
   const fetchCertificates = async () => {
     try {
-      setLoading(true);
+      // setLoading(true);
       setError(null);
       
-      // Build query parameters - ALWAYS include status from active tab
-      const queryParams: ApiFilters = {};
+      // Build query parameters
+      const queryParams: ApiFilters = {
+        page: currentPage,
+        limit: itemsPerPage
+      };
       
       // Always add status based on active tab
       if (activeTab === "active") {
@@ -65,14 +73,19 @@ export default function Certificates() {
         queryParams.status = "EXPIRED";
       }
       
-      // Add date filters if they exist (along with status)
+      // Add search filter only if it exists and has at least 3 characters
+      if (searchTerm && searchTerm.length >= 3) {
+        queryParams.search = searchTerm;
+      }
+      
+      // Add date filters if they exist
       if (apiFilters.issuedAt) {
         queryParams.issuedAt = apiFilters.issuedAt;
       }
       if (apiFilters.expiredAt) {
         queryParams.expiredAt = apiFilters.expiredAt;
       }
-      
+
       console.log('API Call with filters:', queryParams);
       
       const response = await certificateApi.getCertificates(queryParams);
@@ -105,7 +118,6 @@ export default function Certificates() {
             "Certificate ID": cert.certificateNumber,
             "Property Name": cert.application.propertyDetails.propertyName,
             "Host ID": cert.hostId.toString(),
-            // "Host Name": cert.host.name,
             "Issue Date": formatDate(cert.issuedAt),
             "Expiry Date": formatDate(cert.expiresAt),
             Status: status,
@@ -113,7 +125,9 @@ export default function Certificates() {
           };
         });
         
-        setAllCertificationData(formattedData);
+        setCertificationData(formattedData);
+        setTotalItems(response.data.total || formattedData.length);
+        setTotalPages(response.data.total || Math.ceil((response.data.total || formattedData.length) / itemsPerPage));
       } else {
         throw new Error('No certification data received');
       }
@@ -124,38 +138,39 @@ export default function Certificates() {
       setLoading(false);
     }
   };
-  
+
+  // Effect for initial load and when filters/pagination/tab changes
   useEffect(() => {
     fetchCertificates();
-  }, [apiFilters, activeTab]);
+  }, [currentPage, activeTab, apiFilters]);
 
-  // Filter data based on search term only (status filtering is done server-side)
-  const filteredCertificationData = useMemo(() => {
-    let filtered = allCertificationData;
-
-    // Apply client-side search filter
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (item) =>
-          item["Property Name"]
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          item["Certificate ID"]
-            .toLowerCase()
-            .includes(searchTerm.toLowerCase()) ||
-          item["Host ID"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item["Issue Date"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item["Expiry Date"].toLowerCase().includes(searchTerm.toLowerCase())
-      );
+  // Debounced search effect - only trigger API call when search term changes
+  useEffect(() => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
     }
 
-    return filtered;
-  }, [searchTerm, allCertificationData]);
+    // Set timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      // Only trigger API call if search term is empty or has at least 3 characters
+      if (searchTerm === '' || searchTerm.length >= 3) {
+        setCurrentPage(1); // Reset to first page when searching
+        fetchCertificates();
+      }
+    }, 500); // 500ms debounce
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchTerm]);
 
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set<string>();
     if (checked) {
-      filteredCertificationData.forEach((item) =>
+      certificationData.forEach((item) =>
         newSelected.add(item.id.toString())
       );
     }
@@ -174,25 +189,25 @@ export default function Certificates() {
 
   const isAllDisplayedSelected = useMemo(() => {
     return (
-      filteredCertificationData.length > 0 &&
-      filteredCertificationData.every((item) =>
+      certificationData.length > 0 &&
+      certificationData.every((item) =>
         selectedRows.has(item.id.toString())
       )
     );
-  }, [filteredCertificationData, selectedRows]);
+  }, [certificationData, selectedRows]);
 
   const isSomeDisplayedSelected = useMemo(() => {
     return (
-      filteredCertificationData.some((item) =>
+      certificationData.some((item) =>
         selectedRows.has(item.id.toString())
       ) && !isAllDisplayedSelected
     );
-  }, [filteredCertificationData, selectedRows, isAllDisplayedSelected]);
+  }, [certificationData, selectedRows, isAllDisplayedSelected]);
 
   const handleDeleteCertificates = async (selectedRowIds: Set<string>) => {
     try {
       const certificationIds = Array.from(selectedRowIds).map((id) => {
-        const certData = allCertificationData.find(item => item.id.toString() === id);
+        const certData = certificationData.find(item => item.id.toString() === id);
         return certData?.originalData?.id;
       }).filter(Boolean) as string[];
 
@@ -213,7 +228,7 @@ export default function Certificates() {
 
   const handleDeleteSingleCertificate = async (id: number) => {
     try {
-      const certData = allCertificationData.find(item => item.id === id);
+      const certData = certificationData.find(item => item.id === id);
       if (certData?.originalData?.id) {
         await certificateApi.deleteCertificate(certData.originalData.id);
         await fetchCertificates();
@@ -249,11 +264,10 @@ export default function Certificates() {
   };
 
   const displayData = useMemo(() => {
-    return filteredCertificationData.map(({ id, Status, originalData, ...rest }) => {
-      
+    return certificationData.map(({ id, Status, originalData, ...rest }) => {
       return rest;
     });
-  }, [filteredCertificationData]);
+  }, [certificationData]);
 
   useEffect(() => {
     setSelectedRows(new Set());
@@ -265,6 +279,7 @@ export default function Certificates() {
     setIssueDate(null);
     setExpiryDate(null);
     setCurrentPage(1);
+    
   };
 
   const handleApplyFilter = () => {
@@ -311,7 +326,7 @@ export default function Certificates() {
     }
   };
 
-  // Handle tab change - keep date filters when switching tabs
+  // Handle tab change
   const handleTabChange = (tab: "active" | "revoked" | "expired") => {
     setActiveTab(tab);
     setCurrentPage(1);
@@ -321,7 +336,7 @@ export default function Certificates() {
     {
       label: "View Details",
       onClick: (row: Record<string, string>, index: number) => {
-        const originalRow = filteredCertificationData[index];
+        const originalRow = certificationData[index];
         if (originalRow.originalData) {
           window.location.href = `/admin/dashboard/certificates/detail/${originalRow.originalData.id}`;
         }
@@ -330,7 +345,7 @@ export default function Certificates() {
     {
       label: "Download Certificate",
       onClick: (row: Record<string, string>, index: number) => {
-        const originalRow = filteredCertificationData[index];
+        const originalRow = certificationData[index];
         if (originalRow.originalData) {
           handleDownloadCertificate(originalRow.originalData);
         }
@@ -339,7 +354,7 @@ export default function Certificates() {
     {
       label: "Delete Certificate",
       onClick: (row: Record<string, string>, index: number) => {
-        const originalRow = filteredCertificationData[index];
+        const originalRow = certificationData[index];
         openDeleteSingleModal(row, originalRow.id);
       },
     },
@@ -357,12 +372,7 @@ export default function Certificates() {
     return (
       <div className="flex flex-col justify-center items-center h-64">
         <div className="text-red-400 mb-4">Error: {error}</div>
-        <button 
-          onClick={fetchCertificates}
-          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-        >
-          Retry
-        </button>
+       Something went wrong while fetching certificates.
       </div>
     );
   }
@@ -435,7 +445,7 @@ export default function Certificates() {
           title="Certificates"
           showDeleteButton={true}
           onDeleteSingle={(row, index) => {
-            const originalRow = filteredCertificationData[index];
+            const originalRow = certificationData[index];
             openDeleteSingleModal(row, originalRow.id);
           }}
           showPagination={true}
@@ -448,11 +458,12 @@ export default function Certificates() {
           onSelectRow={handleSelectRow}
           isAllSelected={isAllDisplayedSelected}
           isSomeSelected={isSomeDisplayedSelected}
-          rowIds={filteredCertificationData.map((item) => item.id.toString())}
+          rowIds={certificationData.map((item) => item.id.toString())}
           dropdownItems={dropdownItems}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
-          totalItems={filteredCertificationData.length}
+          totalItems={totalItems}
+          // totalPages={totalPages}
           showFilter={true}
           onFilterToggle={setIsFilterOpen}
           onDeleteAll={handleDeleteSelected}

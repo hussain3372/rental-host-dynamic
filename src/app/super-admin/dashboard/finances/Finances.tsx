@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "@/app/shared/tables/Filter";
@@ -60,6 +60,13 @@ interface FinanceData {
   createdAt: string;
 }
 
+interface ApiFilters {
+  status?: string;
+  search?: string;
+  skip: number;
+  take: number;
+}
+
 export default function Finances() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -80,7 +87,6 @@ export default function Finances() {
     status: "",
   });
 
-  // dropdown open/close states for FilterDrawer
   const [dropdownStates, setDropdownStates] = useState<Record<string, boolean>>(
     {}
   );
@@ -94,20 +100,19 @@ export default function Finances() {
   const [totalItems, setTotalItems] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // ✅ Fetch billing data from API
-  const fetchBillingData = async () => {
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch billing data from API
+  const fetchBillingData = async (filters: ApiFilters) => {
     try {
       setLoading(true);
-      const statusParam =
-        typeof financeFilters.status === "string" && financeFilters.status
-          ? financeFilters.status
-          : "COMPLETED";
+      
+      console.log('API Call with filters:', filters);
 
-      const response = (await setting.getBillingWithParams({
-        status: statusParam,
-        skip: (currentPage - 1) * itemsPerPage,
-        take: itemsPerPage,
-      })) as { success: boolean; data: PaymentResponse };
+      const response = (await setting.getBillingWithParams(filters)) as { 
+        success: boolean; 
+        data: PaymentResponse 
+      };
 
       if (response.success && response.data && response.data.payments) {
         const formattedData: FinanceData[] = response.data.payments.map(
@@ -134,31 +139,108 @@ export default function Finances() {
     }
   };
 
+  // Main effect for fetching data when page or status filter changes
   useEffect(() => {
-    fetchBillingData();
+    const filters: ApiFilters = {
+      skip: (currentPage - 1) * itemsPerPage,
+      take: itemsPerPage
+    };
+    
+    // Add status filter if it exists
+    if (financeFilters.status && typeof financeFilters.status === 'string') {
+      filters.status = financeFilters.status;
+    }
+    
+    // Add search term if it exists and is valid (3+ characters)
+    if (searchTerm && searchTerm.length >= 3) {
+      filters.search = searchTerm;
+    }
+    
+    void fetchBillingData(filters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, financeFilters]);
+  }, [currentPage, financeFilters.status]);
+
+  // Debounced search effect - separate from pagination
+  useEffect(() => {
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // If search term is less than 3 characters and not empty, don't make API call
+    if (searchTerm.length > 0 && searchTerm.length < 3) {
+      return;
+    }
+
+    // Set timeout for debounced search
+    searchTimeoutRef.current = setTimeout(() => {
+      setCurrentPage(1); // Reset to first page when searching
+      
+      const filters: ApiFilters = {
+        skip: 0,
+        take: itemsPerPage
+      };
+      
+      // Add status filter if it exists
+      if (financeFilters.status && typeof financeFilters.status === 'string') {
+        filters.status = financeFilters.status;
+      }
+      
+      // Add search term if it exists
+      if (searchTerm && searchTerm.length >= 3) {
+        filters.search = searchTerm;
+      }
+      
+      void fetchBillingData(filters);
+    }, 500); // 500ms debounce
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
 
   const displayData = useMemo(() => {
     return financeData.map((item) => ({
       "Host Name": item.hostName,
       "Transaction ID": item.transactionId,
       "Plan Name": item.planName,
-      Amount: item.amount.toFixed(2),
+      Amount: `$${item.amount.toFixed(2)}`,
       Method: item.method,
       Status: item.status,
     }));
   }, [financeData]);
 
-  const handleDeleteSingleFinance = (
-    row: Record<string, string>,
-    id: string
-  ) => {
-    const updatedData = financeData.filter((item) => item.id !== id);
-    setFinanceData(updatedData);
-    setIsModalOpen(false);
-    setSingleRowToDelete(null);
-    toast.success("Transaction deleted successfully");
+  const handleDeleteSingleFinance = async (id: string) => {
+    try {
+      // TODO: Replace with actual API call to delete transaction
+      // await setting.deleteTransaction(id);
+      
+      // For now, just refetch the data
+      const filters: ApiFilters = {
+        skip: (currentPage - 1) * itemsPerPage,
+        take: itemsPerPage
+      };
+      
+      if (financeFilters.status && typeof financeFilters.status === 'string') {
+        filters.status = financeFilters.status;
+      }
+      
+      if (searchTerm && searchTerm.length >= 3) {
+        filters.search = searchTerm;
+      }
+      
+      await fetchBillingData(filters);
+      
+      setIsModalOpen(false);
+      setSingleRowToDelete(null);
+      toast.success("Transaction deleted successfully");
+    } catch (err) {
+      console.error("Error deleting transaction:", err);
+      toast.error("Failed to delete transaction");
+    }
   };
 
   const openDeleteSingleModal = (row: Record<string, string>, id: string) => {
@@ -169,7 +251,7 @@ export default function Finances() {
 
   const handleModalConfirm = () => {
     if (modalType === "single" && singleRowToDelete) {
-      handleDeleteSingleFinance(singleRowToDelete.row, singleRowToDelete.id);
+      void handleDeleteSingleFinance(singleRowToDelete.id);
     }
   };
 
@@ -177,30 +259,20 @@ export default function Finances() {
     setFinanceFilters({ status: "" });
     setSearchTerm("");
     setCurrentPage(1);
+    setIsFilterOpen(false);
   };
 
   const handleApplyFilter = () => {
     setIsFilterOpen(false);
     setCurrentPage(1);
-    fetchBillingData();
   };
-
-  const filteredFinanceData = useMemo(() => {
-    if (!searchTerm) return financeData;
-    return financeData.filter(
-      (item) =>
-        item.transactionId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.hostName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.planName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  }, [financeData, searchTerm]);
 
   const isAllSelected = useMemo(() => {
     return (
-      filteredFinanceData.length > 0 &&
-      filteredFinanceData.every((item) => selectedRows.has(item.id))
+      financeData.length > 0 &&
+      financeData.every((item) => selectedRows.has(item.id))
     );
-  }, [filteredFinanceData, selectedRows]);
+  }, [financeData, selectedRows]);
 
   const isSomeSelected = useMemo(() => {
     return selectedRows.size > 0 && !isAllSelected;
@@ -208,14 +280,19 @@ export default function Finances() {
 
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set<string>();
-    if (checked)
-      filteredFinanceData.forEach((item) => newSelected.add(item.id));
+    if (checked) {
+      financeData.forEach((item) => newSelected.add(item.id));
+    }
     setSelectedRows(newSelected);
   };
 
   const handleSelectRow = (id: string, checked: boolean) => {
     const newSelected = new Set(selectedRows);
-    checked ? newSelected.add(id) : newSelected.delete(id);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
     setSelectedRows(newSelected);
   };
 
@@ -231,7 +308,7 @@ export default function Finances() {
     {
       label: "Delete Transaction",
       onClick: (row: Record<string, string>, index: number) => {
-        const originalRow = filteredFinanceData[index];
+        const originalRow = financeData[index];
         openDeleteSingleModal(row, originalRow.id);
       },
     },
@@ -265,7 +342,7 @@ export default function Finances() {
           onSelectRow={handleSelectRow}
           isAllSelected={isAllSelected}
           isSomeSelected={isSomeSelected}
-          rowIds={filteredFinanceData.map((item) => item.id)}
+          rowIds={financeData.map((item) => item.id)}
           dropdownItems={dropdownItems}
           searchTerm={searchTerm}
           onSearchChange={setSearchTerm}
@@ -276,6 +353,7 @@ export default function Finances() {
           showFilter={true}
           onFilterToggle={setIsFilterOpen}
           isLoading={loading}
+          disableClientSidePagination={true}
         />
       </div>
 

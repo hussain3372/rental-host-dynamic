@@ -15,20 +15,6 @@ interface CertificationData {
   Status: string;
   "Host Name"?: string;
 }
-interface DetailedTicket {
-  id: string;
-  ticketId: string;
-  issueType: string;
-  subject: string;
-  description: string;
-  createdOn: string;
-  status: string;
-  attachment?: {
-    name: string;
-    size: string;
-    url: string;
-  };
-}
 
 interface MyTicketsTableProps {
   searchTerm: string;
@@ -80,7 +66,9 @@ export default function MyTicketsTable({
   // Dropdown states
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
 
-  const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([]);
+  const [allCertificationData, setAllCertificationData] = useState<
+    CertificationData[]
+  >([]);
   const [totalItems, setTotalItems] = useState(0);
   // ✅ FIXED: Sync temp filters when filter drawer opens
   useEffect(() => {
@@ -93,61 +81,61 @@ export default function MyTicketsTable({
       }
     }
   }, [isFilterOpen, appliedFilters]);
-// ✅ Add function to fetch detailed ticket data
-// const fetchTicketDetails = useCallback(async (ticketId: string) => {
-//   try {
-//     console.log("🟡 Fetching detailed ticket data for:", ticketId);
-    
-//     // Assuming you have an API method to get single ticket details
-//     const response = await supportApi.getTicketById(ticketId);
-//     console.log("🔵 Detailed Ticket API Response:", response);
+  // ✅ Add function to fetch detailed ticket data
+  // const fetchTicketDetails = useCallback(async (ticketId: string) => {
+  //   try {
+  //     console.log("🟡 Fetching detailed ticket data for:", ticketId);
 
-//     // Adjust this based on your API response structure
-//     const ticketData = response.data || response.data;
-    
-//     if (ticketData) {
-//       const detailedTicket: DetailedTicket = {
-//         id: ticketData.id,
-//         ticketId: ticketData.id, // or ticketData.ticketId if available
-//         issueType: ticketData.category,
-//         subject: ticketData.subject,
-//         description: ticketData.description || "No description available",
-//         createdOn: new Date(ticketData.createdAt).toLocaleDateString("en-US", {
-//           month: "short",
-//           day: "numeric",
-//           year: "numeric",
-//         }),
-//         status: ticketData.status,
-//         attachment: ticketData.attachmentUrls && ticketData.attachmentUrls.length > 0 ? {
-//           name: "Attachment", // You might want to get the actual file name from API
-//           size: "N/A", // You might want to get the actual file size from API
-//           url: ticketData.attachmentUrls[0] // Get the first attachment
-//         } : undefined
-//       };
-      
-//       setSelectedTicketDetails(detailedTicket);
-//       setIsDetailDrawerOpen(true);
-//     }
-//   } catch (error) {
-//     console.error("🔴 Error fetching ticket details:", error);
-//     // Fallback to basic data if detailed fetch fails
-//     const basicTicket = allCertificationData.find(ticket => ticket["Ticket Id"] === ticketId);
-//     if (basicTicket) {
-//       const fallbackTicket: DetailedTicket = {
-//         id: basicTicket["Ticket Id"],
-//         ticketId: basicTicket["Ticket Id"],
-//         issueType: basicTicket["Issue Type"],
-//         subject: basicTicket.Subject,
-//         description: "Description not available",
-//         createdOn: basicTicket["Created On"],
-//         status: basicTicket.Status,
-//         attachment: undefined
-//       };
-//       setSelectedTicketDetails(fallbackTicket);
-//       setIsDetailDrawerOpen(true);
-//     }
-//   }
-// }, [allCertificationData]);
+  //     // Assuming you have an API method to get single ticket details
+  //     const response = await supportApi.getTicketById(ticketId);
+  //     console.log("🔵 Detailed Ticket API Response:", response);
+
+  //     // Adjust this based on your API response structure
+  //     const ticketData = response.data || response.data;
+
+  //     if (ticketData) {
+  //       const detailedTicket: DetailedTicket = {
+  //         id: ticketData.id,
+  //         ticketId: ticketData.id, // or ticketData.ticketId if available
+  //         issueType: ticketData.category,
+  //         subject: ticketData.subject,
+  //         description: ticketData.description || "No description available",
+  //         createdOn: new Date(ticketData.createdAt).toLocaleDateString("en-US", {
+  //           month: "short",
+  //           day: "numeric",
+  //           year: "numeric",
+  //         }),
+  //         status: ticketData.status,
+  //         attachment: ticketData.attachmentUrls && ticketData.attachmentUrls.length > 0 ? {
+  //           name: "Attachment", // You might want to get the actual file name from API
+  //           size: "N/A", // You might want to get the actual file size from API
+  //           url: ticketData.attachmentUrls[0] // Get the first attachment
+  //         } : undefined
+  //       };
+
+  //       setSelectedTicketDetails(detailedTicket);
+  //       setIsDetailDrawerOpen(true);
+  //     }
+  //   } catch (error) {
+  //     console.error("🔴 Error fetching ticket details:", error);
+  //     // Fallback to basic data if detailed fetch fails
+  //     const basicTicket = allCertificationData.find(ticket => ticket["Ticket Id"] === ticketId);
+  //     if (basicTicket) {
+  //       const fallbackTicket: DetailedTicket = {
+  //         id: basicTicket["Ticket Id"],
+  //         ticketId: basicTicket["Ticket Id"],
+  //         issueType: basicTicket["Issue Type"],
+  //         subject: basicTicket.Subject,
+  //         description: "Description not available",
+  //         createdOn: basicTicket["Created On"],
+  //         status: basicTicket.Status,
+  //         attachment: undefined
+  //       };
+  //       setSelectedTicketDetails(fallbackTicket);
+  //       setIsDetailDrawerOpen(true);
+  //     }
+  //   }
+  // }, [allCertificationData]);
   // Format date for API
   const formatDateForAPI = (date: Date | null): string => {
     if (!date) return "";
@@ -162,19 +150,20 @@ export default function MyTicketsTable({
     try {
       // setLoading(true);
 
-       if (
-      searchTerm.trim().length > 0 && 
-      searchTerm.trim().length < 3 &&
-      !appliedFilters.status &&
-      !appliedFilters.submittedDate 
-    ) {
-      console.log("🟡 Skipping API call - search term too short and no filters applied");
-      // setAllCertificationData([]);
-      // setTotalItems(0);
-      setLoading(false);
-      return;
-    }
-
+      if (
+        searchTerm.trim().length > 0 &&
+        searchTerm.trim().length < 3 &&
+        !appliedFilters.status &&
+        !appliedFilters.submittedDate
+      ) {
+        console.log(
+          "🟡 Skipping API call - search term too short and no filters applied"
+        );
+        // setAllCertificationData([]);
+        // setTotalItems(0);
+        setLoading(false);
+        return;
+      }
 
       const response = await supportApi.getAdminTickets(
         currentPage,
@@ -210,7 +199,7 @@ export default function MyTicketsTable({
             "Ticket Id": item.id,
             "Issue Type": item.category,
             Subject: item.subject,
-            // "Host Name": item.user?.name || "N/A", 
+            // "Host Name": item.user?.name || "N/A",
             "Created On": new Date(item.createdAt).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -273,7 +262,7 @@ export default function MyTicketsTable({
 
   const displayData = useMemo(() => {
     return filteredCertificationData.map(({ id, ...rest }) => {
-        console.log(id);
+      console.log(id);
       return rest;
     });
   }, [filteredCertificationData]);
@@ -417,7 +406,7 @@ export default function MyTicketsTable({
     setAppliedFilters(resetFilters);
     setSubmittedDate(null);
     onFilterToggle(false);
-    fetchTickets()
+    fetchTickets();
   };
 
   // ✅ FIXED: Enhanced apply filter function like Applications table
@@ -455,18 +444,34 @@ export default function MyTicketsTable({
   const dropdownItems = [
     {
       label: "View Details",
-      onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (currentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredCertificationData[globalIndex];
-        onViewDetails(originalRow);
+      onClick: (row: Record<string, string>) => {
+        // ✅ FIXED: Find the original row by Ticket Id instead of using index
+        const ticketId = row["Ticket Id"];
+        const originalRow = filteredCertificationData.find(
+          (item) => item["Ticket Id"] === ticketId
+        );
+
+        if (originalRow) {
+          onViewDetails(originalRow);
+        } else {
+          console.error(" Could not find original row for ticket:", ticketId);
+        }
       },
     },
     {
       label: "Delete Ticket",
-      onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (currentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredCertificationData[globalIndex];
-        openDeleteSingleModal(row, originalRow.id);
+      onClick: (row: Record<string, string>) => {
+        // ✅ FIXED: Find the original row by Ticket Id instead of using index
+        const ticketId = row["Ticket Id"];
+        const originalRow = filteredCertificationData.find(
+          (item) => item["Ticket Id"] === ticketId
+        );
+
+        if (originalRow) {
+          openDeleteSingleModal(row, originalRow.id);
+        } else {
+          console.error(" Could not find original row for ticket:", ticketId);
+        }
       },
     },
   ];
@@ -499,10 +504,20 @@ export default function MyTicketsTable({
           title="My Tickets"
           control={tableControl}
           showDeleteButton={true}
-          onDeleteSingle={(row, index) => {
-            const globalIndex = (currentPage - 1) * itemsPerPage + index;
-            const originalRow = filteredCertificationData[globalIndex];
-            openDeleteSingleModal(row, originalRow.id);
+          onDeleteSingle={(row) => {
+            const ticketId = row["Ticket Id"];
+            const originalRow = filteredCertificationData.find(
+              (item) => item["Ticket Id"] === ticketId
+            );
+
+            if (originalRow) {
+              openDeleteSingleModal(row, originalRow.id);
+            } else {
+              console.error(
+                " Could not find original row for ticket:",
+                ticketId
+              );
+            }
           }}
           showPagination={true}
           clickable={true}
@@ -523,9 +538,7 @@ export default function MyTicketsTable({
           showFilter={true}
           onFilterToggle={onFilterToggle}
           onDeleteAll={handleDeleteSelected}
-          isDeleteAllDisabled={
-            selectedRows.size < 2
-          }
+          isDeleteAllDisabled={selectedRows.size < 2}
           showActionColumn={true}
           disableClientSidePagination={true}
         />

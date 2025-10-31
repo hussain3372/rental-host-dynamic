@@ -171,8 +171,10 @@ const Searchsection: React.FC<SearchsectionProps> = ({
   properties,
   onSearchTextChange,
   onSearchClick,
+  
 }) => {
   const [inputValue, setInputValue] = useState(initialValue);
+  const [isSmallScreen, setIsSmallScreen] = useState(false);
 
   // Dropdown selections
   const [selectedLocation, setSelectedLocation] = useState("All Locations");
@@ -183,25 +185,28 @@ const Searchsection: React.FC<SearchsectionProps> = ({
     setInputValue(initialValue);
   }, [initialValue]);
 
-  // ✅ Apply dropdown filters to properties from parent
+  // ✅ Responsive placeholder logic
   useEffect(() => {
-    console.log("Applying filters to properties:", properties.length);
+    const checkScreenSize = () => {
+      setIsSmallScreen(window.innerWidth < 1024); // lg breakpoint
+    };
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
 
+  // ✅ Apply dropdown filters
+  useEffect(() => {
     const filtered = properties.filter((property) => {
-      // Location filter
       const matchesLocation =
         selectedLocation === "All Locations" ||
         (property.location &&
           property.location
             .toLowerCase()
             .includes(selectedLocation.toLowerCase()));
-
-      // Status filter
       const matchesStatus =
         selectedStatus === "Status" ||
         (property.status && property.status === selectedStatus);
-
-      // Expiry filter
       const matchesExpiry =
         selectedExpiry === "Expiry Date" ||
         (property.expiry && property.expiry === selectedExpiry);
@@ -209,30 +214,23 @@ const Searchsection: React.FC<SearchsectionProps> = ({
       return matchesLocation && matchesStatus && matchesExpiry;
     });
 
-    console.log("Filtered properties:", filtered.length);
     onSearch(filtered);
   }, [selectedLocation, selectedStatus, selectedExpiry, properties, onSearch]);
 
-  // ✅ Handle input change
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
-    console.log("Input changed:", value);
     setInputValue(value);
     onSearchTextChange(value);
   };
 
-  // ✅ Handle search button click
   const handleSearchClick = () => {
-    console.log("Search button clicked in Searchsection");
     onSearchClick();
   };
 
-  // ✅ Handle Enter key press
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      handleSearchClick();
-    }
+    if (e.key === "Enter") handleSearchClick();
   };
+
 
   return (
     <div className="text-white container-class w-full">
@@ -305,16 +303,19 @@ const Searchsection: React.FC<SearchsectionProps> = ({
         </div>
 
         {/* Search Bar */}
-        <div className="flex flex-col lg:flex-row w-full sm:w-[500px] md:w-[608px] lg:w-[860px] bg-[#0A0C0B] rounded-[16px] sm:rounded-[24px] relative px-4 py-[18px] gap-5">
+        <div className="flex flex-col lg:flex-row   md:w-[608px] lg:w-[860px] bg-[#0A0C0B] rounded-[16px] sm:rounded-[24px] relative px-5 py-[18px] gap-5">
           <input
             type="text"
             value={inputValue}
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
-            placeholder="Search for certified and verified properties..."
+            placeholder={
+              isSmallScreen
+                ? "Search certified"
+                : "Search for certified and verified properties..."
+            }
             className="flex-1 bg-[#18191B] rounded-[8px] h-[52px] p-4 outline-none text-[18px] leading-[24px] font-medium text-white"
           />
-
           <div className="w-full lg:w-auto flex justify-end">
             <Button
               text="Search Certified Host"

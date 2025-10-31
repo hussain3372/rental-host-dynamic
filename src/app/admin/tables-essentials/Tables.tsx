@@ -247,82 +247,136 @@ export function Table<T extends Record<string, unknown>>({
       ? data.slice(startIndex, startIndex + itemsPerPage)
       : data);
   const renderPaginationButtons = () => {
-    const buttons = [];
-    const maxVisiblePages = 5;
+  const buttons = [];
+  const maxVisiblePages = 5;
 
-    if (totalPages <= 1) {
-      return null;
+  if (totalPages <= 1) {
+    return null;
+  }
+
+  // Previous button
+  buttons.push(
+    <button
+      type="button"
+      key="prev"
+      onClick={() => onPageChange(currentPage - 1)}
+      disabled={currentPage === 1}
+      className="w-8 h-8 flex items-center p-[13px] justify-center text-gray-400 hover:text-white transition-colors border border-gray-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      <Image src="/images/arrow-left.svg" height={14} width={14} alt="Back" />
+    </button>
+  );
+
+  // Calculate which pages to show
+  let startPage = 1;
+  let endPage = totalPages;
+
+  if (totalPages > maxVisiblePages) {
+    const halfVisible = Math.floor(maxVisiblePages / 2);
+    
+    if (currentPage <= halfVisible + 1) {
+      // At the beginning
+      endPage = maxVisiblePages;
+    } else if (currentPage >= totalPages - halfVisible) {
+      // At the end
+      startPage = totalPages - maxVisiblePages + 1;
+    } else {
+      // In the middle
+      startPage = currentPage - halfVisible;
+      endPage = currentPage + halfVisible;
     }
+  }
 
+  // Always show first page
+  if (startPage > 1) {
     buttons.push(
       <button
         type="button"
-        key="prev"
-        onClick={() => onPageChange(currentPage - 1)}
-        disabled={currentPage === 1}
-        className="w-8 h-8 flex items-center p-[13px] justify-center text-gray-400 hover:text-white transition-colors border border-gray-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+        key={1}
+        onClick={() => onPageChange(1)}
+        className="w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-colors border cursor-pointer text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white"
       >
-        <Image src="/images/arrow-left.svg" height={14} width={14} alt="Back" />
+        1
       </button>
     );
-
-    let startPage = 1;
-    let endPage = totalPages;
-
-    if (totalPages > maxVisiblePages) {
-      if (currentPage <= maxVisiblePages) {
-        endPage = maxVisiblePages;
-      } else {
-        startPage = currentPage - Math.floor(maxVisiblePages / 2);
-        endPage = currentPage + Math.floor(maxVisiblePages / 2);
-
-        if (startPage < 1) {
-          startPage = 1;
-          endPage = maxVisiblePages;
-        }
-        if (endPage > totalPages) {
-          endPage = totalPages;
-          startPage = totalPages - maxVisiblePages + 1;
-        }
-      }
-    }
-
-    for (let i = startPage; i <= endPage; i++) {
+    
+    // Show ellipsis if there's a gap
+    if (startPage > 2) {
       buttons.push(
-        <button
-          type="button"
-          key={i}
-          onClick={() => onPageChange(i)}
-          className={`w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] p-[13px] transition-colors border cursor-pointer ${currentPage === i
-            ? "bg-[#EFFC76] text-black font-medium border-[#EFFC76]"
-            : "text-white opacity-60 border-gray-600"
-            }`}
+        <span
+          key="ellipsis-start"
+          className="w-8 h-8 flex items-center justify-center text-white opacity-40 select-none"
         >
-          {i}
-        </button>
+          •••
+        </span>
       );
     }
+  }
 
+  // Render page numbers
+  for (let i = startPage; i <= endPage; i++) {
     buttons.push(
       <button
         type="button"
-        key="next"
-        onClick={() => onPageChange(currentPage + 1)}
-        disabled={currentPage === totalPages}
-        className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors border border-gray-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 p-[13px]"
+        key={i}
+        onClick={() => onPageChange(i)}
+        className={`w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-all duration-200 border cursor-pointer ${
+          currentPage === i
+            ? "bg-[#EFFC76] text-black font-semibold border-[#EFFC76] scale-110 shadow-lg"
+            : "text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white hover:scale-105"
+        }`}
       >
-        <Image
-          src="/images/arrow-right.svg"
-          height={14}
-          width={14}
-          alt="Back"
-        />
+        {i}
       </button>
     );
+  }
 
-    return buttons;
-  };
+  // Always show last page
+  if (endPage < totalPages) {
+    // Show ellipsis if there's a gap
+    if (endPage < totalPages - 1) {
+      buttons.push(
+        <span
+          key="ellipsis-end"
+          className="w-8 h-8 flex items-center justify-center text-white opacity-40 select-none"
+        >
+          •••
+        </span>
+      );
+    }
+    
+    buttons.push(
+      <button
+        type="button"
+        key={totalPages}
+        onClick={() => onPageChange(totalPages)}
+        className="w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-colors border cursor-pointer text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white"
+      >
+        {totalPages}
+      </button>
+    );
+  }
 
+  // Next button
+  buttons.push(
+    <button
+      type="button"
+      key="next"
+      onClick={() => onPageChange(currentPage + 1)}
+      disabled={currentPage === totalPages}
+      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors border border-gray-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 p-[13px]"
+    >
+      <Image
+        src="/images/arrow-right.svg"
+        height={14}
+        width={14}
+        alt="Next"
+      />
+    </button>
+  );
+
+  return buttons;
+};
   const keys = displayData.length > 0 ? Object.keys(displayData[0]) : [];
   const paddingSize = control.compact ? "8px 12px" : "12px 16px";
 

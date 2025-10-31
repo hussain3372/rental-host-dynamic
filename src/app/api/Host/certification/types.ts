@@ -65,3 +65,8 @@ export interface CertificationResponse {
   certifications: CertificationData[];
   total: number;
 }
+export interface ApiParams {
+  status?: string;
+  search?: string;
+  expiredAt?: string;
+}

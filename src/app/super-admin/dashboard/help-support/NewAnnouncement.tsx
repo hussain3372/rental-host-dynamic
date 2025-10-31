@@ -120,7 +120,7 @@ export default function AddAnnouncementsDrawer({ onClose, onSuccess }: AddAnnoun
                 throw new Error("Failed to get image URL from response");
             }
         } catch (error: unknown) {
-            console.error("🔴 Image upload failed:", error);
+            console.error(" Image upload failed:", error);
             throw new Error( "Image upload failed");
         }
     };

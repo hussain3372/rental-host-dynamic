@@ -27,8 +27,6 @@ interface TicketProps {
   onViewDetails: (ticket: CertificationData) => void;
 }
 
-
-
 export default function Ticket({
   searchTerm,
   onSearchChange,
@@ -37,7 +35,7 @@ export default function Ticket({
   itemsPerPage,
   isFilterOpen,
   onFilterToggle,
-  onViewDetails
+  onViewDetails,
 }: TicketProps) {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
@@ -51,7 +49,9 @@ export default function Ticket({
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
 
   // API data states
-  const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([]);
+  const [allCertificationData, setAllCertificationData] = useState<
+    CertificationData[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [totalItems, setTotalItems] = useState(0);
 
@@ -143,10 +143,14 @@ export default function Ticket({
   // Update filter options when main data changes
   useEffect(() => {
     if (allCertificationData.length > 0) {
-      console.log("🔄 Updating admin tickets filter options from current data...");
+      console.log(
+        "🔄 Updating admin tickets filter options from current data..."
+      );
 
       const categories = [
-        ...new Set(allCertificationData.map((item) => item["Issue Type"] || "")),
+        ...new Set(
+          allCertificationData.map((item) => item["Issue Type"] || "")
+        ),
       ].filter(Boolean);
 
       const statuses = [
@@ -189,119 +193,129 @@ export default function Ticket({
   };
 
   // Fetch tickets using super-admin specific endpoint
-  // Fetch tickets using super-admin specific endpoint
-const fetchTickets = useCallback(async () => {
-  try {
-    // setLoading(true);
+  const fetchTickets = useCallback(async () => {
+    try {
+      // setLoading(true);
 
-    // Check if we should skip API call
-    const shouldSkipCall = 
-      debouncedSearchTerm.trim().length > 0 && 
-      debouncedSearchTerm.trim().length < 3 &&
-      !appliedFilters.category &&
-      !appliedFilters.status &&
-      !appliedFilters.submittedDate;
+      // Check if we should skip API call
+      const shouldSkipCall =
+        debouncedSearchTerm.trim().length > 0 &&
+        debouncedSearchTerm.trim().length < 3 &&
+        !appliedFilters.category &&
+        !appliedFilters.status &&
+        !appliedFilters.submittedDate;
 
-    if (shouldSkipCall) {
-      console.log("🟡 Skipping API call - search term too short and no filters applied");
-      // Don't set data to empty arrays, just skip the API call
-      setLoading(false);
-      return;
-    }
+      if (shouldSkipCall) {
+        console.log(
+          "🟡 Skipping API call - search term too short and no filters applied"
+        );
+        // Don't set data to empty arrays, just skip the API call
+        setLoading(false);
+        return;
+      }
 
-    // Build API parameters for super-admin endpoint
-    const apiParams = {
-      page: currentPage,
-      limit: itemsPerPage,
-      search: debouncedSearchTerm.trim().length >= 3 ? debouncedSearchTerm.trim() : undefined,
-      category: appliedFilters.category?.trim() || undefined,
-      status: appliedFilters.status?.trim() || undefined,
-      createdAt: appliedFilters.submittedDate || undefined,
-    };
+      // Build API parameters for super-admin endpoint
+      const apiParams = {
+        page: currentPage,
+        limit: itemsPerPage,
+        search:
+          debouncedSearchTerm.trim().length >= 3
+            ? debouncedSearchTerm.trim()
+            : undefined,
+        category: appliedFilters.category?.trim() || undefined,
+        status: appliedFilters.status?.trim() || undefined,
+        createdAt: appliedFilters.submittedDate || undefined,
+      };
 
-    console.log("🚀 HITTING SUPER-ADMIN TICKETS API WITH PARAMS:", apiParams);
+      console.log("🚀 HITTING SUPER-ADMIN TICKETS API WITH PARAMS:", apiParams);
 
-    const response = await supportApi.getsuperAdminTickets(
-      apiParams.page,
-      apiParams.limit,
-      apiParams.search,
-      apiParams.category,
-      apiParams.status,
-      apiParams.createdAt
-    );
-
-    console.log("🔵 Full Super-Admin Tickets API Response:", response);
-
-    // Extract data based on your API response structure
-    let ticketsData = null;
-    let apiTotal = 0;
-
-    if (Array.isArray(response.data?.data?.data)) {
-      ticketsData = response.data.data.data;
-      apiTotal = Number(response.data.data.total) || 0;
-    } else if (Array.isArray(response.data?.data)) {
-      ticketsData = response.data.data;
-      apiTotal = Number(response.data.total) || ticketsData.length;
-    } else if (Array.isArray(response.data)) {
-      ticketsData = response.data;
-      apiTotal = ticketsData.length;
-    } else {
-      ticketsData = response.data?.tickets || response.data?.items || [];
-      
-      const totalFromResponse = response.data?.total || response.data?.count || ticketsData.length;
-      apiTotal = Number(totalFromResponse) || ticketsData.length;
-    }
-
-    if (ticketsData && Array.isArray(ticketsData)) {
-      console.log("🟢 Super-Admin Tickets data found:", ticketsData);
-
-      const tickets: CertificationData[] = ticketsData.map(
-        (item: TicketType, index: number) => ({
-          id: index + 1,
-          "Ticket Id": item.id,
-          "Issue Type": item.category,
-          Subject: item.subject,
-          "Admin Name": item.user?.name || `User ${item.userId}`,
-          "Created On": new Date(item.createdAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-          Status: item.status,
-        })
+      const response = await supportApi.getsuperAdminTickets(
+        apiParams.page,
+        apiParams.limit,
+        apiParams.search,
+        apiParams.category,
+        apiParams.status,
+        apiParams.createdAt
       );
 
-      setAllCertificationData(tickets);
-      setTotalItems(apiTotal);
-    } else {
-      console.error("🔴 No valid super-admin tickets data found");
+      console.log("🔵 Full Super-Admin Tickets API Response:", response);
+
+      // Extract data based on your API response structure
+      let ticketsData = null;
+      let apiTotal = 0;
+
+      if (Array.isArray(response.data?.data?.data)) {
+        ticketsData = response.data.data.data;
+        apiTotal = Number(response.data.data.total) || 0;
+      } else if (Array.isArray(response.data?.data)) {
+        ticketsData = response.data.data;
+        apiTotal = Number(response.data.total) || ticketsData.length;
+      } else if (Array.isArray(response.data)) {
+        ticketsData = response.data;
+        apiTotal = ticketsData.length;
+      } else {
+        ticketsData = response.data?.tickets || response.data?.items || [];
+
+        const totalFromResponse =
+          response.data?.total || response.data?.count || ticketsData.length;
+        apiTotal = Number(totalFromResponse) || ticketsData.length;
+      }
+
+      if (ticketsData && Array.isArray(ticketsData)) {
+        console.log("🟢 Super-Admin Tickets data found:", ticketsData);
+
+        const tickets: CertificationData[] = ticketsData.map(
+          (item: TicketType, index: number) => ({
+            id: index + 1,
+            "Ticket Id": item.id,
+            "Issue Type": item.category,
+            Subject: item.subject,
+            "Admin Name": item.user?.name || `User ${item.userId}`,
+            "Created On": new Date(item.createdAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }),
+            Status: item.status,
+          })
+        );
+
+        setAllCertificationData(tickets);
+        setTotalItems(apiTotal);
+      } else {
+        console.error("🔴 No valid super-admin tickets data found");
+        setAllCertificationData([]);
+        setTotalItems(0);
+      }
+    } catch (error) {
+      console.error("🔴 Error fetching super-admin tickets:", error);
       setAllCertificationData([]);
       setTotalItems(0);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("🔴 Error fetching super-admin tickets:", error);
-    setAllCertificationData([]);
-    setTotalItems(0);
-  } finally {
-    setLoading(false);
-  }
-}, [
-  currentPage,
-  itemsPerPage,
-  debouncedSearchTerm,
-  appliedFilters.category,
-  appliedFilters.status,
-  appliedFilters.submittedDate,
-]);
+  }, [
+    currentPage,
+    itemsPerPage,
+    debouncedSearchTerm,
+    appliedFilters.category,
+    appliedFilters.status,
+    appliedFilters.submittedDate,
+  ]);
 
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets]);
 
-  // Debug effects to track state changes
   useEffect(() => {
-    console.log("🟢 Super-Admin Tickets allCertificationData updated:", allCertificationData);
-    console.log("🟢 Super-Admin Tickets allCertificationData length:", allCertificationData.length);
+    console.log(
+      "🟢 Super-Admin Tickets allCertificationData updated:",
+      allCertificationData
+    );
+    console.log(
+      "🟢 Super-Admin Tickets allCertificationData length:",
+      allCertificationData.length
+    );
     console.log("🟢 Super-Admin Tickets Applied Filters:", appliedFilters);
   }, [allCertificationData, appliedFilters]);
 
@@ -317,7 +331,11 @@ const fetchTickets = useCallback(async () => {
       return rest;
     });
 
-    console.log("🟢 Super-Admin Tickets Display Data for Table:", result.length, "items");
+    console.log(
+      "🟢 Super-Admin Tickets Display Data for Table:",
+      result.length,
+      "items"
+    );
     return result;
   }, [filteredCertificationData]);
 
@@ -365,13 +383,14 @@ const fetchTickets = useCallback(async () => {
     onFilterToggle(false);
   };
 
-  // Delete multiple tickets with API call and refetch
   const handleDeleteApplications = async (selectedRowIds: Set<number>) => {
     try {
-      const idsToDelete = Array.from(selectedRowIds).map(
-        (id) =>
-          allCertificationData.find((item) => item.id === id)?.["Ticket Id"]
-      ).filter(Boolean) as string[];
+      const idsToDelete = Array.from(selectedRowIds)
+        .map(
+          (id) =>
+            allCertificationData.find((item) => item.id === id)?.["Ticket Id"]
+        )
+        .filter(Boolean) as string[];
 
       console.log("🔴 Deleting multiple super-admin tickets:", idsToDelete);
 
@@ -381,10 +400,9 @@ const fetchTickets = useCallback(async () => {
 
       // Clear selected rows
       setSelectedRows(new Set());
-      
+
       // Refetch tickets to get updated data from server
       await fetchTickets();
-      
     } catch (error) {
       console.error("🔴 Error deleting multiple super-admin tickets:", error);
     } finally {
@@ -401,7 +419,7 @@ const fetchTickets = useCallback(async () => {
       const ticketId = allCertificationData.find((item) => item.id === id)?.[
         "Ticket Id"
       ];
-      
+
       if (!ticketId) {
         console.error("🔴 Ticket ID not found");
         return;
@@ -422,7 +440,6 @@ const fetchTickets = useCallback(async () => {
 
       // Refetch tickets to get updated data from server
       await fetchTickets();
-      
     } catch (error) {
       console.error("🔴 Error deleting single super-admin ticket:", error);
     } finally {
@@ -507,21 +524,36 @@ const fetchTickets = useCallback(async () => {
   };
 
   // Dropdown items for table actions
+  // Dropdown items for table actions
   const dropdownItems = [
     {
       label: "View Details",
-      onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (currentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredCertificationData[globalIndex];
-        onViewDetails(originalRow);
+      onClick: (row: Record<string, string>, ) => {
+        const ticketId = row["Ticket Id"];
+        const originalRow = filteredCertificationData.find(
+          (item) => item["Ticket Id"] === ticketId
+        );
+
+        if (originalRow) {
+          onViewDetails(originalRow);
+        } else {
+          console.error("🔴 Could not find original row for ticket:", ticketId);
+        }
       },
     },
     {
       label: "Delete Ticket",
-      onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (currentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredCertificationData[globalIndex];
-        openDeleteSingleModal(row, originalRow.id);
+      onClick: (row: Record<string, string>, ) => {
+        const ticketId = row["Ticket Id"];
+        const originalRow = filteredCertificationData.find(
+          (item) => item["Ticket Id"] === ticketId
+        );
+
+        if (originalRow) {
+          openDeleteSingleModal(row, originalRow.id);
+        } else {
+          console.error("🔴 Could not find original row for ticket:", ticketId);
+        }
       },
     },
   ];
@@ -555,10 +587,21 @@ const fetchTickets = useCallback(async () => {
           title="Tickets"
           control={tableControl}
           showDeleteButton={true}
-          onDeleteSingle={(row, index) => {
-            const globalIndex = (currentPage - 1) * itemsPerPage + index;
-            const originalRow = filteredCertificationData[globalIndex];
-            openDeleteSingleModal(row, originalRow.id);
+          onDeleteSingle={(row, ) => {
+            // Find the original row by Ticket Id instead of using index
+            const ticketId = row["Ticket Id"];
+            const originalRow = filteredCertificationData.find(
+              (item) => item["Ticket Id"] === ticketId
+            );
+
+            if (originalRow) {
+              openDeleteSingleModal(row, originalRow.id);
+            } else {
+              console.error(
+                "🔴 Could not find original row for ticket:",
+                ticketId
+              );
+            }
           }}
           showPagination={true}
           clickable={true}
@@ -592,9 +635,7 @@ const fetchTickets = useCallback(async () => {
           showFilter={true}
           onFilterToggle={onFilterToggle}
           onDeleteAll={handleDeleteSelected}
-          isDeleteAllDisabled={
-            selectedRows.size < 2
-          }
+          isDeleteAllDisabled={selectedRows.size < 2}
           showActionColumn={true}
           disableClientSidePagination={true}
         />

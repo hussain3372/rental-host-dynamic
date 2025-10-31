@@ -3,231 +3,236 @@
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import { supportApi } from "@/app/api/Admin/support";
+import toast from "react-hot-toast";
 
-interface Attachment {
+interface User {
+  id: number;
   name: string;
-  size: string;
-  url: string;
+  email: string;
+  role: string;
 }
 
 interface Ticket {
   id: string;
-  ticketId: string;
-  issueType: string;
+  userId: number;
   subject: string;
   description: string;
-  createdOn: string;
+  category: string;
+  priority: string;
   status: string;
-  attachment?: Attachment;
-  data: string;
+  assignedTo: string | null;
+  attachmentUrls: string[];
+  tags: string[];
+  resolution: string | null;
+  resolvedAt: string | null;
+  closedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  user: User;
 }
 
 interface TicketDetailDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   ticket: Ticket | null;
-  onTicketUpdated?: () => void; // Add callback for when ticket is updated
+  onTicketResolved?: () => void;
+}
+
+// Define proper error interface
+interface ApiError {
+  message?: string;
+  response?: {
+    data?: {
+      message?: string;
+    };
+    status?: number;
+    headers?: unknown;
+  };
 }
 
 export default function TicketDetailDrawer({
   isOpen,
   onClose,
   ticket,
-  onTicketUpdated,
+  onTicketResolved,
 }: TicketDetailDrawerProps) {
   const [selectedStatus, setSelectedStatus] = useState<string>("");
   const [note, setNote] = useState("");
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [updateMessage, setUpdateMessage] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // ✅ Set status from table (ticket data)
+  useEffect(() => {
+    console.log("🎯 TicketDetailDrawer - Props:", {
+      isOpen,
+      hasTicket: !!ticket,
+      ticketId: ticket?.id,
+    });
+  }, [isOpen, ticket]);
+
   useEffect(() => {
     if (ticket?.status) {
       setSelectedStatus(ticket.status);
     }
   }, [ticket]);
 
-  // ✅ Handle status update
-  const handleStatusUpdate = async () => {
-    if (!ticket || !selectedStatus || selectedStatus === ticket.status) {
-      return; // No changes or no ticket
+  // ✅ Enhanced Handle Resolve with comprehensive debugging
+  const handleResolve = async () => {
+    console.log("🟡 Resolve button clicked!");
+    
+    if (!ticket?.id) {
+      console.error("🔴 No ticket ID found");
+      toast.error("No ticket selected");
+      return;
     }
 
-    setIsUpdating(true);
-    setUpdateMessage("");
-
     try {
-      const ticketId = ticket.ticketId || ticket.id;
-      
-      if (!ticketId) {
-        throw new Error("Ticket ID not found");
-      }
+      setLoading(true);
+      console.log("🟡 Starting resolve process for ticket:", ticket.id);
+      console.log("🟡 Resolution note:", note);
 
-      console.log("🟡 Updating ticket status:", {
-        ticketId,
-        currentStatus: ticket.status,
-        newStatus: selectedStatus,
-        note
+      // Call the resolve API
+      const response = await supportApi.resolveTicket(
+        ticket.id, 
+        note || "Ticket resolved by admin"
+      );
+
+      console.log("🟢 API Response received:", response);
+      console.log("🟢 Response data:", response.data);
+
+      setSelectedStatus("RESOLVED");
+      toast.success("Ticket marked as resolved successfully!");
+      
+      // Call the callback to refresh table
+      if (onTicketResolved) {
+        console.log("🟡 Calling onTicketResolved callback");
+        onTicketResolved();
+      } else {
+        console.log("🟡 No onTicketResolved callback provided");
+      }
+      
+      onClose();
+    } catch (error: unknown) {
+      console.error("🔴 Failed to resolve ticket:", error);
+      
+      // Type-safe error handling
+      const apiError = error as ApiError;
+      console.error("🔴 Error details:", {
+        message: apiError?.message,
+        response: apiError?.response?.data,
+        status: apiError?.response?.status,
+        headers: apiError?.response?.headers
       });
-
-      // Map UI status to API status
-      const apiStatus = selectedStatus.toUpperCase();
       
-      // Call the API to update ticket status
-      const response = await supportApi.resolveTicket(ticketId, apiStatus);
+      // Show detailed error message
+      const errorMessage = apiError?.response?.data?.message 
+        || apiError?.message 
+        || "Failed to resolve ticket. Please try again.";
       
-      console.log("🟢 Ticket status updated successfully:", response);
-      
-      setUpdateMessage("Ticket status updated successfully!");
-      
-      // Notify parent component to refresh data
-      if (onTicketUpdated) {
-        onTicketUpdated();
-      }
-
-      // Close drawer after successful update (optional)
-      // setTimeout(() => {
-      //   onClose();
-      // }, 2000);
-
-    } catch (error) {
-      console.error("🔴 Error updating ticket status:", error);
-      setUpdateMessage("Error updating ticket status. Please try again.");
+      toast.error(errorMessage);
     } finally {
-      setIsUpdating(false);
+      setLoading(false);
     }
   };
 
-  // ✅ Handle resolve ticket (if status is "Resolved")
-  const handleResolveTicket = async () => {
-    if (!ticket) return;
+  if (!isOpen) return null;
 
-    setIsUpdating(true);
-    setUpdateMessage("");
-
-    try {
-      const ticketId = ticket.ticketId || ticket.id;
-      
-      if (!ticketId) {
-        throw new Error("Ticket ID not found");
-      }
-
-      console.log("🟡 Resolving ticket:", ticketId);
-
-      // Use the resolveTicket API method which includes resolution notes
-      const response = await supportApi.resolveTicket(ticketId, note || "Ticket resolved");
-      
-      console.log("🟢 Ticket resolved successfully:", response);
-      
-      setUpdateMessage("Ticket resolved successfully!");
-      
-      // Notify parent component to refresh data
-      if (onTicketUpdated) {
-        onTicketUpdated();
-      }
-
-    } catch (error) {
-      console.error("🔴 Error resolving ticket:", error);
-      setUpdateMessage("Error resolving ticket. Please try again.");
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  // ✅ Handle save based on selected status
-  const handleSave = async () => {
-    if (selectedStatus.toLowerCase() === "resolved") {
-      await handleResolveTicket();
-    } else {
-      await handleStatusUpdate();
-    }
-  };
-
-  if (!isOpen || !ticket) return null;
+  if (!ticket) {
+    return (
+      <div className="flex items-center justify-center h-full text-white">
+        Loading ticket details...
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="flex justify-between items-center px-4 py-3 flex-shrink-0">
-        <h2 className="text-lg font-semibold">
-          {ticket.ticketId || ticket.id || "0001"}
+        <h2 className="text-lg font-semibold text-white">
+          TIK-{ticket.id || "0001"}
         </h2>
       </div>
 
       {/* Body */}
-      <div className="flex-1 overflow-y-auto px-7 space-y-5 scrollbar-hide">
+      <div className="flex-1 overflow-y-auto px-7 space-y-6 scrollbar-hide py-4">
         <p className="text-[16px] leading-5 font-normal text-[#FFFFFF99]">
-          Submitted on {ticket.createdOn} • Status:{" "}
-          <span className="text-yellow-300 font-medium">{ticket.status}</span>
+          Submitted on {new Date(ticket.createdAt).toLocaleDateString()} • Status:{" "}
+          <span className="text-yellow-300 font-medium">{selectedStatus}</span>
         </p>
 
-        {/* Subject, Description, Attachment */}
-        <div className="bg-[#121315] p-3 rounded-[8px] space-y-4">
+        <div className="bg-[#121315] p-4 rounded-[8px] space-y-4 border border-[#FFFFFF1F]">
           {/* Subject */}
           <div>
             <h3 className="text-[14px] leading-[18px] text-gray-300 font-medium mb-2">
               Subject
             </h3>
-            <p className="text-[16px] leading-5 font-normal text-[#FFFFFF66]">
+            <p className="text-[16px] leading-5 font-normal text-white">
               {ticket.subject}
             </p>
           </div>
 
           {/* Description */}
           <div>
-            <h3 className="text-[14px] leading-[18px] text-gray-300 font-medium mb-5">
+            <h3 className="text-[14px] leading-[18px] text-gray-300 font-medium mb-2">
               Description
             </h3>
-            <p className="text-[16px] leading-5 font-normal text-[#FFFFFF66] mb-1">
-              {ticket.description || "No description available"}
+            <p className="text-[16px] leading-5 font-normal text-[#FFFFFFCC]">
+              {ticket.description}
             </p>
           </div>
 
-          {/* Attachment - Only show if attachment exists */}
-          {ticket.attachment && (
-            <div className="flex items-center gap-5 bg-[#2D2D2D] p-3 rounded-lg">
+          {/* Attachment */}
+          {ticket.attachmentUrls?.length > 0 ? (
+            <div className="flex items-center gap-5 bg-[#2D2D2D] p-3 rounded-lg border border-[#FFFFFF1F]">
               <Image
-                src={ticket.attachment.url}
-                alt={ticket.attachment.name}
+                src={ticket.attachmentUrls[0]}
+                alt="Attachment"
                 width={100}
                 height={60}
                 className="rounded object-cover"
-                onError={(e) => {
-                  // Fallback if image fails to load
-                  (e.target as HTMLImageElement).src = "/images/id.png";
-                }}
               />
               <div>
-                <h3 className="font-medium text-[12px] sm:text-[18px] leading-[16px] sm:leading-[22px] text-white xl:w-[353px]">
-                  {ticket.attachment.name}
-                </h3>
-                <h4 className="text-white/60 font-medium text-[14px] leading-[20px] pt-2">
-                  {ticket.attachment.size}
+                <h3 className="font-medium text-[16px] text-white">Attachment</h3>
+                <h4 className="text-white/60 text-[14px] break-all">
+                  {ticket.attachmentUrls[0]}
                 </h4>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-5 bg-[#2D2D2D] p-3 rounded-lg border border-[#FFFFFF1F]">
+              <Image
+                src="/images/id.png"
+                alt="No Attachment"
+                width={100}
+                height={60}
+                className="rounded object-cover"
+              />
+              <div>
+                <h3 className="font-medium text-[16px] text-white">
+                  No Attachment Found
+                </h3>
+                <h4 className="text-white/60 text-[14px]">N/A</h4>
               </div>
             </div>
           )}
         </div>
 
-        {/* --- Status Field --- */}
         <div className="flex flex-col">
           <h3 className="text-[14px] leading-[18px] text-gray-300 font-medium mb-[10px]">
-            Status
+            Update Status
           </h3>
           <div className="flex gap-3">
-            {["Resolved", "Pending"].map((status) => (
+            {["PENDING", "RESOLVED"].map((status) => (
               <label
                 key={status}
-                className={`flex justify-between items-center flex-1 px-[12px] py-[12px] gap-[12px] rounded-[10px] cursor-pointer transition-all duration-200
+                className={`flex justify-between items-center flex-1 px-3 py-3 gap-3 rounded-[8px] cursor-pointer transition-all duration-200
                   ${
                     selectedStatus === status
-                      ? "border border-[rgba(239,252,118,0.60)] rounded-[8px] bg-[rgba(239,252,118,0.08)]"
-                      : "bg-[radial-gradient(75%_81%_at_50%_18.4%,#202020_0%,#101010_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.10)]"
+                      ? "border border-[#E5F266] bg-[rgba(229,242,102,0.08)]"
+                      : "bg-[#1A1A1A] border border-[#FFFFFF1F]"
                   }`}
               >
-                {/* Text on left */}
                 <span
-                  className={`text-[14px] font-medium ${
+                  className={`text-[12px] font-medium ${
                     selectedStatus === status
                       ? "text-[#E5F266]"
                       : "text-[#FFFFFF99]"
@@ -236,63 +241,46 @@ export default function TicketDetailDrawer({
                   {status}
                 </span>
 
-                {/* Checkbox on right */}
                 <input
-                  type="checkbox"
+                  type="radio"
+                  name="status"
                   checked={selectedStatus === status}
                   onChange={() => setSelectedStatus(status)}
-                  className="accent-[#E5F266] cursor-pointer w-4 h-4"
-                  disabled={isUpdating}
+                  className="accent-[#E5F266] cursor-pointer w-3 h-3"
                 />
               </label>
             ))}
           </div>
         </div>
 
-        {/* --- Note Field --- */}
+        {/* Note Field */}
         <div className="flex flex-col mt-5 mb-8">
           <h3 className="text-[14px] leading-[18px] text-gray-300 font-medium mb-[10px]">
-            Note
+            Resolution Note
           </h3>
-          <input
-            type="text"
+          <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Add a note"
-            className="w-full px-3 py-2 text-gray-300 focus:outline-none focus:border-[#E5F266] rounded-[10px]
-              bg-[radial-gradient(75%_81%_at_50%_18.4%,#202020_0%,#101010_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.10)]"
-            disabled={isUpdating}
+            placeholder="Add resolution details for this ticket..."
+            rows={3}
+            className="w-full px-3 py-2 text-gray-300 focus:outline-none focus:border-[#E5F266] rounded-[8px]
+              bg-[#1A1A1A] border border-[#FFFFFF1F] resize-none"
           />
         </div>
-
-        {/* Update Message */}
-        {updateMessage && (
-          <div className={`p-3 rounded-md ${
-            updateMessage.includes("Error") 
-              ? "bg-red-500/20 text-red-300" 
-              : "bg-green-500/20 text-green-300"
-          }`}>
-            {updateMessage}
-          </div>
-        )}
       </div>
 
       {/* Footer */}
-      <div className="p-7 flex-shrink-0 flex gap-3">
+      <div className="p-5 flex-shrink-0">
         <button
-          onClick={onClose}
-          className="flex-1 bg-gray-600 text-white px-[40px] py-[16px] rounded-[8px] font-semibold text-[18px] leading-[22px] hover:bg-gray-700 transition-colors duration-300 disabled:opacity-50"
-          disabled={isUpdating}
+          onClick={handleResolve}
+          disabled={loading}
+          className={`yellow-btn cursor-pointer w-full text-black px-4 py-3 rounded-[8px] font-semibold text-[16px] leading-5 transition-colors duration-300 ${
+            loading
+              ? "opacity-50 cursor-not-allowed"
+              : "hover:bg-[#E5F266] bg-[#E5F266]"
+          }`}
         >
-          Cancel
-        </button>
-        
-        <button
-          onClick={handleSave}
-          disabled={isUpdating || selectedStatus === ticket.status}
-          className="flex-1 yellow-btn cursor-pointer text-black px-[40px] py-[16px] rounded-[8px] font-semibold text-[18px] leading-[22px] hover:bg-[#E5F266] transition-colors duration-300 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {isUpdating ? "Updating..." : "Update Status"}
+          {loading ? "Resolving..." : "Resolve "}
         </button>
       </div>
     </div>

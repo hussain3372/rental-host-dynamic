@@ -4,7 +4,8 @@ import Cookies from "js-cookie";
 import {
   GetTicketsResponse,
   ImageUploadResponse,
-  
+      Ticket,
+
 } from "@/app/api/Admin/support/types";
 
 const token = Cookies.get("superAdminAccessToken");
@@ -146,5 +147,33 @@ export const supportApi = {
       }
     );
   },
+
+    getTicketById: async (ticketId: string): Promise<ApiResponse<Ticket>> => {
+        const response = await apiClient.get<Ticket>(
+            `/support/tickets/${ticketId}`,
+            {
+                headers: getAuthHeaders(),
+            }
+        );
+        return response;
+    },
+
+  // ✅ Resolve Ticket
+    resolveTicket: async (
+        ticketId: string,
+        resolution: string
+    ): Promise<ApiResponse<Ticket>> => {
+        return apiClient.put<Ticket>(
+            `/support/super-admin/tickets/${ticketId}/resolve`,
+            {
+                status: "RESOLVED",
+                resolution,
+                resolvedAt: new Date().toISOString()
+            },
+            {
+                headers: getAuthHeaders(),
+            }
+        );
+    },
   
 };

@@ -132,7 +132,7 @@ export default function Detail() {
   const [allPropertyData, setAllPropertyData] = useState<PropertyResponse["data"]>([]);
   const [propertyPagination, setPropertyPagination] = useState<PaginationData>({
     total: 0,
-    pageSize: 10,
+    pageSize: 6,
     currentPage: 1,
     totalPages: 1,
     nextPage: null,
@@ -168,7 +168,7 @@ export default function Detail() {
   const [allBillingData, setAllBillingData] = useState<BillingHistoryResponse["data"]>([]);
   const [billingPagination, setBillingPagination] = useState<PaginationData>({
     total: 0,
-    pageSize: 10,
+    pageSize: 6,
     currentPage: 1,
     totalPages: 1,
     nextPage: null,

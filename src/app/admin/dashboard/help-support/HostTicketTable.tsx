@@ -45,7 +45,7 @@ export default function HostTicketTable({
   itemsPerPage,
   isFilterOpen,
   onFilterToggle,
-  onViewDetails
+  onViewDetails,
 }: HostTicketTableProps) {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
@@ -59,7 +59,9 @@ export default function HostTicketTable({
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
 
   // API data states
-  const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([]);
+  const [allCertificationData, setAllCertificationData] = useState<
+    CertificationData[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [totalItems, setTotalItems] = useState(0);
 
@@ -136,9 +138,7 @@ export default function HostTicketTable({
 
         const properties = [
           ...new Set(
-            ticketsData
-              .map((ticket: Ticket) => ticket.id || "")
-              .filter(Boolean)
+            ticketsData.map((ticket: Ticket) => ticket.id || "").filter(Boolean)
           ),
         ];
 
@@ -168,7 +168,9 @@ export default function HostTicketTable({
   // Update filter options when main data changes - same pattern
   useEffect(() => {
     if (allCertificationData.length > 0) {
-      console.log("🔄 Updating host tickets filter options from current data...");
+      console.log(
+        "🔄 Updating host tickets filter options from current data..."
+      );
 
       const subjects = [
         ...new Set(allCertificationData.map((item) => item.Subject || "")),
@@ -224,21 +226,22 @@ export default function HostTicketTable({
     try {
       // setLoading(true);
 
-       if (
-      debouncedSearchTerm.trim().length > 0 && 
-      debouncedSearchTerm.trim().length < 3 &&
-      !appliedFilters.subject &&
-      !appliedFilters.property &&
-      !appliedFilters.status &&
-      !appliedFilters.submittedDate
-    ) {
-      console.log("🟡 Skipping API call - search term too short and no filters applied");
-      // setAllCertificationData([]);
-      // setTotalItems(0);
-      setLoading(false);
-      return;
-    }
-
+      if (
+        debouncedSearchTerm.trim().length > 0 &&
+        debouncedSearchTerm.trim().length < 3 &&
+        !appliedFilters.subject &&
+        !appliedFilters.property &&
+        !appliedFilters.status &&
+        !appliedFilters.submittedDate
+      ) {
+        console.log(
+          "🟡 Skipping API call - search term too short and no filters applied"
+        );
+        // setAllCertificationData([]);
+        // setTotalItems(0);
+        setLoading(false);
+        return;
+      }
 
       // Build API parameters correctly - same as HelpSupport
       const apiParams: TicketApiParams = {
@@ -288,8 +291,9 @@ export default function HostTicketTable({
         apiTotal = ticketsData.length;
       } else {
         ticketsData = response.data?.tickets || response.data?.items || [];
-        
-        const totalFromResponse = response.data?.total || response.data?.count || ticketsData.length;
+
+        const totalFromResponse =
+          response.data?.total || response.data?.count || ticketsData.length;
         apiTotal = Number(totalFromResponse) || ticketsData.length;
       }
 
@@ -342,8 +346,14 @@ export default function HostTicketTable({
 
   // Debug effects to track state changes
   useEffect(() => {
-    console.log("🟢 Host Tickets allCertificationData updated:", allCertificationData);
-    console.log("🟢 Host Tickets allCertificationData length:", allCertificationData.length);
+    console.log(
+      "🟢 Host Tickets allCertificationData updated:",
+      allCertificationData
+    );
+    console.log(
+      "🟢 Host Tickets allCertificationData length:",
+      allCertificationData.length
+    );
     console.log("🟢 Host Tickets Applied Filters:", appliedFilters);
   }, [allCertificationData, appliedFilters]);
 
@@ -359,7 +369,11 @@ export default function HostTicketTable({
       return rest;
     });
 
-    console.log("🟢 Host Tickets Display Data for Table:", result.length, "items");
+    console.log(
+      "🟢 Host Tickets Display Data for Table:",
+      result.length,
+      "items"
+    );
     return result;
   }, [filteredCertificationData]);
 
@@ -412,10 +426,12 @@ export default function HostTicketTable({
   // ✅ FIXED: Delete multiple tickets with API call and refetch
   const handleDeleteApplications = async (selectedRowIds: Set<number>) => {
     try {
-      const idsToDelete = Array.from(selectedRowIds).map(
-        (id) =>
-          allCertificationData.find((item) => item.id === id)?.["Ticket Id"]
-      ).filter(Boolean) as string[];
+      const idsToDelete = Array.from(selectedRowIds)
+        .map(
+          (id) =>
+            allCertificationData.find((item) => item.id === id)?.["Ticket Id"]
+        )
+        .filter(Boolean) as string[];
 
       console.log("🔴 Deleting multiple tickets:", idsToDelete);
 
@@ -425,10 +441,9 @@ export default function HostTicketTable({
 
       // Clear selected rows
       setSelectedRows(new Set());
-      
+
       // Refetch tickets to get updated data from server
       await fetchTickets();
-      
     } catch (error) {
       console.error("🔴 Error deleting multiple tickets:", error);
     } finally {
@@ -445,7 +460,7 @@ export default function HostTicketTable({
       const ticketId = allCertificationData.find((item) => item.id === id)?.[
         "Ticket Id"
       ];
-      
+
       if (!ticketId) {
         console.error("🔴 Ticket ID not found");
         return;
@@ -466,7 +481,6 @@ export default function HostTicketTable({
 
       // ✅ Refetch tickets to get updated data from server
       await fetchTickets();
-      
     } catch (error) {
       console.error("🔴 Error deleting single ticket:", error);
     } finally {
@@ -550,22 +564,37 @@ export default function HostTicketTable({
     }
   };
 
-  // Dropdown items for table actions - same pattern
   const dropdownItems = [
     {
       label: "View Details",
-      onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (currentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredCertificationData[globalIndex];
-        onViewDetails(originalRow);
+      onClick: (row: Record<string, string>) => {
+        // ✅ FIXED: Find the original row by Ticket Id instead of using index
+        const ticketId = row["Ticket Id"];
+        const originalRow = filteredCertificationData.find(
+          (item) => item["Ticket Id"] === ticketId
+        );
+
+        if (originalRow) {
+          onViewDetails(originalRow);
+        } else {
+          console.error(" Could not find original row for ticket:", ticketId);
+        }
       },
     },
     {
       label: "Delete Ticket",
-      onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (currentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredCertificationData[globalIndex];
-        openDeleteSingleModal(row, originalRow.id);
+      onClick: (row: Record<string, string>) => {
+        // ✅ FIXED: Find the original row by Ticket Id instead of using index
+        const ticketId = row["Ticket Id"];
+        const originalRow = filteredCertificationData.find(
+          (item) => item["Ticket Id"] === ticketId
+        );
+
+        if (originalRow) {
+          openDeleteSingleModal(row, originalRow.id);
+        } else {
+          console.error(" Could not find original row for ticket:", ticketId);
+        }
       },
     },
   ];
@@ -599,10 +628,20 @@ export default function HostTicketTable({
           title="Host Tickets"
           control={tableControl}
           showDeleteButton={true}
-          onDeleteSingle={(row, index) => {
-            const globalIndex = (currentPage - 1) * itemsPerPage + index;
-            const originalRow = filteredCertificationData[globalIndex];
-            openDeleteSingleModal(row, originalRow.id);
+          onDeleteSingle={(row) => {
+            const ticketId = row["Ticket Id"];
+            const originalRow = filteredCertificationData.find(
+              (item) => item["Ticket Id"] === ticketId
+            );
+
+            if (originalRow) {
+              openDeleteSingleModal(row, originalRow.id);
+            } else {
+              console.error(
+                " Could not find original row for ticket:",
+                ticketId
+              );
+            }
           }}
           showPagination={true}
           clickable={true}
@@ -636,9 +675,7 @@ export default function HostTicketTable({
           showFilter={true}
           onFilterToggle={onFilterToggle}
           onDeleteAll={handleDeleteSelected}
-          isDeleteAllDisabled={
-            selectedRows.size < 2
-          }
+          isDeleteAllDisabled={selectedRows.size < 2}
           showActionColumn={true}
           disableClientSidePagination={true}
         />
@@ -694,7 +731,6 @@ export default function HostTicketTable({
           if (key === "status") setStatusDropdownOpen(value);
         }}
         fields={[
-         
           {
             label: "Status",
             key: "status",

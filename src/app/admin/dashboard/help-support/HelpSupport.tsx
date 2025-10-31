@@ -1,11 +1,13 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Tabs from "./Tabs";
 import HostTicketTable from "./HostTicketTable";
 import MyTicketsTable from "./MyTicketsTable";
 import HelpSupportDrawer from "./HelpSupportDrawer";
 import TicketDetailDrawer from "./TicketDetailDrawer";
 import { Modal } from "@/app/shared/Modal";
+import { supportApi } from "@/app/api/Admin/support";
+import { Ticket as ApiTicket } from "@/app/api/Admin/support/types";
 
 interface CertificationData {
   id: number;
@@ -17,11 +19,9 @@ interface CertificationData {
   Status: string;
 }
 
-
 export default function HelpSupport() {
   const [activeTab, setActiveTab] = useState("host");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 6;
@@ -30,24 +30,50 @@ export default function HelpSupport() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isDetailDrawerOpen, setIsDetailDrawerOpen] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState<CertificationData | null>(null);
-const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [selectedTicket, setSelectedTicket] = useState<ApiTicket | null>(null);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [loadingDetails, setLoadingDetails] = useState(false);
 
-  const handleViewDetails = (ticket: CertificationData) => {
-    setSelectedTicket(ticket);
+  useEffect(() => {
+    console.log("🔍 Detail Drawer State:", {
+      isDetailDrawerOpen,
+      selectedTicket: selectedTicket ? "Has ticket" : "No ticket",
+      loadingDetails,
+    });
+  }, [isDetailDrawerOpen, selectedTicket, loadingDetails]);
+  const handleViewDetails = async (ticket: CertificationData) => {
+    console.log(
+      " START: handleViewDetails called for ticket:",
+      ticket["Ticket Id"]
+    );
+    setLoadingDetails(true);
     setIsDetailDrawerOpen(true);
+
+    try {
+      const response = await supportApi.getTicketById(ticket["Ticket Id"]);
+      console.log("🔵 Full API Response:", response);
+
+      if (response.data) {
+        const ticketData = response.data;
+        setSelectedTicket(ticketData);
+        console.log(" Ticket loaded:", ticketData.id);
+      } else {
+        console.error(" No detailed ticket data found in response");
+      }
+    } catch (error) {
+      console.error(" Error fetching ticket details:", error);
+    } finally {
+      setLoadingDetails(false);
+      console.log(" Loading completed");
+    }
   };
 
   const handleTicketCreated = () => {
-    console.log("🟢 Ticket created, refreshing list...");
-    setRefreshTrigger(prev => prev + 1); // Trigger refresh
-    // You might also want to reset to first page
+    console.log(" Ticket created, refreshing list...");
+    setRefreshTrigger((prev) => prev + 1);
     setCurrentPage(1);
   };
 
-  
-
-  // Handle tab content rendering - pass refreshTrigger to tables
   const renderTabContent = () => {
     switch (activeTab) {
       case "host":
@@ -61,7 +87,6 @@ const [refreshTrigger, setRefreshTrigger] = useState(0);
             isFilterOpen={isFilterOpen}
             onFilterToggle={setIsFilterOpen}
             onViewDetails={handleViewDetails}
-          
           />
         );
       case "my":
@@ -75,8 +100,7 @@ const [refreshTrigger, setRefreshTrigger] = useState(0);
             isFilterOpen={isFilterOpen}
             onFilterToggle={setIsFilterOpen}
             onViewDetails={handleViewDetails}
-            refreshTrigger={refreshTrigger} 
-
+            refreshTrigger={refreshTrigger}
           />
         );
       default:
@@ -84,8 +108,20 @@ const [refreshTrigger, setRefreshTrigger] = useState(0);
     }
   };
 
-  // Show Create Ticket button only when "My Tickets" tab is active
   const showCreateTicketButton = activeTab === "my";
+
+  const handleDetailDrawerClose = () => {
+    console.log(" Detail drawer close triggered");
+    setIsDetailDrawerOpen(false);
+    setTimeout(() => setSelectedTicket(null), 300);
+  };
+
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    console.log(" Backdrop clicked");
+    if (e.target === e.currentTarget) {
+      handleDetailDrawerClose();
+    }
+  };
 
   return (
     <>
@@ -101,6 +137,12 @@ const [refreshTrigger, setRefreshTrigger] = useState(0);
         />
       )}
 
+      {loadingDetails && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-[3000000002] flex items-center justify-center">
+          <div className="text-white text-lg">Loading ticket details...</div>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3 sm:gap-0 sm:flex-row items-start justify-between mb-[22px]">
         <div>
           <h1 className="text-[20px] leading-[24px] font-semibold text-white mb-2">
@@ -111,8 +153,7 @@ const [refreshTrigger, setRefreshTrigger] = useState(0);
             announcements.
           </p>
         </div>
-        
-        {/* Conditionally render Create Ticket button */}
+
         {showCreateTicketButton && (
           <button
             onClick={() => setIsDrawerOpen(true)}
@@ -123,15 +164,12 @@ const [refreshTrigger, setRefreshTrigger] = useState(0);
         )}
       </div>
 
-      {/* Tabs Component */}
       <div className="mb-6">
         <Tabs activeTab={activeTab} setActiveTab={setActiveTab} />
       </div>
 
-      {/* Tab Content */}
       {renderTabContent()}
 
-      {/* Create Ticket Drawer - Pass the callback */}
       <div
         className={`fixed inset-0 bg-[#121315CC] z-[3000000000] flex justify-end transition-opacity duration-300 ${
           isDrawerOpen ? "opacity-100" : "opacity-0 pointer-events-none"
@@ -147,17 +185,16 @@ const [refreshTrigger, setRefreshTrigger] = useState(0);
           <HelpSupportDrawer
             isOpen={isDrawerOpen}
             onClose={() => setIsDrawerOpen(false)}
-            onTicketCreated={handleTicketCreated} // Pass the callback
+            onTicketCreated={handleTicketCreated}
           />
         </div>
       </div>
 
-      {/* Ticket Detail Drawer */}
       <div
         className={`fixed inset-0 bg-[#121315CC] z-[3000000001] flex justify-end transition-opacity duration-300 ${
           isDetailDrawerOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
-        onClick={() => setIsDetailDrawerOpen(false)}
+        onClick={handleBackdropClick}
       >
         <div
           className={`w-full lg:max-w-[608px] md:max-w-[500px] max-w-[280px] bg-[#0A0C0B] h-full flex flex-col rounded-[12px] border border-[#FFFFFF1F] transform transition-transform duration-300 ease-in-out ${
@@ -168,21 +205,8 @@ const [refreshTrigger, setRefreshTrigger] = useState(0);
           <div className="flex-1 overflow-y-auto scrollbar-hide">
             <TicketDetailDrawer
               isOpen={isDetailDrawerOpen}
-              onClose={() => setIsDetailDrawerOpen(false)}
-              ticket={
-                selectedTicket
-                  ? {
-                      id: String(selectedTicket.id),
-                      ticketId: selectedTicket["Ticket Id"],
-                      issueType: selectedTicket["Issue Type"],
-                      subject: selectedTicket["Subject"],
-                      createdOn: selectedTicket["Created On"],
-                      status: selectedTicket["Status"],
-                      description:"",
-                      data:""
-                    }
-                  : null
-              }
+              onClose={handleDetailDrawerClose}
+              ticket={selectedTicket}
             />
           </div>
         </div>

@@ -5,6 +5,7 @@ import PropertyDetailPage from "./PropertyDetailPage";
 import Verification from "../Verification";
 import { propertyAPI } from "@/app/api/user-flow/index";
 import { Property } from "@/app/api/user-flow/types";
+import { MoonLoader } from "react-spinners"; // ✅ added
 
 export default function PropertyDetailLayout() {
   const { id } = useParams();
@@ -21,33 +22,23 @@ export default function PropertyDetailLayout() {
         setLoading(false);
         return;
       }
-      
+
       try {
         setLoading(true);
         setError(null);
         console.log("Fetching property with ID:", propertyId);
-        
+
         const response = await propertyAPI.getPropertyById(propertyId);
         console.log("Full API Response:", response);
-        
-        // Check the actual response structure
+
         if (response && response.data) {
-          // If the response.data is the property object directly
           if (response.data.id) {
             console.log("Property data found in response.data");
             setProperty(response.data);
-          } 
-          // If the response.data has a data property
-          // else if (response.data.data && response.data.data.id) {
-          //   console.log("Property data found in response.data.data");
-          //   setProperty(response.data.data);
-          // }
-          // If it's an array with the property
-          else if (Array.isArray(response.data) && response.data[0] && response.data[0].id) {
+          } else if (Array.isArray(response.data) && response.data[0]?.id) {
             console.log("Property data found in response.data array");
             setProperty(response.data[0]);
-          }
-          else {
+          } else {
             console.log("Unexpected response structure:", response);
             setError("Unexpected response format");
           }
@@ -66,11 +57,11 @@ export default function PropertyDetailLayout() {
     fetchProperty();
   }, [propertyId]);
 
-  // If loading
+  // ✅ Show loader while data is fetching
   if (loading) {
     return (
-      <div className="pt-[150px] text-center text-white">
-        <p>Loading Property Details...</p>
+      <div className="flex items-center justify-center min-h-screen bg-[#0F0F0F]">
+        <MoonLoader color="#EFFC76" size={60} />
       </div>
     );
   }
@@ -99,7 +90,7 @@ export default function PropertyDetailLayout() {
 
   return (
     <>
-      <PropertyDetailPage property={property} />
+      <PropertyDetailPage property={property} isLoading={false} />
       <Verification property={property} />
     </>
   );

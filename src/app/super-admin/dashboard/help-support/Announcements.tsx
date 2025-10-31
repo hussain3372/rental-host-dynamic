@@ -27,7 +27,9 @@ export interface SupportAnnouncement {
 export default function Announcements({ refresh }: AnnouncementsProps) {
   const [openAnnounce, setOpenAnnounce] = useState(false);
   const [openPlatForm, setOpenPlatform] = useState(false);
-  const [selectedAnnouncementId, setSelectedAnnouncementId] = useState<string | null>(null);
+  const [selectedAnnouncementId, setSelectedAnnouncementId] = useState<
+    string | null
+  >(null);
   const [announcements, setAnnouncements] = useState<SupportAnnouncement[]>([]);
   const [loading, setLoading] = useState(true);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -38,26 +40,28 @@ export default function Announcements({ refresh }: AnnouncementsProps) {
     try {
       setLoading(true);
       const response = await supportApi.getAnnouncements();
-      
+
       console.log("🔵 Announcements API Response:", response);
-      
+
       if (response.data?.data) {
-        const announcementsData: SupportAnnouncement[] = response.data.data.map((item) => ({
-          id: item.id,
-          title: item.title,
-          description: item.description,
-          date: new Date(item.createdAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-          imageUrl: item.imageUrl,
-          tags: item.tags,
-          createdBy: item.createdBy,
-          createdAt: item.createdAt,
-          updatedAt: item.updatedAt,
-        }));
-        
+        const announcementsData: SupportAnnouncement[] = response.data.data.map(
+          (item) => ({
+            id: item.id,
+            title: item.title,
+            description: item.description,
+            date: new Date(item.createdAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }),
+            imageUrl: item.imageUrl,
+            tags: item.tags,
+            createdBy: item.createdBy,
+            createdAt: item.createdAt,
+            updatedAt: item.updatedAt,
+          })
+        );
+
         setAnnouncements(announcementsData);
         console.log("🟢 Processed announcements:", announcementsData);
       } else {
@@ -80,7 +84,9 @@ export default function Announcements({ refresh }: AnnouncementsProps) {
   const handleDelete = async (id: string) => {
     try {
       await supportApi.deleteAnnouncement(id);
-      setAnnouncements(announcements.filter(announcement => announcement.id !== id));
+      setAnnouncements(
+        announcements.filter((announcement) => announcement.id !== id)
+      );
       setCardToDelete(null);
       setOpenMenuId(null);
     } catch (error) {
@@ -96,28 +102,34 @@ export default function Announcements({ refresh }: AnnouncementsProps) {
 
   // Handle announcement update
   // In Announcements component
-const handleAnnouncementUpdate = (updatedAnnouncement: PlatformAnnouncement) => {
-  // Convert PlatformAnnouncement to SupportAnnouncement
-  const supportAnnouncement: SupportAnnouncement = {
-    ...updatedAnnouncement,
-    date: new Date(updatedAnnouncement.updatedAt || Date.now()).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    }),
-    createdAt: updatedAnnouncement.updatedAt || new Date().toISOString(),
-    updatedAt: updatedAnnouncement.updatedAt || new Date().toISOString(),
-    // Add any other required fields with default values
+  const handleAnnouncementUpdate = (
+    updatedAnnouncement: PlatformAnnouncement
+  ) => {
+    // Convert PlatformAnnouncement to SupportAnnouncement
+    const supportAnnouncement: SupportAnnouncement = {
+      ...updatedAnnouncement,
+      date: new Date(
+        updatedAnnouncement.updatedAt || Date.now()
+      ).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      createdAt: updatedAnnouncement.updatedAt || new Date().toISOString(),
+      updatedAt: updatedAnnouncement.updatedAt || new Date().toISOString(),
+      // Add any other required fields with default values
+    };
+
+    setAnnouncements((prev) =>
+      prev.map((announcement) =>
+        announcement.id === supportAnnouncement.id
+          ? supportAnnouncement
+          : announcement
+      )
+    );
+    setOpenPlatform(false);
+    setSelectedAnnouncementId(null);
   };
-  
-  setAnnouncements(prev => 
-    prev.map(announcement => 
-      announcement.id === supportAnnouncement.id ? supportAnnouncement : announcement
-    )
-  );
-  setOpenPlatform(false);
-  setSelectedAnnouncementId(null);
-};
 
   const toggleMenu = (id: string) => {
     setOpenMenuId(openMenuId === id ? null : id);
@@ -163,10 +175,9 @@ const handleAnnouncementUpdate = (updatedAnnouncement: PlatformAnnouncement) => 
       </div>
     );
   }
-
   return (
     <>
-      <div className="min-h-screen bg-black pt-5">
+      <div className="min-h-screen pt-5">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-7xl mx-auto">
           {announcements.length === 0 ? (
             <div className="col-span-2 text-center py-8">
@@ -187,7 +198,7 @@ const handleAnnouncementUpdate = (updatedAnnouncement: PlatformAnnouncement) => 
                   <div className="relative">
                     <button
                       onClick={(e) => {
-                        e.stopPropagation(); 
+                        e.stopPropagation();
                         toggleMenu(announcement.id);
                       }}
                       className="text-gray-400 cursor-pointer hover:text-white p-2"
@@ -244,14 +255,14 @@ const handleAnnouncementUpdate = (updatedAnnouncement: PlatformAnnouncement) => 
         </div>
 
         {/* Delete Modal */}
-        <Modal 
-          isOpen={cardToDelete !== null} 
-          onClose={closeDeleteModal} 
-          title="Delete Announcement" 
-          description="Are you sure you want to delete this announcement? Once deleted, it cannot be restored and will no longer be visible to users." 
-          image="/images/delete-announcement.png" 
-          confirmText="Delete Announcement" 
-          onConfirm={() => cardToDelete && handleDelete(cardToDelete)} 
+        <Modal
+          isOpen={cardToDelete !== null}
+          onClose={closeDeleteModal}
+          title="Delete Announcement"
+          description="Are you sure you want to delete this announcement? Once deleted, it cannot be restored and will no longer be visible to users."
+          image="/images/delete-announcement.png"
+          confirmText="Delete Announcement"
+          onConfirm={() => cardToDelete && handleDelete(cardToDelete)}
         />
       </div>
 
@@ -292,7 +303,7 @@ const handleAnnouncementUpdate = (updatedAnnouncement: PlatformAnnouncement) => 
           <PlatformDrawer
             isOpen={openPlatForm}
             onClose={closePlatformDrawer}
-            announcementId={selectedAnnouncementId||""}
+            announcementId={selectedAnnouncementId || ""}
             onUpdate={handleAnnouncementUpdate}
           />
         </div>
