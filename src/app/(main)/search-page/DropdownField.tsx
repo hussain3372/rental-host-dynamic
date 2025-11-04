@@ -42,15 +42,7 @@ const DropdownField: React.FC<DropdownFieldProps> = ({ icon, label, options, onS
           <Image src={icon} alt={label} width={28} height={28} className="mr-2" />
           <span className="text-[16px]">{selected}</span>
         </div>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          className={`h-4 w-4 text-gray-400 ml-2 transition-transform ${open ? "rotate-180" : ""}`}
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7" />
-        </svg>
+       <Image src='/images/dropdown.svg' alt="Dropdown" height={16} width={16} />
       </div>
 
       {open && (

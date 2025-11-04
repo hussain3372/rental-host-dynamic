@@ -61,3 +61,10 @@ export interface Notification {
   readAt: string;
   createdAt: string;
 }
+
+export interface NotificationParams {
+  offset: number;
+  limit: number;
+  read?: string;
+  [key: string]: string | number | undefined;
+}

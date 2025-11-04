@@ -9,6 +9,7 @@ export interface PropertyDetails {
   description: string;
   propertyType?: string;
   maxGuests?: number;
+  ownership: string,
   images: string[];
   size?: string;
   view?: string;
@@ -31,6 +32,8 @@ export interface Host {
   id: number;
   name: string;
   email: string;
+  companyName: string,
+
 }
 
 export interface Revoker {

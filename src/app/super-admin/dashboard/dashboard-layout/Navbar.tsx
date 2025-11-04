@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import { profile } from "@/app/api/super-admin/profile";
+import Image from "next/image";
 
 interface NavbarProps {
   isCollapsed: boolean;
@@ -12,40 +12,22 @@ export function Navbar({ isCollapsed }: NavbarProps) {
   const [firstName, setFirstName] = useState<string>("");
   const [lastName, setLastName] = useState<string>("");
   const [email, setEmail] = useState<string>("");
+  const [profileImage, setProfileImage] = useState<string | null>(null);
   const [today, setToday] = useState<string>("");
   const [greeting, setGreeting] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
 
-  // ✅ Fetch profile data from API
+  // ✅ Load data from localStorage and set up event listeners
   useEffect(() => {
-    const fetchProfileData = async () => {
-      try {
-        const res = await profile.fetchProfileData();
-        console.log("Navbar Profile API Response:", res);
-        
-        if (res.data?.data) {
-          const profileData = res.data.data;
-          setFirstName(profileData.firstName || "");
-          setLastName(profileData.lastName || "");
-          setEmail(profileData.email || "");
-          
-          // Also update localStorage for consistency
-          localStorage.setItem("firstname", profileData.firstName || "");
-          localStorage.setItem("lastname", profileData.lastName || "");
-          localStorage.setItem("email", profileData.email || "");
-        }
-      } catch (error) {
-        console.error("Error fetching profile in navbar:", error);
-        // Fallback to localStorage if API fails
-        setFirstName(localStorage.getItem("firstname") || "");
-        setLastName(localStorage.getItem("lastname") || "");
-        setEmail(localStorage.getItem("email") || "");
-      } finally {
-        setLoading(false);
-      }
+    const loadFromLocalStorage = () => {
+      setFirstName(localStorage.getItem("superName") || "");
+      setLastName(localStorage.getItem("superLast") || "");
+      setEmail(localStorage.getItem("superEmail") || "");
+      setProfileImage(localStorage.getItem("superProfile"));
     };
 
-    fetchProfileData();
+    // Initial load
+    loadFromLocalStorage();
 
     // ✅ Format the date dynamically
     const date = new Date();
@@ -56,13 +38,57 @@ export function Navbar({ isCollapsed }: NavbarProps) {
       year: "numeric",
     }).format(date);
     setToday(formattedDate);
-
+    
     // ✅ Determine greeting based on current hour
     const hour = date.getHours();
     if (hour < 12) setGreeting("Good Morning");
     else if (hour < 18) setGreeting("Good Afternoon");
     else if (hour < 21) setGreeting("Good Evening");
     else setGreeting("Good Night");
+
+    // ✅ Listen for profile image updates
+    const handleProfileImageUpdate = (event: CustomEvent) => {
+      setProfileImage(event.detail.profileImage);
+    };
+
+    // ✅ Listen for profile data updates
+    const handleProfileUpdate = (event: CustomEvent) => {
+      const { firstName: newFirstName, lastName: newLastName, email: newEmail } = event.detail;
+      setFirstName(newFirstName || "");
+      setLastName(newLastName || "");
+      setEmail(newEmail || "");
+    };
+
+    // ✅ Listen for storage changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'superProfile') {
+        setProfileImage(e.newValue);
+      }
+      if (e.key === 'superName') {
+        setFirstName(e.newValue || "");
+      }
+      if (e.key === 'superLast') {
+        setLastName(e.newValue || "");
+      }
+      if (e.key === 'superEmail') {
+        setEmail(e.newValue || "");
+      }
+    };
+
+    // Add event listeners
+    window.addEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
+    window.addEventListener('profileDataUpdated', handleProfileUpdate as EventListener);
+    window.addEventListener('storage', handleStorageChange);
+
+    // Set loading to false after initial load
+    setLoading(false);
+
+    // Cleanup
+    return () => {
+      window.removeEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
+      window.removeEventListener('profileDataUpdated', handleProfileUpdate as EventListener);
+      window.removeEventListener('storage', handleStorageChange);
+    };
   }, []);
 
   if (loading) {
@@ -118,13 +144,13 @@ export function Navbar({ isCollapsed }: NavbarProps) {
           width: isCollapsed ? "calc(100vw - 139px)" : "calc(100vw - 279px)",
         }}
       >
-        <div className="flex justify-between items-center border-b border-b-[#3b3d3c]">
+        <div className="flex justify-between items-center border-b pb-5  border-b-[#3b3d3c]">
           {/* Left side */}
           <div className={`${isCollapsed ? "ml-[10px]" : "ml-0"}`}>
             <h1 className="font-medium text-[24px]">
               {greeting}, {firstName || "User"}
             </h1>
-            <p className="text-[16px] pb-5 leading-[20px] font-normal text-white/60 pt-1">
+            <p className="text-[16px] leading-[20px] font-normal text-white/60 pt-1">
               It&apos;s {today}
             </p>
           </div>
@@ -134,21 +160,31 @@ export function Navbar({ isCollapsed }: NavbarProps) {
             href="/super-admin/dashboard/profile"
             className="flex items-center gap-3 cursor-pointer"
           >
-            <div className="h-10 w-10 rounded-full bg-[#2A2A2C] flex items-center justify-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-[#B0B0B0]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0zM4.5 20.25a8.25 8.25 0 0 1 15 0"
+            <div className="h-10 w-10 rounded-full bg-[#2A2A2C] flex items-center justify-center overflow-hidden">
+              {profileImage ? (
+                <Image
+                  src={profileImage}
+                  alt="Profile"
+                  width={40}
+                  height={40}
+                  className="rounded-full object-cover w-full h-full"
                 />
-              </svg>
+              ) : (
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  className="h-6 w-6 text-[#B0B0B0]"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0zM4.5 20.25a8.25 8.25 0 0 1 15 0"
+                  />
+                </svg>
+              )}
             </div>
 
             <div>
@@ -169,21 +205,31 @@ export function Navbar({ isCollapsed }: NavbarProps) {
           <div></div>
           <Link href="/super-admin/dashboard/profile">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-[#2A2A2C] flex items-center justify-center">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 text-[#B0B0B0]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0zM4.5 20.25a8.25 8.25 0 0 1 15 0"
+              <div className="h-8 w-8 rounded-full bg-[#2A2A2C] flex items-center justify-center overflow-hidden">
+                {profileImage ? (
+                  <Image
+                    src={profileImage}
+                    alt="Profile"
+                    width={32}
+                    height={32}
+                    className="rounded-full object-cover w-full h-full"
                   />
-                </svg>
+                ) : (
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-4 w-4 text-[#B0B0B0]"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0zM4.5 20.25a8.25 8.25 0 0 1 15 0"
+                    />
+                  </svg>
+                )}
               </div>
               <div className="flex flex-col">
                 <p className="text-[13px] font-medium">

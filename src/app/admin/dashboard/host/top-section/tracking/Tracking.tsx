@@ -253,11 +253,13 @@ export default function Applications() {
     fetchApplications();
   }, [fetchApplications]);
 
-  const displayData = useMemo(() => {
-    return allCertificationData.map(({ id, ...rest }) => {
-      return rest;
-    });
-  }, [allCertificationData]);
+const displayData = useMemo(() => {
+  return allCertificationData.map(({ id, "Application ID": appId, ...rest }) => {
+    console.log(id,appId);
+    // Remove both the id and Application ID fields
+    return rest;
+  });
+}, [allCertificationData]);
 
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set(selectedRows);
@@ -473,7 +475,7 @@ export default function Applications() {
         />
       )}
 
-      <div>
+      {/* <div>
         <h2 className="font-semibold text-[20px] leading-[20px]">
           Review Applications
         </h2>
@@ -481,9 +483,9 @@ export default function Applications() {
           Review and manage all submitted property certification applications in
           one place.
         </p>
-      </div>
+      </div> */}
 
-      <div className="flex flex-col justify-between">
+      <div className="flex flex-col mt-5 justify-between">
         <Table
           data={displayData}
           title="Applications"
@@ -493,7 +495,7 @@ export default function Applications() {
             const originalRow = allCertificationData[index];
             openDeleteSingleModal(row, originalRow.id);
           }}
-          showPagination={true}
+          showPagination={false}
           clickable={true}
           selectedRows={selectedRows}
           setSelectedRows={setSelectedRows}

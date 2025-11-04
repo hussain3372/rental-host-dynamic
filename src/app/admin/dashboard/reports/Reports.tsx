@@ -352,13 +352,18 @@ export default function Reports() {
     }
   };
 
+  // Remove "Report ID" from display data - FIXED
   const displayData = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
+
     return transformedData
       .slice(startIndex, endIndex)
-      .map(({ ...rest }) => rest);
-  }, [transformedData, currentPage]);
+      .map(({ "Report ID": id, ...rest }) => {
+        console.log("Report ID:", id); // ✅ Logs each Report ID
+        return rest; // keep everything except "Report ID"
+      });
+  }, [transformedData, currentPage, itemsPerPage]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -382,15 +387,43 @@ export default function Reports() {
     {
       label: "Download Report",
       onClick: (row: Record<string, string>) => {
-        const reportId = row["Report ID"];
-        handleDownloadReport(reportId);
+        // Get the original report ID from allReportsData since it's removed from display
+        const reportIndex = displayData.findIndex(
+          (displayRow) =>
+            displayRow["Report Type"] === row["Report Type"] &&
+            displayRow["Date Range"] === row["Date Range"] &&
+            displayRow["Generated Date"] === row["Generated Date"] &&
+            displayRow["Format"] === row["Format"]
+        );
+
+        if (reportIndex !== -1) {
+          const originalIndex = (currentPage - 1) * itemsPerPage + reportIndex;
+          const reportId = allReportsData[originalIndex]?.id;
+          if (reportId) {
+            handleDownloadReport(reportId);
+          }
+        }
       },
     },
     {
       label: "Delete Report",
       onClick: (row: Record<string, string>) => {
-        const reportId = row["Report ID"];
-        openDeleteSingleModal(row, reportId);
+        // Get the original report ID from allReportsData since it's removed from display
+        const reportIndex = displayData.findIndex(
+          (displayRow) =>
+            displayRow["Report Type"] === row["Report Type"] &&
+            displayRow["Date Range"] === row["Date Range"] &&
+            displayRow["Generated Date"] === row["Generated Date"] &&
+            displayRow["Format"] === row["Format"]
+        );
+
+        if (reportIndex !== -1) {
+          const originalIndex = (currentPage - 1) * itemsPerPage + reportIndex;
+          const reportId = allReportsData[originalIndex]?.id;
+          if (reportId) {
+            openDeleteSingleModal(row, reportId);
+          }
+        }
       },
     },
   ];
@@ -507,8 +540,23 @@ export default function Reports() {
           control={tableControl}
           showDeleteButton={true}
           onDeleteSingle={(row) => {
-            const reportId = row["Report ID"];
-            openDeleteSingleModal(row, reportId);
+            // Get the original report ID from allReportsData since it's removed from display
+            const reportIndex = displayData.findIndex(
+              (displayRow) =>
+                displayRow["Report Type"] === row["Report Type"] &&
+                displayRow["Date Range"] === row["Date Range"] &&
+                displayRow["Generated Date"] === row["Generated Date"] &&
+                displayRow["Format"] === row["Format"]
+            );
+
+            if (reportIndex !== -1) {
+              const originalIndex =
+                (currentPage - 1) * itemsPerPage + reportIndex;
+              const reportId = allReportsData[originalIndex]?.id;
+              if (reportId) {
+                openDeleteSingleModal(row, reportId);
+              }
+            }
           }}
           showPagination={true}
           clickable={true}

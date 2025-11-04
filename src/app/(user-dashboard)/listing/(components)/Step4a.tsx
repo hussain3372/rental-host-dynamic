@@ -63,58 +63,58 @@ export default function Step4a() {
       </div>
 
       {/* Responsive Grid */}
-     {/* Responsive Grid */}
-<div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 gap-y-5 md:gap-y-5 lg:gap-y-0 w-full">
-  {CardData.map((item) => {
-    const isSelected = selectedCard === item.id;
+      {/* Responsive Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4 gap-y-5 md:gap-y-5 lg:gap-y-0 w-full">
+        {CardData.map((item) => {
+          const isSelected = selectedCard === item.id;
 
-    const cardBackground = isSelected
-      ? "bg-gradient-to-b from-[#2a2e1a] via-[#2a2e1a] to-[#121315]"
-      : "bg-[#121315]";
+          const cardBackground = isSelected
+            ? "bg-gradient-to-b from-[#2a2e1a] via-[#2a2e1a] to-[#121315]"
+            : "bg-[#121315]";
 
-    const defaultBorderColor = isSelected ? "#c5d168" : "#373739";
-    const hoverBorderColor = "#c5d168";
+          const defaultBorderColor = isSelected ? "#c5d168" : "#373739";
+          const hoverBorderColor = "#c5d168";
 
-    return (
-      <div
-        key={item.id}
-        className="transition-all duration-300 transform hover:scale-100 w-full"
-        onClick={() => handleCardSelect(item.id)}
-      >
-        <PricingCard
-          title={item.title}
-          description={item.disc}
-          price={item.price}
-          period="per month"
-          buttonText="Get Started"
-          isProfessionalPlan={false}
-          features={item.features}
-          defaultBorderColor={defaultBorderColor}
-          hoverBorderColor={hoverBorderColor}
-          showBorder={true}
-          bgColor={cardBackground}
-          textColor="text-white"
-          buttonBg="bg-[#2D2D2D]"
-          buttonTextColor="text-white"
-          isSelected={isSelected}
-          titleClass="text-[18px] leading-[16px]"
-          titleWeight="font-medium"
-          descriptionClass="font-regular text-[12px] leading-[18px]"
-          descriptionWeight="font-regular"
-          priceSize="font-semibold text-[40px] leading-[48px]"
-          periodSize="text-white/40 text-[12px] leading-4"
-          periodWeight="font-regular"
-          cardMaxWidth="w-full sm:max-w-[245px] mx-auto cursor-pointer"
-          featureSize="text-[12px] leading-[16px]"
-          featureWeight="font-regular"
-          dividerWidth="w-full sm:w-[204px]"
-          padding="sm:p-[20px] p-[16px]"
-          buttonClass="hidden"
-        />
+          return (
+            <div
+              key={item.id}
+              className="transition-all duration-300 transform hover:scale-100 w-full"
+              onClick={() => handleCardSelect(item.id)}
+            >
+              <PricingCard
+                title={item.title}
+                description={item.disc}
+                price={item.price}
+                period="per month"
+                buttonText="Get Started"
+                isProfessionalPlan={false}
+                features={item.features}
+                defaultBorderColor={defaultBorderColor}
+                hoverBorderColor={hoverBorderColor}
+                showBorder={true}
+                bgColor={cardBackground}
+                textColor="text-white"
+                buttonBg="bg-[#2D2D2D]"
+                buttonTextColor="text-white"
+                isSelected={isSelected}
+                titleClass="text-[18px] leading-[16px]"
+                titleWeight="font-medium"
+                descriptionClass="font-regular text-[12px] leading-[18px]"
+                descriptionWeight="font-regular"
+                priceSize="font-semibold text-[40px] leading-[48px]"
+                periodSize="text-white/40 text-[12px] leading-4"
+                periodWeight="font-regular"
+                cardMaxWidth="w-full sm:max-w-[245px] mx-auto cursor-pointer"
+                featureSize="text-[12px] leading-[16px]"
+                featureWeight="font-regular"
+                dividerWidth="w-full sm:w-[204px]"
+                padding="sm:p-[20px] p-[16px]"
+                buttonClass="hidden"
+              />
+            </div>
+          );
+        })}
       </div>
-    );
-  })}
-</div>
     </>
   );
 }

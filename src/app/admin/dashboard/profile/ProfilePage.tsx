@@ -7,30 +7,36 @@ import EditProfileDrawer from "./EditProfileDrawer";
 import Cookies from "js-cookie";
 import { profile } from "@/app/api/Admin/profile";
 
+
+
 export default function ProfilePage() {
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+  const [name, setName] = useState<string>("");
+  const [email, setEmail] = useState<string>("");
+  const [isLogoutModalOpen, setIsLogoutModalOpen] = useState<boolean>(false);
   const [profileImage, setProfileImage] = useState<string | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [isDrawerOpen, setIsDrawerOpen] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [uploading, setUploading] = useState<boolean>(false);
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
 
   // Fetch Profile Data on Mount
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchData = async (): Promise<void> => {
       try {
-        const res = await profile.fetchProfileData();
+        const res= await profile.fetchProfileData();
         console.log(res);
         if (res.data) {
+          const { firstName, lastName, email: userEmail, profilePicture } = res.data.data;
+          
           setName(
-            res.data.data.firstName && res.data.data.lastName
-              ? `${res.data.data.firstName} ${res.data.data.lastName}`
-              : res.data.data.firstName || "User"
+            firstName && lastName
+              ? `${firstName} ${lastName}`
+              : firstName || "User"
           );
-          setEmail(res.data.data.email || "");
+          setEmail(userEmail || "");
+          setProfileImage(profilePicture || null);
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -42,8 +48,8 @@ export default function ProfilePage() {
     fetchData();
   }, []);
 
-  // ✅ Handle Save from Drawer
-  const handleSaveChanges = async (newName: string, newEmail: string) => {
+  // Handle Save from Drawer
+  const handleSaveChanges = async (newName: string, newEmail: string): Promise<void> => {
     try {
       const [firstName, ...rest] = newName.split(" ");
       const lastName = rest.join(" ") || "";
@@ -53,7 +59,7 @@ export default function ProfilePage() {
 
       localStorage.setItem("firstname", firstName);
       localStorage.setItem("lastname", lastName);
-      localStorage.setItem("email", email);
+      localStorage.setItem("email", newEmail);
 
       setName(newName);
       setEmail(newEmail);
@@ -63,22 +69,52 @@ export default function ProfilePage() {
     }
   };
 
-  // ✅ Handle Logout
-  const handleLogout = () => {
+  // Handle Logout
+  const handleLogout = (): void => {
     Cookies.remove("adminAccessToken");
     localStorage.removeItem("userMfaEnabled");
     localStorage.removeItem("userRole");
     router.push("/admin/auth/login");
-    router.push("/admin/auth/login");
   };
 
-  // ✅ Handle Change Photo
-  const handleChangePhotoClick = () => fileInputRef.current?.click();
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle Change Photo
+  const handleChangePhotoClick = (): void => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = e.target.files?.[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setProfileImage(imageUrl);
+    if (!file) return;
+
+    try {
+      setUploading(true);
+      
+      // Show preview instantly
+      const previewUrl = URL.createObjectURL(file);
+      setProfileImage(previewUrl);
+      
+      // Upload to server using your API client
+      const res = await profile.updateProfileImage(file);
+
+      if (res?.data?.data?.profilePicture) {
+        setProfileImage(res.data.data.profilePicture);
+        // Store in localStorage if needed
+        localStorage.setItem('profile', res.data.data.profilePicture);
+      }
+
+      // Clean up the preview URL
+      URL.revokeObjectURL(previewUrl);
+    } catch (err) {
+      console.error("Error uploading profile image:", err);
+      // Revert to previous image on error
+      const previousProfile = localStorage.getItem('profile');
+      setProfileImage(previousProfile);
+    } finally {
+      setUploading(false);
+      // Clear the file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
     }
   };
 
@@ -108,12 +144,13 @@ export default function ProfilePage() {
         {/* Profile Image Section */}
         <div className="flex items-center gap-3">
           <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden relative flex items-center justify-center bg-[#1b1b1d]">
-            {typeof profileImage === "string" ? (
+            {profileImage ? (
               <Image
                 src={profileImage}
                 alt="Profile"
                 fill
                 className="object-cover"
+                priority
               />
             ) : (
               <svg
@@ -131,6 +168,11 @@ export default function ProfilePage() {
                 />
               </svg>
             )}
+            {uploading && (
+              <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+                <div className="text-white text-sm">Uploading...</div>
+              </div>
+            )}
           </div>
 
           <div>
@@ -144,10 +186,11 @@ export default function ProfilePage() {
         </div>
 
         <button
-          className="w-full md:w-auto cursor-pointer text-[16px] leading-[20px] font-semibold flex justify-center items-center px-5 py-3 rounded-[8px] text-[#EFFC76] border border-[#EFFC76] hover:bg-[#EFFC76] hover:text-black transition"
+          className="w-full md:w-auto cursor-pointer text-[16px] leading-[20px] font-semibold flex justify-center items-center px-5 py-3 rounded-[8px] text-[#EFFC76] border border-[#EFFC76] hover:bg-[#EFFC76] hover:text-black transition disabled:opacity-50 disabled:cursor-not-allowed"
           onClick={handleChangePhotoClick}
+          disabled={uploading}
         >
-          Change Photo
+          {uploading ? "Uploading..." : "Change Photo"}
         </button>
         <input
           type="file"
@@ -155,6 +198,7 @@ export default function ProfilePage() {
           ref={fileInputRef}
           className="hidden"
           onChange={handleFileChange}
+          disabled={uploading}
         />
       </div>
 
@@ -163,7 +207,7 @@ export default function ProfilePage() {
         <div className="flex-1 relative bg-[#1b1b1d] p-5 rounded-xl">
           <button
             type="button"
-            className="absolute top-4 right-4 text-[#EFFC76] underline transition text-[16px] leading-[20px] font-normal cursor-pointer"
+            className="absolute top-4 right-4 text-[#EFFC76] underline transition text-[16px] leading-[20px] font-normal cursor-pointer hover:text-yellow-200"
             onClick={() => setIsDrawerOpen(true)}
           >
             Edit
@@ -185,7 +229,7 @@ export default function ProfilePage() {
                 type="text"
                 value={name}
                 readOnly
-                className="w-full h-[52px] rounded-[10px] bg-[radial-gradient(75%_81%_at_50%_18.4%,_#202020_0%,_#101010_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] outline-none px-4 text-white"
+                className="w-full h-[52px] rounded-[10px] bg-[radial-gradient(75%_81%_at_50%_18.4%,_#202020_0%,_#101010_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] outline-none px-4 text-white cursor-not-allowed"
               />
             </div>
 
@@ -197,7 +241,7 @@ export default function ProfilePage() {
                 type="email"
                 value={email}
                 readOnly
-                className="w-full h-[52px] rounded-[10px] bg-[radial-gradient(75%_81%_at_50%_18.4%,_#202020_0%,_#101010_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] px-4 outline-none text-white"
+                className="w-full h-[52px] rounded-[10px] bg-[radial-gradient(75%_81%_at_50%_18.4%,_#202020_0%,_#101010_100%)] shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] px-4 outline-none text-white cursor-not-allowed"
               />
             </div>
           </form>
@@ -208,6 +252,13 @@ export default function ProfilePage() {
       <div
         className="relative flex flex-col bg-[#1b1b1d] p-5 rounded-xl cursor-pointer hover:bg-[#2a2a2c] transition"
         onClick={() => setIsLogoutModalOpen(true)}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e: React.KeyboardEvent) => {
+          if (e.key === "Enter" || e.key === " ") {
+            setIsLogoutModalOpen(true);
+          }
+        }}
       >
         <div className="absolute top-5 right-5 sm:hidden">
           <Image
@@ -257,17 +308,21 @@ export default function ProfilePage() {
             : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setIsDrawerOpen(false)}
+        role="presentation"
       >
         <div
           className={`w-full lg:max-w-[608px] md:max-w-[500px] max-w-[280px] p-7 h-full bg-[#0A0C0B] overflow-auto border border-[#FFFFFF1F] rounded-[12px] shadow-[0_4px_12px_0_rgba(0,0,0,0.12)] transform transition-transform duration-300 ease-in-out ${
             isDrawerOpen ? "translate-x-0" : "translate-x-full"
           } ml-auto`}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent) => e.stopPropagation()}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Edit Profile"
         >
           <EditProfileDrawer
             initialName={name}
             initialEmail={email}
-            onSave={(newName, newEmail) => handleSaveChanges(newName, newEmail)}
+            onSave={(newName: string, newEmail: string) => handleSaveChanges(newName, newEmail)}
             onClose={() => setIsDrawerOpen(false)}
           />
         </div>

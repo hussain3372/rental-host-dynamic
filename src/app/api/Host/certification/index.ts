@@ -59,4 +59,6 @@ export const certifications = {
     link.click();
     link.remove();
   },
+
+
 };

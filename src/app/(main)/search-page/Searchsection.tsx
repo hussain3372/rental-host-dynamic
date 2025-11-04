@@ -1,158 +1,9 @@
-// "use client";
-
-// import React, { useState, useEffect } from "react";
-// import Image from "next/image";
-// import Button from "@/app/shared/Button";
-// import DropdownField from "./DropdownField";
-// import { MappedProperty } from "@/app/api/user-flow/types";
-
-// type SearchsectionProps = {
-//   onSearch: React.Dispatch<React.SetStateAction<MappedProperty[]>>;
-//   initialValue?: string;
-//   properties: MappedProperty[];
-//   onSearchTextChange: (value: string) => void;
-//   onSearchClick: () => void;
-// };
-
-// const Searchsection: React.FC<SearchsectionProps> = ({
-//   onSearch,
-//   initialValue = "",
-//   properties,
-//   onSearchTextChange,
-//   onSearchClick,
-// }) => {
-//   const [inputValue, setInputValue] = useState(initialValue);
-
-//   // Dropdown selections
-//   const [selectedLocation, setSelectedLocation] = useState("All Locations");
-//   const [selectedStatus, setSelectedStatus] = useState("Status");
-//   const [selectedExpiry, setSelectedExpiry] = useState("Expiry Date");
-
-//   useEffect(() => {
-//     setInputValue(initialValue);
-//   }, [initialValue]);
-
-//   // ✅ Apply dropdown filters to properties from parent
-//   useEffect(() => {
-//     console.log("Applying filters to properties:", properties.length);
-
-//     const filtered = properties.filter((property) => {
-//       // Location filter
-//       const matchesLocation = selectedLocation === "All Locations" ||
-//         (property.location && property.location.toLowerCase().includes(selectedLocation.toLowerCase()));
-
-//       // Status filter
-//       const matchesStatus = selectedStatus === "Status" ||
-//         (property.status && property.status === selectedStatus);
-
-//       // Expiry filter
-//       const matchesExpiry = selectedExpiry === "Expiry Date" ||
-//         (property.expiry && property.expiry === selectedExpiry);
-
-//       return matchesLocation && matchesStatus && matchesExpiry;
-//     });
-
-//     console.log("Filtered properties:", filtered.length);
-//     onSearch(filtered);
-//   }, [selectedLocation, selectedStatus, selectedExpiry, properties]);
-
-//   // ✅ Handle input change
-//   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-//     const value = e.target.value;
-//     console.log("Input changed:", value);
-//     setInputValue(value);
-//     onSearchTextChange(value);
-//   };
-
-//   // ✅ Handle search button click
-//   const handleSearchClick = () => {
-//     console.log("Search button clicked in Searchsection");
-//     onSearchClick();
-//   };
-
-//   return (
-//     <div className="text-white container-class w-full">
-//       <div className="inset-0 hidden sm:block z-0 overflow-hidden">
-//         <Image
-//           src="/images/search-bg3.svg"
-//           alt="Background"
-//           className="inset-0 absolute !top-[-34px] !h-[calc(100%+50px)] object-contain"
-//           fill
-//           style={{ transform: "translateY(-37px)" }}
-//         />
-//       </div>
-
-//       {/* Background pattern */}
-//       <div className="absolute inset-0 opacity-10">
-//         <div
-//           className="absolute inset-0"
-//           style={{
-//             backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)`,
-//             backgroundSize: "50px 50px",
-//           }}
-//         ></div>
-//       </div>
-
-//       {/* Main Content */}
-//       <div className="relative z-10 flex flex-col items-center justify-center ">
-//         {/* Heading */}
-//         <div className="text-center bg-gradient-to-r from-white/40 via-white to-white/40 bg-clip-text">
-//           <h1 className="text-[32px] sm:text-[40px] md:text-[52px] text-transparent font-medium leading-[60px] mt-[52px] mb-4 sm:mb-[40px] w-full max-w-[835px]">
-//             Trusted Certification for Growth
-//           </h1>
-//         </div>
-
-//         {/* Search Bar */}
-//         <div className="flex flex-col lg:flex-row w-full sm:w-[500px] md:w-[608px] lg:w-[860px] bg-[#0A0C0B] rounded-[16px] sm:rounded-[24px] relative px-4 py-[18px] gap-5">
-//           <input
-//             type="text"
-//             value={inputValue}
-//             onChange={handleInputChange}
-//             placeholder="Search for certified and verified properties..."
-//             className="flex-1 bg-[#18191B] rounded-[8px] h-[52px] p-4 outline-none text-[18px] leading-[24px] font-medium text-white"
-//           />
-
-//           <div className="w-full lg:w-auto flex justify-end">
-//             <Button
-//               text="Search Certified Host"
-//               onClick={handleSearchClick}
-//               className="w-full sm:w-auto shadow-2xl h-[52px]"
-//             />
-//           </div>
-//         </div>
-
-//         {/* Dropdown Filters */}
-//         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full sm:w-[500px] md:w-[700px] lg:w-[860px] mt-5 pr-4 sm:pr-[0px] sm:pl-[0px] pl-4">
-//           <DropdownField
-//             icon="/images/location.png"
-//             label={selectedLocation}
-//             options={["All Locations", "Lahore", "New York", "Islamabad"]}
-//             onSelect={setSelectedLocation}
-//           />
-//           <DropdownField
-//             icon="/images/status-icon.png"
-//             label={selectedStatus}
-//             options={["Status", "Verified", "Expired", "Near Expiry"]}
-//             onSelect={setSelectedStatus}
-//           />
-//           <DropdownField
-//             icon="/images/expiry-date.png"
-//             label={selectedExpiry}
-//             options={["Expiry Date", "Mar 12, 2025", "Aug 12, 2025", "Jul 12, 2025"]}
-//             onSelect={setSelectedExpiry}
-//           />
-//         </div>
-//       </div>
-//     </div>
-//   );
-// };
-
-// export default Searchsection;
-
 "use client";
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import Button from "@/app/shared/Button";
 import DropdownField from "./DropdownField";
 import { MappedProperty } from "@/app/api/user-flow/types";
@@ -162,16 +13,24 @@ type SearchsectionProps = {
   initialValue?: string;
   properties: MappedProperty[];
   onSearchTextChange: (value: string) => void;
-  onSearchClick: () => void;
+  onSearchClick: (
+    query?: string,
+    location?: string,
+    status?: string,
+    expiryDate?: string
+  ) => void;
+  availableLocations: string[];
+  availableStatuses: string[];
 };
 
 const Searchsection: React.FC<SearchsectionProps> = ({
-  onSearch,
+  // onSearch,
   initialValue = "",
-  properties,
+  // properties,
   onSearchTextChange,
   onSearchClick,
-  
+  availableLocations,
+  availableStatuses,
 }) => {
   const [inputValue, setInputValue] = useState(initialValue);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
@@ -179,43 +38,37 @@ const Searchsection: React.FC<SearchsectionProps> = ({
   // Dropdown selections
   const [selectedLocation, setSelectedLocation] = useState("All Locations");
   const [selectedStatus, setSelectedStatus] = useState("Status");
-  const [selectedExpiry, setSelectedExpiry] = useState("Expiry Date");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
 
   useEffect(() => {
     setInputValue(initialValue);
   }, [initialValue]);
 
-  // ✅ Responsive placeholder logic
+  // Responsive placeholder logic
   useEffect(() => {
     const checkScreenSize = () => {
-      setIsSmallScreen(window.innerWidth < 1024); // lg breakpoint
+      setIsSmallScreen(window.innerWidth < 1024);
     };
     checkScreenSize();
     window.addEventListener("resize", checkScreenSize);
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // ✅ Apply dropdown filters
-  useEffect(() => {
-    const filtered = properties.filter((property) => {
-      const matchesLocation =
-        selectedLocation === "All Locations" ||
-        (property.location &&
-          property.location
-            .toLowerCase()
-            .includes(selectedLocation.toLowerCase()));
-      const matchesStatus =
-        selectedStatus === "Status" ||
-        (property.status && property.status === selectedStatus);
-      const matchesExpiry =
-        selectedExpiry === "Expiry Date" ||
-        (property.expiry && property.expiry === selectedExpiry);
-
-      return matchesLocation && matchesStatus && matchesExpiry;
-    });
-
-    onSearch(filtered);
-  }, [selectedLocation, selectedStatus, selectedExpiry, properties, onSearch]);
+  // Apply dropdown filters locally (removed - now triggers API call)
+  const handleFilterChange = (
+    location?: string,
+    status?: string,
+    date?: Date | null
+  ) => {
+    const expiryParam = date ? date.toISOString().split('T')[0] : undefined;
+    
+    onSearchClick(
+      inputValue,
+      location !== "All Locations" ? location : undefined,
+      status !== "Status" ? status : undefined,
+      expiryParam
+    );
+  };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -223,14 +76,73 @@ const Searchsection: React.FC<SearchsectionProps> = ({
     onSearchTextChange(value);
   };
 
+  const handleLocationChange = (location: string) => {
+    setSelectedLocation(location);
+    handleFilterChange(location, selectedStatus, selectedDate);
+  };
+
+  const handleStatusChange = (status: string) => {
+    setSelectedStatus(status);
+    handleFilterChange(selectedLocation, status, selectedDate);
+  };
+
+  const handleDateChange = (date: Date | null) => {
+    setSelectedDate(date);
+    handleFilterChange(selectedLocation, selectedStatus, date);
+  };
+
   const handleSearchClick = () => {
-    onSearchClick();
+    if (inputValue.length < 3) {
+      return;
+    }
+    const expiryParam = selectedDate
+      ? selectedDate.toISOString().split('T')[0]
+      : undefined;
+    
+    onSearchClick(
+      inputValue,
+      selectedLocation !== "All Locations" ? selectedLocation : undefined,
+      selectedStatus !== "Status" ? selectedStatus : undefined,
+      expiryParam
+    );
   };
 
   const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") handleSearchClick();
   };
 
+  // Custom date picker input
+  const CustomDateInput = React.forwardRef<
+    HTMLButtonElement,
+    { value?: string; onClick?: () => void }
+  >(({ value, onClick }, ref) => (
+    <button
+      ref={ref}
+      onClick={onClick}
+      className="flex items-center justify-between px-[14px] w-full h-14 bg-[#18191B] text-white rounded-lg p-[14px] cursor-pointer border border-[#2A2B2E]"
+    >
+      <div className="flex items-center gap-3">
+        <Image
+          src="/images/expiry-date.png"
+          alt="calendar"
+          width={24}
+          height={24}
+        />
+        <span className="text-[16px] leading-5 font-medium">
+          {value || "Expiry Date"}
+        </span>
+      </div>
+      <Image
+        src="/images/dropdown.svg"
+        alt="dropdown"
+        width={16}
+        height={16}
+        className=""
+      />
+    </button>
+  ));
+  
+  CustomDateInput.displayName = "CustomDateInput";
 
   return (
     <div className="text-white container-class w-full">
@@ -247,21 +159,21 @@ const Searchsection: React.FC<SearchsectionProps> = ({
           alt="gradient"
           width={350}
           height={902}
-          className="absolute top-0 left-[30%] !h-[585px]  -translate-x-1/2"
+          className="absolute top-0 left-[30%] !h-[585px] -translate-x-1/2"
         />
         <Image
           src="/images/gar3.png"
           alt="gradient"
           width={300}
           height={902}
-          className="absolute top-0 left-1/2 !h-[585px]  -translate-x-1/2"
+          className="absolute top-0 left-1/2 !h-[585px] -translate-x-1/2"
         />
         <Image
           src="/images/gar4.png"
           alt="gradient"
           width={350}
           height={902}
-          className="absolute top-0 right-[30%] !h-[585px]  translate-x-1/2"
+          className="absolute top-0 right-[30%] !h-[585px] translate-x-1/2"
         />
         <Image
           src="/images/gar5.png"
@@ -272,11 +184,11 @@ const Searchsection: React.FC<SearchsectionProps> = ({
         />
       </div>
 
-      <div className="inset-0 hidden sm:block z-10  overflow-hidden">
+      <div className="inset-0 hidden sm:block z-10 overflow-hidden">
         <Image
           src="/images/search-bg.png"
           alt="Background"
-          className="inset-0 absolute !top-2 "
+          className="inset-0 absolute !top-2"
           fill
           style={{ transform: "translateY(-7px)" }}
         />
@@ -294,7 +206,7 @@ const Searchsection: React.FC<SearchsectionProps> = ({
       </div>
 
       {/* Main Content */}
-      <div className="relative z-10 flex flex-col items-center justify-center ">
+      <div className="relative z-10 flex flex-col items-center justify-center">
         {/* Heading */}
         <div className="text-center bg-gradient-to-r from-white/40 via-white to-white/40 bg-clip-text">
           <h1 className="text-[32px] sm:text-[40px] md:text-[52px] text-transparent font-medium leading-[60px] mt-[52px] mb-4 sm:mb-[40px] w-full max-w-[835px]">
@@ -303,7 +215,7 @@ const Searchsection: React.FC<SearchsectionProps> = ({
         </div>
 
         {/* Search Bar */}
-        <div className="flex flex-col lg:flex-row   md:w-[608px] lg:w-[860px] bg-[#0A0C0B] rounded-[16px] sm:rounded-[24px] relative px-5 py-[18px] gap-5">
+        <div className="flex flex-col lg:flex-row md:w-[608px] lg:w-[860px] bg-[#0A0C0B] rounded-[16px] sm:rounded-[24px] relative px-5 py-[18px] gap-5">
           <input
             type="text"
             value={inputValue}
@@ -330,28 +242,133 @@ const Searchsection: React.FC<SearchsectionProps> = ({
           <DropdownField
             icon="/images/location.png"
             label={selectedLocation}
-            options={["All Locations", "Lahore", "New York", "Islamabad"]}
-            onSelect={setSelectedLocation}
+            options={["All Locations", ...availableLocations]}
+            onSelect={handleLocationChange}
           />
           <DropdownField
             icon="/images/status-icon.png"
             label={selectedStatus}
-            options={["Status", "Verified", "Expired", "Near Expiry"]}
-            onSelect={setSelectedStatus}
+            options={["Status", ...availableStatuses]}
+            onSelect={handleStatusChange}
           />
-          <DropdownField
-            icon="/images/expiry-date.png"
-            label={selectedExpiry}
-            options={[
-              "Expiry Date",
-              "Mar 12, 2025",
-              "Aug 12, 2025",
-              "Jul 12, 2025",
-            ]}
-            onSelect={setSelectedExpiry}
+          <DatePicker
+            selected={selectedDate}
+            onChange={handleDateChange}
+            dateFormat="MMM dd, yyyy"
+            showMonthDropdown
+            showYearDropdown
+            dropdownMode="select"
+            customInput={<CustomDateInput />}
+            placeholderText="Expiry Date"
+            popperClassName="custom-datepicker-popper"
+            className="w-full"
+            isClearable
           />
         </div>
       </div>
+
+      <style jsx global>{`
+        .react-datepicker {
+          background-color: white !important;
+          border: 1px solid #2a2b2e !important;
+          border-radius: 12px !important;
+          font-family: inherit !important;
+        }
+        
+        .react-datepicker__header {
+          background-color: white !important;
+          border-bottom: 1px solid #2a2b2e !important;
+          border-top-left-radius: 12px !important;
+          border-top-right-radius: 12px !important;
+          padding-top: 12px !important;
+          color:black !important;
+        }
+        
+        .react-datepicker__current-month {
+          color: black !important;
+          font-size: 16px !important;
+          font-weight: 500 !important;
+          margin-bottom: 8px !important;
+        }
+        
+        .react-datepicker__day-name {
+          color: #999 !important;
+          font-size: 14px !important;
+        }
+        
+        .react-datepicker__day {
+          color: black !important;
+          border-radius: 8px !important;
+          margin: 2px !important;
+        }
+        
+        .react-datepicker__day:hover {
+          background-color: #2a2b2e !important;
+          color: white !important;
+        }
+        
+        .react-datepicker__day--selected,
+        .react-datepicker__day--keyboard-selected {
+          background-color: #EFFC76 !important;
+          color: black !important;
+          font-weight: 600 !important;
+        }
+        
+        .react-datepicker__day--disabled {
+          color: #555 !important;
+        }
+        
+        .react-datepicker__month {
+          padding: 8px !important;
+        }
+        
+        .react-datepicker__navigation {
+          top: 12px !important;
+        }
+        
+        .react-datepicker__navigation-icon::before {
+          border-color: white !important;
+        }
+        
+        .react-datepicker__navigation:hover *::before {
+          border-color: #EFFC76 !important;
+        }
+
+        .react-datepicker__month-dropdown,
+        .react-datepicker__year-dropdown {
+          background-color: #18191B !important;
+          border: 1px solid #2a2b2e !important;
+          border-radius: 8px !important;
+        }
+
+        .react-datepicker__month-option,
+        .react-datepicker__year-option {
+          color: white !important;
+          padding: 8px !important;
+        }
+
+        .react-datepicker__month-option:hover,
+        .react-datepicker__year-option:hover {
+          background-color: #2a2b2e !important;
+        }
+
+        .react-datepicker__month-option--selected,
+        .react-datepicker__year-option--selected {
+          background-color: #EFFC76 !important;
+          color: white !important;
+        }
+
+        .react-datepicker__month-read-view--down-arrow,
+        .react-datepicker__year-read-view--down-arrow {
+          border-color: white !important;
+          border-width: 2px 2px 0 0 !important;
+        }
+
+        .react-datepicker__year-read-view,
+        .react-datepicker__month-read-view {
+          color: white !important;
+        }
+      `}</style>
     </div>
   );
 };

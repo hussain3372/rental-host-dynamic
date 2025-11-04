@@ -18,19 +18,20 @@ export default function ProfilePage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
 
-  // Fetch Profile Data on Mount
+  // ✅ Fetch Profile Data on Mount
   useEffect(() => {
     const fetchData = async () => {
       try {
         const res = await profile.fetchProfileData();
-        console.log(res);
         if (res.data) {
+          const data = res.data.data;
           setName(
-            res.data.data.firstName && res.data.data.lastName
-              ? `${res.data.data.firstName} ${res.data.data.lastName}`
-              : res.data.data.firstName || "User"
+            data.firstName && data.lastName
+              ? `${data.firstName} ${data.lastName}`
+              : data.firstName || "User"
           );
-          setEmail(res.data.data.email || "");
+          setEmail(data.email || "");
+          setProfileImage(data.profilePicture || null); // ✅ show uploaded image
         }
       } catch (error) {
         console.error("Error fetching profile:", error);
@@ -47,13 +48,12 @@ export default function ProfilePage() {
     try {
       const [firstName, ...rest] = newName.split(" ");
       const lastName = rest.join(" ") || "";
-
       const payload = { firstName, lastName, email: newEmail };
       await profile.updateProfileData(payload);
 
       localStorage.setItem("firstname", firstName);
       localStorage.setItem("lastname", lastName);
-      localStorage.setItem("email", email);
+      localStorage.setItem("email", newEmail);
 
       setName(newName);
       setEmail(newEmail);
@@ -66,18 +66,31 @@ export default function ProfilePage() {
   // ✅ Handle Logout
   const handleLogout = () => {
     Cookies.remove("accessToken");
-    localStorage.removeItem("userMfaEnabled");
-    localStorage.removeItem("userRole");
+    localStorage.clear();
     router.push("/auth/login");
   };
 
   // ✅ Handle Change Photo
   const handleChangePhotoClick = () => fileInputRef.current?.click();
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const imageUrl = URL.createObjectURL(file);
-      setProfileImage(imageUrl);
+    if (!file) return;
+
+    try {
+      // show preview instantly
+      const previewUrl = URL.createObjectURL(file);
+      setProfileImage(previewUrl);
+      
+      // upload to server
+      const res = await profile.updateProfileImage(file);
+
+      if (res?.data?.data?.profilePicture) {
+        setProfileImage(res.data.data.profilePicture);
+      }
+      localStorage.setItem('profile',res.data.data.profilePicture)
+    } catch (err) {
+      console.error("Error uploading profile image:", err);
     }
   };
 
@@ -104,10 +117,9 @@ export default function ProfilePage() {
 
       {/* Profile Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-5">
-        {/* Profile Image Section */}
         <div className="flex items-center gap-3">
           <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden relative flex items-center justify-center bg-[#1b1b1d]">
-            {typeof profileImage === "string" ? (
+            {profileImage ? (
               <Image
                 src={profileImage}
                 alt="Profile"

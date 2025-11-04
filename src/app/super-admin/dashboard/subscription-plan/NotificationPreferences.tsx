@@ -430,12 +430,13 @@ const NotificationPreferences: React.FC = () => {
             hasArrow
             onArrowClick={() => setIsPasswordDrawerOpen(true)}
           />
-          <PreferenceItem
+          {/* <PreferenceItem
             title="Session Timeout"
             description="Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium,"
             hasArrow
             onArrowClick={() => setIsDrawerOpen(true)}
-          />
+            
+          /> */}
           <PreferenceItem
             title="2 - Factor Authentication"
             description="Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium."

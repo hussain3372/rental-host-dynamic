@@ -30,7 +30,9 @@ export default function Certificates() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<"active" | "revoked" | "expired">("active");
+  const [activeTab, setActiveTab] = useState<"active" | "revoked" | "expired">(
+    "active"
+  );
   const itemsPerPage = 10;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -45,25 +47,27 @@ export default function Certificates() {
   const [expiryDate, setExpiryDate] = useState<Date | null>(null);
 
   const [apiFilters, setApiFilters] = useState<ApiFilters>({});
-  const [certificationData, setCertificationData] = useState<CertificationData[]>([]);
+  const [certificationData, setCertificationData] = useState<
+    CertificationData[]
+  >([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
-const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Fetch certificates from API with all filters
   const fetchCertificates = async () => {
     try {
       // setLoading(true);
       setError(null);
-      
+
       // Build query parameters
       const queryParams: ApiFilters = {
         page: currentPage,
-        limit: itemsPerPage
+        limit: itemsPerPage,
       };
-      
+
       // Always add status based on active tab
       if (activeTab === "active") {
         queryParams.status = "ACTIVE";
@@ -72,12 +76,12 @@ const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
       } else if (activeTab === "expired") {
         queryParams.status = "EXPIRED";
       }
-      
+
       // Add search filter only if it exists and has at least 3 characters
       if (searchTerm && searchTerm.length >= 3) {
         queryParams.search = searchTerm;
       }
-      
+
       // Add date filters if they exist
       if (apiFilters.issuedAt) {
         queryParams.issuedAt = apiFilters.issuedAt;
@@ -86,54 +90,64 @@ const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
         queryParams.expiredAt = apiFilters.expiredAt;
       }
 
-      console.log('API Call with filters:', queryParams);
-      
+      console.log("API Call with filters:", queryParams);
+
       const response = await certificateApi.getCertificates(queryParams);
-      
+
       if (response.data && response.data.certifications) {
-        const formattedData: CertificationData[] = response.data.certifications.map((cert) => {
-          // Use the API status directly instead of calculating client-side
-          let status: "active" | "revoked" | "expired" = "active";
-          
-          // Map API status to our client status
-          if (cert.status === "REVOKED") {
-            status = "revoked";
-          } else if (cert.status === "EXPIRED") {
-            status = "expired";
-          } else {
-            status = "active";
-          }
-          
-          const formatDate = (dateString: string) => {
-            const date = new Date(dateString);
-            return date.toLocaleDateString("en-US", {
-              month: "short",
-              day: "numeric",
-              year: "numeric",
-            });
-          };
-          
-          return {
-            id: parseInt(cert.id.replace(/\D/g, '')) || Date.now(),
-            "Certificate ID": cert.certificateNumber,
-            "Property Name": cert.application.propertyDetails.propertyName,
-            "Host ID": cert.hostId.toString(),
-            "Issue Date": formatDate(cert.issuedAt),
-            "Expiry Date": formatDate(cert.expiresAt),
-            Status: status,
-            originalData: cert
-          };
-        });
-        
+        const formattedData: CertificationData[] =
+          response.data.certifications.map((cert) => {
+            // Use the API status directly instead of calculating client-side
+            let status: "active" | "revoked" | "expired" = "active";
+
+            // Map API status to our client status
+            if (cert.status === "REVOKED") {
+              status = "revoked";
+            } else if (cert.status === "EXPIRED") {
+              status = "expired";
+            } else {
+              status = "active";
+            }
+
+            const formatDate = (dateString: string) => {
+              const date = new Date(dateString);
+              return date.toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              });
+            };
+
+            return {
+              id: parseInt(cert.id.replace(/\D/g, "")) || Date.now(),
+              "Certificate ID": cert.certificateNumber,
+              "Property Name": cert.application.propertyDetails.propertyName,
+              "Host ID": cert.hostId.toString(),
+              "Issue Date": formatDate(cert.issuedAt),
+              "Expiry Date": formatDate(cert.expiresAt),
+              Status: status,
+              originalData: cert,
+            };
+          });
+
         setCertificationData(formattedData);
-        setTotalItems(response.data.total || formattedData.length);
-        setTotalPages(response.data.total || Math.ceil((response.data.total || formattedData.length) / itemsPerPage));
+        setTotalItems(
+          response.data.certifications.length || formattedData.length
+        );
+        setTotalPages(
+          response.data.total ||
+            Math.ceil(
+              (response.data.total || formattedData.length) / itemsPerPage
+            )
+        );
       } else {
-        throw new Error('No certification data received');
+        throw new Error("No certification data received");
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch certificates');
-      console.error('Error fetching certificates:', err);
+      setError(
+        err instanceof Error ? err.message : "Failed to fetch certificates"
+      );
+      console.error("Error fetching certificates:", err);
     } finally {
       setLoading(false);
     }
@@ -154,7 +168,7 @@ const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     // Set timeout for debounced search
     searchTimeoutRef.current = setTimeout(() => {
       // Only trigger API call if search term is empty or has at least 3 characters
-      if (searchTerm === '' || searchTerm.length >= 3) {
+      if (searchTerm === "" || searchTerm.length >= 3) {
         setCurrentPage(1); // Reset to first page when searching
         fetchCertificates();
       }
@@ -170,9 +184,7 @@ const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set<string>();
     if (checked) {
-      certificationData.forEach((item) =>
-        newSelected.add(item.id.toString())
-      );
+      certificationData.forEach((item) => newSelected.add(item.id.toString()));
     }
     setSelectedRows(newSelected);
   };
@@ -190,55 +202,56 @@ const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isAllDisplayedSelected = useMemo(() => {
     return (
       certificationData.length > 0 &&
-      certificationData.every((item) =>
-        selectedRows.has(item.id.toString())
-      )
+      certificationData.every((item) => selectedRows.has(item.id.toString()))
     );
   }, [certificationData, selectedRows]);
 
   const isSomeDisplayedSelected = useMemo(() => {
     return (
-      certificationData.some((item) =>
-        selectedRows.has(item.id.toString())
-      ) && !isAllDisplayedSelected
+      certificationData.some((item) => selectedRows.has(item.id.toString())) &&
+      !isAllDisplayedSelected
     );
   }, [certificationData, selectedRows, isAllDisplayedSelected]);
 
   const handleDeleteCertificates = async (selectedRowIds: Set<string>) => {
     try {
-      const certificationIds = Array.from(selectedRowIds).map((id) => {
-        const certData = certificationData.find(item => item.id.toString() === id);
-        return certData?.originalData?.id;
-      }).filter(Boolean) as string[];
+      const certificationIds = Array.from(selectedRowIds)
+        .map((id) => {
+          const certData = certificationData.find(
+            (item) => item.id.toString() === id
+          );
+          return certData?.originalData?.id;
+        })
+        .filter(Boolean) as string[];
 
       if (certificationIds.length === 0) {
-        throw new Error('No valid certificate IDs found');
+        throw new Error("No valid certificate IDs found");
       }
 
       await certificateApi.deleteCertificates(certificationIds);
       await fetchCertificates();
-      
+
       setIsModalOpen(false);
       setSelectedRows(new Set());
     } catch (err) {
-      console.error('Error deleting certificates:', err);
-      setError('Failed to delete certificates');
+      console.error("Error deleting certificates:", err);
+      setError("Failed to delete certificates");
     }
   };
 
   const handleDeleteSingleCertificate = async (id: number) => {
     try {
-      const certData = certificationData.find(item => item.id === id);
+      const certData = certificationData.find((item) => item.id === id);
       if (certData?.originalData?.id) {
         await certificateApi.deleteCertificate(certData.originalData.id);
         await fetchCertificates();
       }
-      
+
       setIsModalOpen(false);
       setSingleRowToDelete(null);
     } catch (err) {
-      console.error('Error deleting certificate:', err);
-      setError('Failed to delete certificate');
+      console.error("Error deleting certificate:", err);
+      setError("Failed to delete certificate");
     }
   };
 
@@ -264,8 +277,13 @@ const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   };
 
   const displayData = useMemo(() => {
-    return certificationData.map(({ id, Status, originalData, ...rest }) => {
-      return rest;
+    return certificationData.map(({ id, originalData, ...rest }) => {
+      console.log(id, originalData);
+      const { "Certificate ID": certificateId, ...cleanedRest } = rest;
+      return {
+        ...cleanedRest,
+        "Certificate ID": certificateId,
+      };
     });
   }, [certificationData]);
 
@@ -279,7 +297,6 @@ const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     setIssueDate(null);
     setExpiryDate(null);
     setCurrentPage(1);
-    
   };
 
   const handleApplyFilter = () => {
@@ -288,15 +305,15 @@ const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     // Add date filters if they exist
     if (issueDate) {
       const year = issueDate.getFullYear();
-      const month = String(issueDate.getMonth() + 1).padStart(2, '0');
-      const day = String(issueDate.getDate()).padStart(2, '0');
+      const month = String(issueDate.getMonth() + 1).padStart(2, "0");
+      const day = String(issueDate.getDate()).padStart(2, "0");
       newFilters.issuedAt = `${year}-${month}-${day}`;
     }
 
     if (expiryDate) {
       const year = expiryDate.getFullYear();
-      const month = String(expiryDate.getMonth() + 1).padStart(2, '0');
-      const day = String(expiryDate.getDate()).padStart(2, '0');
+      const month = String(expiryDate.getMonth() + 1).padStart(2, "0");
+      const day = String(expiryDate.getDate()).padStart(2, "0");
       newFilters.expiredAt = `${year}-${month}-${day}`;
     }
 
@@ -308,20 +325,20 @@ const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const handleDownloadCertificate = (certificateData: Certification) => {
     try {
       if (certificateData.badgeUrl) {
-        const link = document.createElement('a');
+        const link = document.createElement("a");
         link.href = certificateData.badgeUrl;
         link.download = `certificate-${certificateData.certificateNumber}.png`;
-        link.target = '_blank';
+        link.target = "_blank";
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       } else {
-        console.warn('No badge URL available for this certificate');
+        console.warn("No badge URL available for this certificate");
       }
     } catch (error) {
-      console.error('Error downloading certificate:', error);
+      console.error("Error downloading certificate:", error);
       if (certificateData.badgeUrl) {
-        window.open(certificateData.badgeUrl, '_blank');
+        window.open(certificateData.badgeUrl, "_blank");
       }
     }
   };
@@ -372,7 +389,7 @@ const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
     return (
       <div className="flex flex-col justify-center items-center h-64">
         <div className="text-red-400 mb-4">Error: {error}</div>
-       Something went wrong while fetching certificates.
+        Something went wrong while fetching certificates.
       </div>
     );
   }

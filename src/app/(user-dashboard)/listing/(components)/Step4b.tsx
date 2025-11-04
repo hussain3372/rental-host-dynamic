@@ -4,14 +4,19 @@ import React, { useState, useRef, useEffect } from "react";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
 import Dropdown from "@/app/shared/InputDropDown";
+import StripePaymentModal from "./StripePaymentModal";
 
 export default function Step4b() {
-  const [selectedMethod, setSelectedMethod] = useState("card");
+  const [selectedMethod, setSelectedMethod] = useState("stripe");
   const [expiryDate, setExpiryDate] = useState<Date | null>(null);
   const [selectedBank, setSelectedBank] = useState("");
   const [showBankDropdown, setShowBankDropdown] = useState(false);
+  const [showStripeModal, setShowStripeModal] = useState(false);
 
   const bankDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Your subscription amount (in cents for Stripe)
+  const SUBSCRIPTION_AMOUNT = 9900; // $99.00
 
   const banks = [
     "Bank of America",
@@ -39,21 +44,68 @@ export default function Step4b() {
     };
   }, []);
 
+  const handleStripePayment = () => {
+    setShowStripeModal(true);
+  };
+
+  const handlePaymentSuccess = () => {
+    setShowStripeModal(false);
+    // Handle successful payment (e.g., move to next step)
+    console.log("Payment successful!");
+  };
+
   return (
     <div>
-      <h3 className="font-bold text-[20px] sm:text-[28px] ">Choose Your Payment Method</h3>
+      <h3 className="font-bold text-[20px] sm:text-[28px]">
+        Choose Your Payment Method
+      </h3>
       <p className="max-w-[573px] font-regular text-[12px] sm:text-[16px] leading-4 sm:leading-5 text-white/60 pt-3">
         Select the most convenient option to securely complete your subscription
         payment.
       </p>
 
       <div className="pt-10 flex flex-col md:flex-row gap-6">
-        {/* Credit / Debit Card */}
+        {/* Stripe Payment */}
         <label
-          className={`flex items-center sm:gap-[38px] justify-between rounded-lg  p-4 cursor-pointer  ${
+          className={`flex items-center sm:gap-[38px] justify-between rounded-lg p-4 cursor-pointer ${
+            selectedMethod === "stripe"
+              ? "border-[#9ba44f] border bg-[#1c1f14]"
+              : "bg-transparent bg-gradient-to-b from-[#202020] to-[#101010]"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Image
+              src="/images/stripe-logo.svg"
+              alt="Stripe payment"
+              width={64}
+              height={64}
+            />
+            <div>
+              <h4 className="text-white text-[14px] sm:text-[16px] font-regular leading-5">
+                Stripe Payment
+              </h4>
+              <p className="text-white/60 font-regular text-[10px] sm:text-[12px] pt-2 max-w-[215px]">
+                Secure payment with credit/debit card via Stripe
+              </p>
+            </div>
+          </div>
+
+          <input
+            type="radio"
+            name="paymentMethod"
+            value="stripe"
+            checked={selectedMethod === "stripe"}
+            onChange={() => setSelectedMethod("stripe")}
+            className="w-5 h-5 accent-[#EFFC76] cursor-pointer"
+          />
+        </label>
+
+        {/* Credit / Debit Card */}
+        {/* <label
+          className={`flex items-center sm:gap-[38px] justify-between rounded-lg p-4 cursor-pointer ${
             selectedMethod === "card"
               ? "border-[#9ba44f] border bg-[#1c1f14]"
-              : " bg-transparent bg-gradient-to-b from-[#202020] to-[#101010]"
+              : "bg-transparent bg-gradient-to-b from-[#202020] to-[#101010]"
           }`}
         >
           <div className="flex items-center gap-3">
@@ -64,7 +116,9 @@ export default function Step4b() {
               height={64}
             />
             <div>
-              <h4 className="text-white text-[14px] sm:text-[16px] font-regular leading-5">Credit / Debit Card</h4>
+              <h4 className="text-white text-[14px] sm:text-[16px] font-regular leading-5">
+                Credit / Debit Card
+              </h4>
               <p className="text-white/60 font-regular text-[10px] sm:text-[12px] pt-2 max-w-[215px]">
                 Pay instantly using Visa, MasterCard, or other major cards
               </p>
@@ -79,14 +133,14 @@ export default function Step4b() {
             onChange={() => setSelectedMethod("card")}
             className="w-5 h-5 accent-[#EFFC76] cursor-pointer"
           />
-        </label>
+        </label> */}
 
         {/* Bank Transfer */}
-        <label
-          className={`flex items-center sm:gap-[38px] justify-between rounded-lg  p-4 cursor-pointer  ${
+        {/* <label
+          className={`flex items-center sm:gap-[38px] justify-between rounded-lg p-4 cursor-pointer ${
             selectedMethod === "bank"
               ? "border-[#9ba44f] border bg-[#1c1f14]"
-              : " bg-transparent bg-gradient-to-b from-[#202020] to-[#101010]"
+              : "bg-transparent bg-gradient-to-b from-[#202020] to-[#101010]"
           }`}
         >
           <div className="flex items-center gap-3">
@@ -97,9 +151,11 @@ export default function Step4b() {
               height={64}
             />
             <div>
-              <h4 className="text-white text-[14px] sm:text-[16px] font-regular leading-5">Bank Transfer</h4>
+              <h4 className="text-white text-[14px] sm:text-[16px] font-regular leading-5">
+                Bank Transfer
+              </h4>
               <p className="text-white/60 font-regular text-[10px] sm:text-[12px] pt-2 max-w-[215px]">
-                    Transfer from your bank. Confirmation may take 1–2 days.
+                Transfer from your bank. Confirmation may take 1–2 days.
               </p>
             </div>
           </div>
@@ -112,8 +168,55 @@ export default function Step4b() {
             onChange={() => setSelectedMethod("bank")}
             className="w-5 h-5 accent-[#EFFC76] cursor-pointer"
           />
-        </label>
+        </label> */}
       </div>
+
+      {/* Stripe Payment Button */}
+      {selectedMethod === "stripe" && (
+        <div className="pt-10">
+          <div className="bg-gradient-to-b from-[#202020] to-[#101010] border border-[#4a4a4a] rounded-lg p-6">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h4 className="text-white font-semibold text-lg">
+                  Subscription Amount
+                </h4>
+                <p className="text-white/60 text-sm mt-1">
+                  One-time certification fee
+                </p>
+              </div>
+              <div className="text-right">
+                <p className="text-3xl font-bold text-[#EFFC76]">
+                  ${(SUBSCRIPTION_AMOUNT / 100).toFixed(2)}
+                </p>
+                <p className="text-white/40 text-xs mt-1">USD</p>
+              </div>
+            </div>
+
+            <button
+              onClick={handleStripePayment}
+              className="w-full py-4 bg-gradient-to-b from-[#EFFC76] to-[#d4e05c] text-black font-semibold rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-3"
+            >
+              <Image
+                src="/images/stripe-logo.svg"
+                alt="Stripe"
+                width={50}
+                height={20}
+              />
+              <span>Pay with Stripe</span>
+            </button>
+
+            <div className="flex items-center gap-2 mt-4 justify-center text-xs text-white/40">
+              <Image
+                src="/images/lock.png"
+                alt="secure"
+                width={12}
+                height={12}
+              />
+              <span>Secure payment powered by Stripe</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Credit Card Details */}
       {selectedMethod === "card" && (
@@ -130,7 +233,7 @@ export default function Step4b() {
               <input
                 type="text"
                 placeholder="Enter name"
-                className="w-full text-[14px] font-regular h-12 bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white  focus:outline-none "
+                className="w-full text-[14px] font-regular h-12 bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white focus:outline-none"
               />
             </div>
 
@@ -141,7 +244,7 @@ export default function Step4b() {
               <input
                 type="text"
                 placeholder="Enter number"
-                className="w-full text-[14px] font-regular h-12 bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white  focus:outline-none "
+                className="w-full text-[14px] font-regular h-12 bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white focus:outline-none"
               />
             </div>
 
@@ -155,8 +258,8 @@ export default function Step4b() {
                   onChange={(date) => setExpiryDate(date)}
                   dateFormat="MM/yy"
                   showMonthYearPicker
-                  minDate={new Date()} // prevent past dates
-                  className="w-full h-12 text-[14px] font-regular cursor-pointer bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white  focus:outline-none "
+                  minDate={new Date()}
+                  className="w-full h-12 text-[14px] font-regular cursor-pointer bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white focus:outline-none"
                   placeholderText="Select date"
                 />
                 <Image
@@ -176,7 +279,7 @@ export default function Step4b() {
               <input
                 type="text"
                 placeholder="Enter CVC/CVV"
-                className="w-full h-12 text-[14px] font-regular bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white  focus:outline-none "
+                className="w-full h-12 text-[14px] font-regular bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white focus:outline-none"
               />
             </div>
           </div>
@@ -198,7 +301,7 @@ export default function Step4b() {
               <input
                 type="text"
                 placeholder="Enter name"
-                className="w-full text-[14px] font-regular h-12 bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white  focus:outline-none "
+                className="w-full text-[14px] font-regular h-12 bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white focus:outline-none"
               />
             </div>
 
@@ -210,13 +313,9 @@ export default function Step4b() {
                 <button
                   type="button"
                   onClick={() => setShowBankDropdown((prev) => !prev)}
-                  className={`
-                    w-full h-12 px-4 pr-10 rounded-lg border border-[#464646]
-                    bg-gradient-to-b from-[#202020] to-[#101010]
-                    text-[14px] font-regular text-left
-                    ${selectedBank === "" ? "text-white/40" : "text-white"}
-                    cursor-pointer transition duration-200 ease-in-out
-                  `}
+                  className={`w-full h-12 px-4 pr-10 rounded-lg border border-[#464646] bg-gradient-to-b from-[#202020] to-[#101010] text-[14px] font-regular text-left ${
+                    selectedBank === "" ? "text-white/40" : "text-white"
+                  } cursor-pointer transition duration-200 ease-in-out`}
                 >
                   {selectedBank || "Select bank"}
                   <Image
@@ -251,7 +350,7 @@ export default function Step4b() {
               <input
                 type="text"
                 placeholder="Enter number"
-                className="w-full text-[14px] font-regular h-12 bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white  focus:outline-none "
+                className="w-full text-[14px] font-regular h-12 bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white focus:outline-none"
               />
             </div>
 
@@ -262,12 +361,21 @@ export default function Step4b() {
               <input
                 type="text"
                 placeholder="Enter BIC"
-                className="w-full h-12 text-[14px] font-regular bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white  focus:outline-none "
+                className="w-full h-12 text-[14px] font-regular bg-gradient-to-b from-[#202020] to-[#101010] placeholder:text-white/40 border border-[#4a4a4a] rounded-lg px-4 text-white focus:outline-none"
               />
             </div>
           </div>
         </div>
       )}
+
+      {/* Stripe Payment Modal */}
+      <StripePaymentModal
+        isOpen={showStripeModal}
+        onClose={() => setShowStripeModal(false)}
+        onSuccess={handlePaymentSuccess}
+        amount={SUBSCRIPTION_AMOUNT}
+        currency="USD"
+      />
     </div>
   );
 }

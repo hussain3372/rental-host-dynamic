@@ -13,12 +13,14 @@ export interface ApiNotification {
   read: boolean;
   readAt: string | null;
   createdAt: string;
+  params?: string;
 }
 
 export interface NotificationsResponse {
   notifications: ApiNotification[];
   total: number;
   unreadCount: number;
+  params?:string
 }
 
 export interface BaseResponse {

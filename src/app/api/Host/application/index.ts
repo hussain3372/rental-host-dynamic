@@ -12,7 +12,9 @@ import {
   SubmitResponse,
   ApplicationsListResponse,
   ApiPayload,
-  CheckListApiResponse
+  CheckListApiResponse,
+  CreatePaymentPayload,
+  PaymentResponseReal,
 } from "./types";
 import Cookies from "js-cookie";
 
@@ -21,7 +23,6 @@ const getToken = (): string => {
 };
 
 // Define proper checklist interfaces
-
 
 export const application = {
   getApplications: async (
@@ -39,12 +40,18 @@ export const application = {
 
     // Clean up parameters - only include defined values
     const cleanParams: Record<string, string | number> = {};
-    
+
     // Check if any filters are applied (excluding pagination)
-    const hasFilters = params && Object.entries(params).some(([key, value]) => 
-      key !== 'page' && key !== 'pageSize' && 
-      value !== undefined && value !== null && value !== ''
-    );
+    const hasFilters =
+      params &&
+      Object.entries(params).some(
+        ([key, value]) =>
+          key !== "page" &&
+          key !== "pageSize" &&
+          value !== undefined &&
+          value !== null &&
+          value !== ""
+      );
 
     // Only include pagination if no filters are applied or explicitly requested
     if (!hasFilters || params?.page) {
@@ -53,12 +60,17 @@ export const application = {
     if (!hasFilters || params?.pageSize) {
       cleanParams.pageSize = params?.pageSize || 10;
     }
-    
+
     if (params) {
       Object.entries(params).forEach(([key, value]) => {
         // Only include non-pagination parameters that have values
-        if (key !== 'page' && key !== 'pageSize' && 
-            value !== undefined && value !== null && value !== '') {
+        if (
+          key !== "page" &&
+          key !== "pageSize" &&
+          value !== undefined &&
+          value !== null &&
+          value !== ""
+        ) {
           cleanParams[key] = value;
         }
       });
@@ -100,7 +112,7 @@ export const application = {
       total: payload.data?.pagination?.total ?? payload.data?.total ?? 0,
       status: payload.status ?? "SUCCESS",
       message: payload.message ?? "",
-      pagination: payload.data?.pagination
+      pagination: payload.data?.pagination,
     };
 
     return {
@@ -139,7 +151,10 @@ export const application = {
     payload: ApplicationData
   ): Promise<ApiResponse<ApplicationResponse>> => {
     const token = getToken();
-    console.log(":outbox_tray: Sending JSON payload to /applications:", payload);
+    console.log(
+      ":outbox_tray: Sending JSON payload to /applications:",
+      payload
+    );
     return apiClient.post<ApplicationResponse>("/applications", payload, {
       headers: {
         "Content-Type": "application/json",
@@ -291,6 +306,39 @@ export const application = {
         Authorization: `Bearer ${token}`,
       },
     });
+  },
+
+  createPayment: async (
+    payload: CreatePaymentPayload
+  ): Promise<PaymentResponse> => {
+    const token = getToken();
+    const stored = localStorage.getItem("applicationData");
+    const applicationId = stored ? JSON.parse(stored).id : null;
+
+    if (!applicationId) {
+      throw new Error(
+        "Application ID not found. Please complete Step 1 first."
+      );
+    }
+
+    // attach applicationId dynamically
+    const finalPayload = {
+      ...payload,
+      applicationId,
+    };
+
+    const response = await apiClient.post<PaymentResponseReal>(
+      `/payments/create-intent`,
+      finalPayload,
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+
+    return response.data;
   },
 
   submitApplication: async (): Promise<ApiResponse<SubmitResponse>> => {

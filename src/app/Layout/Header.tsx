@@ -63,12 +63,15 @@ export default function Navbar() {
       window.removeEventListener("hashchange", handleHashChange);
     };
   }, [pathname]);
+
+
   const linkClasses = (isActive: boolean) =>
     `text-[20px] cursor-pointer pro-medium leading-5 relative group transition-colors duration-300
      ${isActive ? "text-[#FFFFFF]" : "text-[#FFFFFF99]"} hover:text-[#FFFFFF]`;
   const isSectionActive = (section: string) => {
     return activeSection === section;
   };
+  
   // Handle manual click on navigation links
   const handleNavClick = (section: string) => {
     setActiveSection(section);

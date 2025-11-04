@@ -19,19 +19,31 @@ export default function ChangePasswordDrawer({
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errorField, setErrorField] = useState<"current" | "new" | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
+  const passwordPattern = /^(?=.*[A-Z])(?=.*[!@#$%^&*]).+$/;
+
   const handlePasswordUpdate = async () => {
     setError(null);
+    setErrorField(null);
 
     if (!currentPassword || !newPassword) {
       setError("Both fields are required.");
+      setErrorField(!currentPassword ? "current" : "new");
       return;
     }
 
     if (newPassword.length < 8) {
       setError("New password must be at least 8 characters long.");
+      setErrorField("new");
+      return;
+    }
+
+    if (!passwordPattern.test(newPassword)) {
+      setError("Password must contain at least one uppercase letter and one special character.");
+      setErrorField("new");
       return;
     }
 
@@ -49,33 +61,33 @@ export default function ChangePasswordDrawer({
         setNewPassword("");
         if (onSave) onSave(currentPassword, newPassword);
       } else {
-        setError(
-          data.message || "Failed to change password. Please try again."
-        );
+        setError(data.message || "Failed to change password. Please try again.");
+        setErrorField("current");
       }
     } catch (err) {
       console.error("Password change error:", err);
-      setError("Unexpected error occurred. Please try again.");
+      setError("Something went wrong while updating your password. Please try again later.");
     } finally {
       setLoading(false);
     }
   };
+
   return (
     <div className="h-full flex flex-col justify-between text-white">
       <div className="space-y-5">
         <h2 className="text-[20px] font-medium">Change Password</h2>
 
+        {/* Current Password Field */}
         <div className="relative">
-          <label className="block text-[14px] mb-[10px]">
-            Current password
-          </label>
+          <label className="block text-[14px] mb-[10px]">Current password</label>
           <input
             type={showCurrent ? "text" : "password"}
             placeholder="Enter current password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
-            className="w-full p-3 pr-10 rounded-xl border border-[#404040] bg-gradient-to-b from-[#202020] to-[#101010]
-              text-[14px] text-white placeholder:text-white/40 focus:outline-none focus:border-[#EFFC76]"
+            className={`w-full p-3 pr-10 rounded-xl border bg-gradient-to-b from-[#202020] to-[#101010]
+              text-[14px] text-white placeholder:text-white/40 focus:outline-none
+              ${errorField === "current" ? "border-red-500" : "border-[#404040] focus:border-[#EFFC76]"}`}
           />
           <button
             type="button"
@@ -85,6 +97,8 @@ export default function ChangePasswordDrawer({
             {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         </div>
+
+        {/* New Password Field */}
         <div className="relative">
           <label className="block text-[14px] mb-[10px]">New password</label>
           <input
@@ -92,8 +106,9 @@ export default function ChangePasswordDrawer({
             placeholder="Enter new password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full p-3 pr-10 rounded-xl border border-[#404040] bg-gradient-to-b from-[#202020] to-[#101010]
-              text-[14px] text-white placeholder:text-white/40 focus:outline-none focus:border-[#EFFC76]"
+            className={`w-full p-3 pr-10 rounded-xl border bg-gradient-to-b from-[#202020] to-[#101010]
+              text-[14px] text-white placeholder:text-white/40 focus:outline-none
+              ${errorField === "new" ? "border-red-500" : "border-[#404040] focus:border-[#EFFC76]"}`}
           />
           <button
             type="button"
@@ -104,6 +119,7 @@ export default function ChangePasswordDrawer({
           </button>
         </div>
 
+        {/* Error Message */}
         {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
       </div>
 
@@ -112,9 +128,7 @@ export default function ChangePasswordDrawer({
           disabled={loading}
           onClick={handlePasswordUpdate}
           className={`yellow-btn w-full text-black px-[40px] py-[16px] rounded-[8px] font-semibold text-[18px]
-            ${
-              loading ? "opacity-70 cursor-not-allowed" : "hover:bg-[#E5F266]"
-            }`}
+            ${loading ? "opacity-70 cursor-not-allowed" : "hover:bg-[#E5F266]"}`}
         >
           {loading ? "Updating..." : "Update Password"}
         </button>

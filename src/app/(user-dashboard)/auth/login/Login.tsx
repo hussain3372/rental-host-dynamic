@@ -62,7 +62,7 @@ export default function LoginPage() {
   const [fcmToken, setFcmToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const generateFcmTokenSilently = async () => {
+    const requestNotificationPermissionAndGenerateToken = async () => {
       try {
         if (!messaging) {
           console.log("❌ FCM not supported or messaging not initialized");
@@ -72,6 +72,19 @@ export default function LoginPage() {
         console.log("🔄 Checking notification permission...");
         console.log("Current permission:", Notification.permission);
 
+        // REQUEST PERMISSION IF NOT GRANTED
+        if (Notification.permission === "default") {
+          console.log("📢 Requesting notification permission...");
+          const permission = await Notification.requestPermission();
+          console.log("Permission result:", permission);
+
+          if (permission !== "granted") {
+            console.log("❌ Notification permission denied by user");
+            return;
+          }
+        }
+
+        // Generate token if permission is granted
         if (Notification.permission === "granted") {
           console.log("✅ Permission granted, generating FCM token...");
           const token = await getToken(messaging, {
@@ -88,7 +101,8 @@ export default function LoginPage() {
           }
         } else {
           console.log(
-            "ℹ️ Notification permission not granted, token generation skipped"
+            "❌ Notification permission not granted:",
+            Notification.permission
           );
         }
       } catch (error) {
@@ -96,7 +110,7 @@ export default function LoginPage() {
       }
     };
 
-    generateFcmTokenSilently();
+    requestNotificationPermissionAndGenerateToken();
   }, []);
 
   const handleLogin = async (formData: LoginFormData) => {
@@ -170,8 +184,7 @@ export default function LoginPage() {
           sameSite: "Lax",
           path: "/",
         });
-        Cookies.remove("adminAccessToken");
-        Cookies.remove("superAdminAccessToken");
+
         router.refresh();
         return;
       }
@@ -205,6 +218,10 @@ export default function LoginPage() {
         loading={loading}
         link="/auth/signup"
         mode="login"
+        onGoogleLogin={() => {
+          // Your Google login logic here
+          console.log("Google login");
+        }}
         onSubmit={handleLogin}
       />
     </div>

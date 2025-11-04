@@ -326,15 +326,11 @@ export default function Ticket({
   }, [allCertificationData]);
 
   const displayData = useMemo(() => {
-    const result = filteredCertificationData.map(({ id, ...rest }) => {
-      console.log(id);
-      return rest;
-    });
-
-    console.log(
-      "🟢 Super-Admin Tickets Display Data for Table:",
-      result.length,
-      "items"
+    const result = filteredCertificationData.map(
+      ({ id, "Ticket Id": ticketId, ...rest }) => {
+        console.log(id, "Ticket ID:", ticketId);
+        return rest;
+      }
     );
     return result;
   }, [filteredCertificationData]);
@@ -523,36 +519,28 @@ export default function Ticket({
     }
   };
 
-  // Dropdown items for table actions
-  // Dropdown items for table actions
   const dropdownItems = [
     {
       label: "View Details",
-      onClick: (row: Record<string, string>, ) => {
-        const ticketId = row["Ticket Id"];
-        const originalRow = filteredCertificationData.find(
-          (item) => item["Ticket Id"] === ticketId
-        );
-
+      onClick: (row: Record<string, string>, index: number) => {
+        // Use index to find the corresponding item in filteredCertificationData
+        const originalRow = filteredCertificationData[index];
         if (originalRow) {
           onViewDetails(originalRow);
         } else {
-          console.error("🔴 Could not find original row for ticket:", ticketId);
+          console.error("🔴 Could not find original row for index:", index);
         }
       },
     },
     {
       label: "Delete Ticket",
-      onClick: (row: Record<string, string>, ) => {
-        const ticketId = row["Ticket Id"];
-        const originalRow = filteredCertificationData.find(
-          (item) => item["Ticket Id"] === ticketId
-        );
-
+      onClick: (row: Record<string, string>, index: number) => {
+        // Use index to find the corresponding item in filteredCertificationData
+        const originalRow = filteredCertificationData[index];
         if (originalRow) {
           openDeleteSingleModal(row, originalRow.id);
         } else {
-          console.error("🔴 Could not find original row for ticket:", ticketId);
+          console.error("🔴 Could not find original row for index:", index);
         }
       },
     },
@@ -587,20 +575,12 @@ export default function Ticket({
           title="Tickets"
           control={tableControl}
           showDeleteButton={true}
-          onDeleteSingle={(row, ) => {
-            // Find the original row by Ticket Id instead of using index
-            const ticketId = row["Ticket Id"];
-            const originalRow = filteredCertificationData.find(
-              (item) => item["Ticket Id"] === ticketId
-            );
-
+          onDeleteSingle={(row, index) => {
+            const originalRow = filteredCertificationData[index];
             if (originalRow) {
               openDeleteSingleModal(row, originalRow.id);
             } else {
-              console.error(
-                "🔴 Could not find original row for ticket:",
-                ticketId
-              );
+              console.error("🔴 Could not find original row for index:", index);
             }
           }}
           showPagination={true}

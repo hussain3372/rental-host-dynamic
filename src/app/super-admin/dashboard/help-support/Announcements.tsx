@@ -159,7 +159,7 @@ export default function Announcements({ refresh }: AnnouncementsProps) {
   if (loading) {
     return (
       <div className="min-h-screen bg-black pt-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6  mx-auto">
           {[1, 2, 3, 4, 5, 6].map((item) => (
             <div key={item} className="bg-[#121315] rounded-lg p-6">
               <div className="animate-pulse">
@@ -178,7 +178,7 @@ export default function Announcements({ refresh }: AnnouncementsProps) {
   return (
     <>
       <div className="min-h-screen pt-5">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-7xl mx-auto">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6  mx-auto">
           {announcements.length === 0 ? (
             <div className="col-span-2 text-center py-8">
               <p className="text-gray-400 text-lg">No announcements found</p>

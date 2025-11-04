@@ -18,6 +18,11 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
 };
 
+interface MfaResponse {
+  mfaRequired?: boolean;
+  email?: string;
+}
+
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
 let messaging: ReturnType<typeof getMessaging> | null = null;
@@ -98,7 +103,6 @@ export default function LoginPage() {
     try {
       setLoading(true);
 
-      // Debug FCM token before sending
       console.log("🔍 FCM Token status before login:");
       console.log("- Token exists:", !!fcmToken);
       console.log("- Token value:", fcmToken);
@@ -112,45 +116,64 @@ export default function LoginPage() {
 
       const response: AuthResponse = await auth.Login(loginPayload);
       const user = response?.data?.user;
+      const mfaRequired = (response?.data as MfaResponse)?.mfaRequired;
 
-      if (response.success) {
-        if (user?.role !== "SUPER_ADMIN") {
-          toast.error("Access restricted — super admin only.");
-          return;
-        }
-      }
+      console.log("🔍 Full response:", JSON.stringify(response, null, 2));
+      console.log("🔍 User object:", JSON.stringify(user, null, 2));
+      console.log("🔍 MFA Required:", mfaRequired);
 
+      // Step 1: Check if login failed
       if (!response?.success) {
         toast.error(response?.message || "Login failed");
         return;
       }
 
-      // 🧱 Safely store whatever exists — no undefined crashes
+      // Step 2: Handle MFA users FIRST (check mfaRequired flag from API)
+      if (mfaRequired === true) {
+        console.log("✅ MFA required - redirecting to email verification");
+
+        // Store email for MFA flow
+        const email = (response?.data as MfaResponse)?.email;
+        if (email) localStorage.setItem("email", email);
+        localStorage.setItem("userMfaEnabled", "true");
+
+        setLoading(false);
+        toast.loading("Redirecting to verification screen...");
+        router.push("/super-admin/auth/verify-otp");
+        return;
+      }
+
+      // Step 3: Store user data (only for non-MFA users)
       if (user) {
         if (user.firstname) localStorage.setItem("firstname", user.firstname);
         if (user.lastname) localStorage.setItem("lastname", user.lastname);
         if (user.email) localStorage.setItem("email", user.email);
-        if (typeof user.mfaEnabled !== "undefined")
-          localStorage.setItem(
-            "userMfaEnabled",
-            JSON.stringify(user.mfaEnabled)
-          );
+        localStorage.setItem("userMfaEnabled", "false");
         if (user.role) localStorage.setItem("userRole", user.role);
       }
 
+      // Step 4: Check role restriction (only for non-MFA users)
+      console.log("Checking role for non-MFA user:", user?.role);
+      if (user?.role !== "SUPER_ADMIN") {
+        toast.error("Access restricted — Super Admin only.");
+        return;
+      }
+
+      // Step 5: Complete login for HOST users without MFA
       const token = response?.data?.accessToken || "";
+      if (token) {
+        Cookies.set("superAdminAccessToken", token, {
+          expires: 7,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: "Lax",
+          path: "/",
+        });
+        router.refresh();
+        return;
+      }
 
-      // 🔐 Case 1: MFA disabled → superAdminAccessToken present
-      Cookies.set("superAdminAccessToken", token, {
-        expires: 7,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "Lax",
-        path: "/",
-      });
-
-      router.push("/super-admin/dashboard");
-      router.refresh();
-      return;
+      // Fallback
+      console.log("⚠️ Unexpected state - no token provided");
     } catch (error: unknown) {
       console.error("Login error:", error);
       const errorMessage =
@@ -172,8 +195,11 @@ export default function LoginPage() {
         title="Welcome Back!"
         subtitle="Sign in to explore your personalized dashboard."
         submitText="Login"
-        showAlter={false}
+        showAlter={true}
+        alterText="Don't have an account?"
+        linktext="Sign up"
         loading={loading}
+        link="/auth/signup"
         mode="login"
         onSubmit={handleLogin}
       />

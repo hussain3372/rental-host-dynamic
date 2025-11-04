@@ -33,7 +33,6 @@ export type TableControl = {
   nthChildStep?: number;
   highlightRowOnHover?: boolean;
   columnConfig?: Record<string, ColumnConfig>;
-
 };
 
 interface TableProps<T> {
@@ -65,9 +64,8 @@ interface TableProps<T> {
   onDeleteAll?: () => void;
   isDeleteAllDisabled?: boolean;
   disableClientSidePagination?: boolean;
-    isLoading?: boolean;
-
-
+  isLoading?: boolean;
+  hideIdColumn?: boolean;
 }
 
 export function Table<T extends Record<string, unknown>>({
@@ -80,26 +78,25 @@ export function Table<T extends Record<string, unknown>>({
   showDeleteButton = false,
   dropdownItems,
   selectedRows = new Set(),
-  setSelectedRows = () => { },
+  setSelectedRows = () => {},
   onSelectAll,
   onSelectRow,
   isAllSelected = false,
   isSomeSelected = false,
   rowIds = [],
   searchTerm = "",
-  onSearchChange = () => { },
+  onSearchChange = () => {},
   currentPage = 1,
-  onPageChange = () => { },
+  onPageChange = () => {},
   itemsPerPage = 6,
   totalItems = 0,
   showPagination = true,
   showFilter = false,
-  onFilterToggle = () => { },
-  onDeleteAll = () => { },
+  onFilterToggle = () => {},
+  onDeleteAll = () => {},
   isDeleteAllDisabled = true,
   disableClientSidePagination = false, // ✅ ADD THIS
-
-
+  hideIdColumn = false, // Add this
 }: TableProps<T>) {
   const [displayData, setDisplayData] = useState<T[]>(data);
   const [activeSortDropdown, setActiveSortDropdown] = useState<string | null>(
@@ -237,147 +234,156 @@ export function Table<T extends Record<string, unknown>>({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [activeSortDropdown]);
 
-
   const totalPages = showPagination ? Math.ceil(totalItems / itemsPerPage) : 1;
   const startIndex = (currentPage - 1) * itemsPerPage;
 
   const tableData = disableClientSidePagination
     ? data
-    : (showPagination
-      ? data.slice(startIndex, startIndex + itemsPerPage)
-      : data);
+    : showPagination
+    ? data.slice(startIndex, startIndex + itemsPerPage)
+    : data;
   const renderPaginationButtons = () => {
-  const buttons = [];
-  const maxVisiblePages = 5;
+    const buttons = [];
+    const maxVisiblePages = 5;
 
-  if (totalPages <= 1) {
-    return null;
-  }
-
-  // Previous button
-  buttons.push(
-    <button
-      type="button"
-      key="prev"
-      onClick={() => onPageChange(currentPage - 1)}
-      disabled={currentPage === 1}
-      className="w-8 h-8 flex items-center p-[13px] justify-center text-gray-400 hover:text-white transition-colors border border-gray-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      <Image src="/images/arrow-left.svg" height={14} width={14} alt="Back" />
-    </button>
-  );
-
-  // Calculate which pages to show
-  let startPage = 1;
-  let endPage = totalPages;
-
-  if (totalPages > maxVisiblePages) {
-    const halfVisible = Math.floor(maxVisiblePages / 2);
-    
-    if (currentPage <= halfVisible + 1) {
-      // At the beginning
-      endPage = maxVisiblePages;
-    } else if (currentPage >= totalPages - halfVisible) {
-      // At the end
-      startPage = totalPages - maxVisiblePages + 1;
-    } else {
-      // In the middle
-      startPage = currentPage - halfVisible;
-      endPage = currentPage + halfVisible;
+    if (totalPages <= 1) {
+      return null;
     }
-  }
 
-  // Always show first page
-  if (startPage > 1) {
+    // Previous button
     buttons.push(
       <button
         type="button"
-        key={1}
-        onClick={() => onPageChange(1)}
-        className="w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-colors border cursor-pointer text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white"
+        key="prev"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="w-8 h-8 flex items-center p-[13px] justify-center text-gray-400 hover:text-white transition-colors border border-gray-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
       >
-        1
+        <Image src="/images/arrow-left.svg" height={14} width={14} alt="Back" />
       </button>
     );
-    
-    // Show ellipsis if there's a gap
-    if (startPage > 2) {
+
+    // Calculate which pages to show
+    let startPage = 1;
+    let endPage = totalPages;
+
+    if (totalPages > maxVisiblePages) {
+      const halfVisible = Math.floor(maxVisiblePages / 2);
+
+      if (currentPage <= halfVisible + 1) {
+        // At the beginning
+        endPage = maxVisiblePages;
+      } else if (currentPage >= totalPages - halfVisible) {
+        // At the end
+        startPage = totalPages - maxVisiblePages + 1;
+      } else {
+        // In the middle
+        startPage = currentPage - halfVisible;
+        endPage = currentPage + halfVisible;
+      }
+    }
+
+    // Always show first page
+    if (startPage > 1) {
       buttons.push(
-        <span
-          key="ellipsis-start"
-          className="w-8 h-8 flex items-center justify-center text-white opacity-40 select-none"
+        <button
+          type="button"
+          key={1}
+          onClick={() => onPageChange(1)}
+          className="w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-colors border cursor-pointer text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white"
         >
-          •••
-        </span>
+          1
+        </button>
+      );
+
+      // Show ellipsis if there's a gap
+      if (startPage > 2) {
+        buttons.push(
+          <span
+            key="ellipsis-start"
+            className="w-8 h-8 flex items-center justify-center text-white opacity-40 select-none"
+          >
+            •••
+          </span>
+        );
+      }
+    }
+
+    // Render page numbers
+    for (let i = startPage; i <= endPage; i++) {
+      buttons.push(
+        <button
+          type="button"
+          key={i}
+          onClick={() => onPageChange(i)}
+          className={`w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-all duration-200 border cursor-pointer ${
+            currentPage === i
+              ? "bg-[#EFFC76] text-black font-semibold border-[#EFFC76] scale-110 shadow-lg"
+              : "text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white hover:scale-105"
+          }`}
+        >
+          {i}
+        </button>
       );
     }
-  }
 
-  // Render page numbers
-  for (let i = startPage; i <= endPage; i++) {
-    buttons.push(
-      <button
-        type="button"
-        key={i}
-        onClick={() => onPageChange(i)}
-        className={`w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-all duration-200 border cursor-pointer ${
-          currentPage === i
-            ? "bg-[#EFFC76] text-black font-semibold border-[#EFFC76] scale-110 shadow-lg"
-            : "text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white hover:scale-105"
-        }`}
-      >
-        {i}
-      </button>
-    );
-  }
+    // Always show last page
+    if (endPage < totalPages) {
+      // Show ellipsis if there's a gap
+      if (endPage < totalPages - 1) {
+        buttons.push(
+          <span
+            key="ellipsis-end"
+            className="w-8 h-8 flex items-center justify-center text-white opacity-40 select-none"
+          >
+            •••
+          </span>
+        );
+      }
 
-  // Always show last page
-  if (endPage < totalPages) {
-    // Show ellipsis if there's a gap
-    if (endPage < totalPages - 1) {
       buttons.push(
-        <span
-          key="ellipsis-end"
-          className="w-8 h-8 flex items-center justify-center text-white opacity-40 select-none"
+        <button
+          type="button"
+          key={totalPages}
+          onClick={() => onPageChange(totalPages)}
+          className="w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-colors border cursor-pointer text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white"
         >
-          •••
-        </span>
+          {totalPages}
+        </button>
       );
     }
-    
+
+    // Next button
     buttons.push(
       <button
         type="button"
-        key={totalPages}
-        onClick={() => onPageChange(totalPages)}
-        className="w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-colors border cursor-pointer text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white"
+        key="next"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors border border-gray-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 p-[13px]"
       >
-        {totalPages}
+        <Image
+          src="/images/arrow-right.svg"
+          height={14}
+          width={14}
+          alt="Next"
+        />
       </button>
     );
-  }
 
-  // Next button
-  buttons.push(
-    <button
-      type="button"
-      key="next"
-      onClick={() => onPageChange(currentPage + 1)}
-      disabled={currentPage === totalPages}
-      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors border border-gray-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 p-[13px]"
-    >
-      <Image
-        src="/images/arrow-right.svg"
-        height={14}
-        width={14}
-        alt="Next"
-      />
-    </button>
-  );
+    return buttons;
+  };
+  // ✅ Remove the "id" column from both header and body - FIXED VERSION
+  const keys =
+    displayData.length > 0
+      ? Object.keys(displayData[0]).filter((key) => {
+          if (hideIdColumn && key.toLowerCase() === "id") {
+            return false;
+          }
+          return true;
+        })
+      : [];
 
-  return buttons;
-};
-  const keys = displayData.length > 0 ? Object.keys(displayData[0]) : [];
   const paddingSize = control.compact ? "8px 12px" : "12px 16px";
 
   const getBorderWidth = () => {
@@ -403,8 +409,9 @@ export function Table<T extends Record<string, unknown>>({
   return (
     <div style={{ marginBottom: 15 }}>
       <div
-        className={`bg-[#121315] overflow-auto ${setHeight ? "custom-height" : ""
-          }  rounded-lg relative z-[10] scrollbar-hide`}
+        className={`bg-[#121315] overflow-auto ${
+          setHeight ? "custom-height" : ""
+        }  rounded-lg relative z-[10] scrollbar-hide`}
       >
         <div className="flex flex-col sm:flex-row justify-between lg:items-center pt-5 px-5">
           <h2 className="text-white text-[16px] font-semibold leading-[20px]">
@@ -480,8 +487,9 @@ export function Table<T extends Record<string, unknown>>({
                 : "0",
               boxShadow: control.shadow ? "0 4px 6px rgba(0,0,0,0.1)" : "none",
               border: control.bordered
-                ? `${getBorderWidth()} ${control.borderStyle || "solid"} ${control.borderColor || "#e0e0e0"
-                }`
+                ? `${getBorderWidth()} ${control.borderStyle || "solid"} ${
+                    control.borderColor || "#e0e0e0"
+                  }`
                 : "none",
             }}
           >
@@ -580,12 +588,12 @@ export function Table<T extends Record<string, unknown>>({
                           }}
                         >
                           {key}
-                          <Image
+                          {/* <Image
                             src="/images/menu.png"
                             alt="menu"
                             height={16}
                             width={16}
-                          />
+                          /> */}
                         </div>
                       </th>
                     ))}
@@ -604,12 +612,12 @@ export function Table<T extends Record<string, unknown>>({
                         }}
                       >
                         Action
-                        <Image
+                        {/* <Image
                           src="/images/menu.png"
                           alt="menu"
                           height={16}
                           width={16}
-                        />
+                        /> */}
                       </th>
                     )}
                   </tr>
@@ -668,13 +676,13 @@ export function Table<T extends Record<string, unknown>>({
                                 type="checkbox"
                                 checked={selectedRows.has(
                                   rowIds[
-                                  showPagination ? startIndex + idx : idx
+                                    showPagination ? startIndex + idx : idx
                                   ]
                                 )}
                                 onChange={(e) => {
                                   const rowId =
                                     rowIds[
-                                    showPagination ? startIndex + idx : idx
+                                      showPagination ? startIndex + idx : idx
                                     ];
                                   onSelectRow?.(rowId, e.target.checked);
                                 }}
@@ -740,7 +748,7 @@ export function Table<T extends Record<string, unknown>>({
                                   ) {
                                     const rowId =
                                       rowIds[
-                                      showPagination ? startIndex + idx : idx
+                                        showPagination ? startIndex + idx : idx
                                       ];
                                     disabled = !selectedRows.has(rowId);
                                   }

@@ -637,17 +637,46 @@ const percentageTooltip = function (this: TooltipModel<ChartType>, args: { chart
     },
   },
 };
+
   if (type === "bar") {
-  // ✅ Calculate dynamic max if yAxisMax is not provided
-  const calculateMax = () => {
-    if (yAxisMax !== undefined) return yAxisMax;
+  // ✅ Calculate dynamic max and step size based on data
+  const calculateDynamicScale = () => {
+    if (yAxisMax !== undefined) {
+      // If custom max is provided, calculate appropriate step size
+      const stepSize = yAxisMax / 5;
+      return { max: yAxisMax, stepSize };
+    }
     
     // If Y-axis is hidden, don't limit the scale
-    if (!showYAxis) return undefined;
+    if (!showYAxis) return { max: undefined, stepSize: undefined };
     
-    // Default to 5000 only when Y-axis is visible and no custom max provided
-    return 5000;
+    // Find the maximum value in all datasets
+    const allValues = datasets.flatMap(ds => ds.data);
+    const dataMax = Math.max(...allValues, 0);
+    
+    // If no data or all zeros, use default
+    if (dataMax === 0) {
+      return { max: 5000, stepSize: 1000 };
+    }
+    
+    // Calculate appropriate max and step size
+    // Round up to next nice number
+    const magnitude = Math.pow(10, Math.floor(Math.log10(dataMax)));
+    const normalized = dataMax / magnitude;
+    
+    let niceMax;
+    if (normalized <= 1) niceMax = 1;
+    else if (normalized <= 2) niceMax = 2;
+    else if (normalized <= 5) niceMax = 5;
+    else niceMax = 10;
+    
+    const calculatedMax = niceMax * magnitude;
+    const stepSize = calculatedMax / 5;
+    
+    return { max: calculatedMax, stepSize };
   };
+
+  const { max: dynamicMax, stepSize: dynamicStepSize } = calculateDynamicScale();
 
   baseOptions.scales = {
     x: {
@@ -664,8 +693,7 @@ const percentageTooltip = function (this: TooltipModel<ChartType>, args: { chart
     y: {
       stacked,
       grid: { display: false },
-      // ✅ Use dynamic max calculation
-      max: calculateMax(),
+      max: dynamicMax,
       min: 0,
       beginAtZero: true,
       ticks: {
@@ -675,23 +703,16 @@ const percentageTooltip = function (this: TooltipModel<ChartType>, args: { chart
         padding: 10,
         callback: function (value: string | number) {
           const num = typeof value === "number" ? value : parseFloat(String(value));
-          // ✅ Only show specific values when Y-axis is visible
-          if (showYAxis) {
-            const allowedValues: Record<number, string> = {
-              0: "0",
-              1000: "1k", 
-              2000: "2k",
-              3000: "3k",
-              4000: "4k",
-              5000: "5k"
-            };
-            return allowedValues[num] || undefined;
-          }
-          // ✅ Return undefined when Y-axis is hidden
-          return undefined;
+          if (!showYAxis) return undefined;
+          
+          // Format numbers dynamically
+          if (num === 0) return "0";
+          if (num >= 1000000) return (num / 1000000).toFixed(num % 1000000 === 0 ? 0 : 1) + "M";
+          if (num >= 1000) return (num / 1000).toFixed(num % 1000 === 0 ? 0 : 1) + "k";
+          return num.toString();
         },
-        stepSize: showYAxis ? 1000 : undefined,
-        count: showYAxis ? 6 : undefined
+        stepSize: dynamicStepSize,
+        count: 6
       },
       border: { display: false },
       position: 'left',
@@ -720,6 +741,37 @@ const percentageTooltip = function (this: TooltipModel<ChartType>, args: { chart
       intersect: false,
     };
 
+    // ✅ Calculate dynamic scale for line chart
+    const calculateLineScale = () => {
+      if (yAxisMax !== undefined) {
+        const stepSize = yAxisMax / 5;
+        return { max: yAxisMax, stepSize };
+      }
+      
+      const allValues = datasets.flatMap(ds => ds.data);
+      const dataMax = Math.max(...allValues, 0);
+      
+      if (dataMax === 0) {
+        return { max: 50000, stepSize: 10000 };
+      }
+      
+      const magnitude = Math.pow(10, Math.floor(Math.log10(dataMax)));
+      const normalized = dataMax / magnitude;
+      
+      let niceMax;
+      if (normalized <= 1) niceMax = 1;
+      else if (normalized <= 2) niceMax = 2;
+      else if (normalized <= 5) niceMax = 5;
+      else niceMax = 10;
+      
+      const calculatedMax = niceMax * magnitude;
+      const stepSize = calculatedMax / 5;
+      
+      return { max: calculatedMax, stepSize };
+    };
+
+    const { max: lineMax, stepSize: lineStepSize } = calculateLineScale();
+
     baseOptions.scales = {
       x: {
         grid: { display: false },
@@ -733,18 +785,19 @@ const percentageTooltip = function (this: TooltipModel<ChartType>, args: { chart
       y: {
         beginAtZero: true,
         min: 0,
-        max: yAxisMax,
+        max: lineMax,
         grid: { display: false },
         ticks: {
           display: true,
           color: "#9ca3af",
           font: { size: 12 },
           padding: 10,
-          stepSize: 10000,
+          stepSize: lineStepSize,
           callback: (value: string | number) => {
             const numValue = typeof value === "number" ? value : parseFloat(String(value));
             if (numValue === 0) return "$0";
-            if (numValue >= 1000) return "$" + numValue / 1000 + "k";
+            if (numValue >= 1000000) return "$" + (numValue / 1000000).toFixed(numValue % 1000000 === 0 ? 0 : 1) + "M";
+            if (numValue >= 1000) return "$" + (numValue / 1000).toFixed(numValue % 1000 === 0 ? 0 : 1) + "k";
             return "$" + numValue;
           },
         },

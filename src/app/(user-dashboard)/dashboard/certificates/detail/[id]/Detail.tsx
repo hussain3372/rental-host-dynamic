@@ -3,16 +3,21 @@ import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 import { useParams } from "next/navigation";
 import Image from "next/image";
-import { certifications } from "@/app/api/Host/certification/index";
-import { CertificationData, PropertyDetails } from "@/app/api/Host/certification/types";
+import { generateCertificatePDF } from "../generatePDF";
 
+import { certifications } from "@/app/api/Host/certification/index";
+import {
+  CertificationData,
+  PropertyDetails,
+} from "@/app/api/Host/certification/types";
 
 export default function ApplicationDetail() {
   const { id } = useParams();
   const thumbnailsContainerRef = useRef<HTMLDivElement>(null);
   const [thumbnailsHeight, setThumbnailsHeight] = useState(0);
-  // const [application, setApplication] = useState<any>(null);
-  const [application, setApplication] = useState<(CertificationData & PropertyDetails) | null>(null);
+  const [application, setApplication] = useState<
+    (CertificationData & PropertyDetails) | null
+  >(null);
   const [loading, setLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
 
@@ -49,25 +54,30 @@ export default function ApplicationDetail() {
 
   const handleDownload = async () => {
     try {
-      // Try to download via API endpoint first
-      await certifications.downloadCertificate(id as string);
+      await generateCertificatePDF({
+        id: application?.id,
+        status: application?.status || "Active",
+        certificate_id: application?.certificateNumber,
+        issue_date: application?.issuedAt
+          ? new Date(application.issuedAt).toLocaleDateString()
+          : "N/A",
+        expiry_date: application?.expiresAt
+          ? new Date(application.expiresAt).toLocaleDateString()
+          : "N/A",
+        property_name: application?.propertyName,
+        address: application?.address,
+        property_type: application?.propertyType,
+        ownership: "Owner Verified",
+        description: application?.description,
+        applicant_name: application?.host?.name,
+        email: application?.host?.email,
+        qrCodeUrl: application?.qrCodeUrl,
+      });
     } catch (error) {
-      console.error("Download failed:", error);
-
-      if (application?.badgeUrl) {
-        const link = document.createElement("a");
-        link.href = application.badgeUrl;
-        link.download = application.badgeUrl;
-        console.log("image : " , link.download )
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      } else {
-        alert("No certificate file available for download.");
-      }
+      console.error("PDF generation failed:", error);
+      alert("Download failed. Please try again.");
     }
   };
-
 
   // ✅ Maintain thumbnail section height
   useEffect(() => {
@@ -81,13 +91,19 @@ export default function ApplicationDetail() {
     return () => window.removeEventListener("resize", updateHeight);
   }, [application]);
 
-  if (loading) return <p className="text-white">Loading certificate details...</p>;
+  if (loading)
+    return <p className="text-white">Loading certificate details...</p>;
 
   if (!application) {
     return (
       <div className="flex items-center justify-center">
         <div className="text-center flex flex-col items-center justify-center">
-          <Image src="/images/empty.png" alt="not found" width={220} height={220} />
+          <Image
+            src="/images/empty.png"
+            alt="not found"
+            width={220}
+            height={220}
+          />
           <h1 className="text-2xl mb-3 text-white font-medium leading-[28px]">
             No Certificate Found
           </h1>
@@ -106,7 +122,8 @@ export default function ApplicationDetail() {
     ? application.images
     : ["/images/placeholder.jpg"];
   const totalSteps = images.length;
-  const nextStep = () => setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
+  const nextStep = () =>
+    setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
   const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
 
   return (
@@ -115,8 +132,14 @@ export default function ApplicationDetail() {
       <nav className="mb-4">
         <div className="flex items-center text-[12px] sm:text-[16px] gap-3 font-regular leading-[20px] text-white/40">
           <Link href="/dashboard/certificates" className="hover:text-[#EFFC76]">
-            My Certificates    </Link>
-          <Image src="/images/greater.svg" alt="linked" width={16} height={16} />
+            My Certificates{" "}
+          </Link>
+          <Image
+            src="/images/greater.svg"
+            alt="linked"
+            width={16}
+            height={16}
+          />
           <span className="text-white">
             {application.propertyName || "Certificate"}
           </span>
@@ -131,11 +154,10 @@ export default function ApplicationDetail() {
 
         <button
           onClick={handleDownload}
-          className="yellow-btn text-black py-3 px-5 font-semibold text-[16px] leading-[20px]"
+          className="yellow-btn text-black py-3 px-5 font-semibold text-[16px]"
         >
           Download Certificate
         </button>
-
       </div>
 
       <p className="text-white/80 mb-[18px]">
@@ -146,7 +168,9 @@ export default function ApplicationDetail() {
       <div className="flex flex-col sm:flex-row gap-3 items-center">
         <div className="w-full flex flex-col">
           <div
-            className={`relative w-full rounded-lg overflow-hidden bg-gray-900 ${thumbnailsHeight ? "hidden sm:block" : ""}`}
+            className={`relative w-full rounded-lg overflow-hidden bg-gray-900 ${
+              thumbnailsHeight ? "hidden sm:block" : ""
+            }`}
             style={{ height: thumbnailsHeight || "auto" }}
           >
             <Image
@@ -174,7 +198,10 @@ export default function ApplicationDetail() {
           className="w-full max-w-[300px] sm:w-[145px] flex flex-wrap justify-between gap-3 sm:flex-col sm:justify-center sm:items-center"
         >
           {images.map((image: string, index: number) => (
-            <div key={index} className="relative aspect-[16/10] w-full sm:max-w-[145px]">
+            <div
+              key={index}
+              className="relative aspect-[16/10] w-full sm:max-w-[145px]"
+            >
               <Image
                 onClick={() => setCurrentStep(index)}
                 src={image}

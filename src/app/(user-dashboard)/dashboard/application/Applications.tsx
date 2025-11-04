@@ -19,7 +19,7 @@ interface CustomDateInputProps {
 
 interface CertificationData {
   id: string;
-  "Application ID": string;
+  // "Application ID": string;
   "Property Name": string;
   Address: string;
   Ownership: string;
@@ -85,7 +85,6 @@ export default function Applications() {
     };
   }, [searchTerm]);
 
-  
   // Fetch filter options method
   const fetchFilterOptions = useCallback(async () => {
     try {
@@ -175,92 +174,95 @@ export default function Applications() {
 
   // Updated fetchApplications method
   const fetchApplications = useCallback(async () => {
-  try {
-    // Don't make API call if search term is 1-2 characters
-    if (debouncedSearchTerm.trim().length > 0 && debouncedSearchTerm.trim().length < 3) {
-      console.log("🔍 Search term too short, skipping API call");
-      setIsLoading(false);
-      return;
-    }
+    try {
+      // Don't make API call if search term is 1-2 characters
+      if (
+        debouncedSearchTerm.trim().length > 0 &&
+        debouncedSearchTerm.trim().length < 3
+      ) {
+        console.log("🔍 Search term too short, skipping API call");
+        setIsLoading(false);
+        return;
+      }
 
-    setIsLoading(true);
+      setIsLoading(true);
 
-    const queryParams: ApiParams = {
-      page: currentPage,
-      pageSize: itemsPerPage,
-    };
+      const queryParams: ApiParams = {
+        page: currentPage,
+        pageSize: itemsPerPage,
+      };
 
-    // Only include search if it has 3+ characters
-    if (debouncedSearchTerm.trim().length >= 3) {
-      queryParams.search = debouncedSearchTerm.trim();
-    }
+      // Only include search if it has 3+ characters
+      if (debouncedSearchTerm.trim().length >= 3) {
+        queryParams.search = debouncedSearchTerm.trim();
+      }
 
-    if (appliedFilters.ownership.trim()) {
-      queryParams.ownership = appliedFilters.ownership.trim();
-    }
+      if (appliedFilters.ownership.trim()) {
+        queryParams.ownership = appliedFilters.ownership.trim();
+      }
 
-    if (appliedFilters.status.trim()) {
-      queryParams.status = getStatusForAPI(appliedFilters.status.trim());
-    }
+      if (appliedFilters.status.trim()) {
+        queryParams.status = getStatusForAPI(appliedFilters.status.trim());
+      }
 
-    if (appliedFilters.submittedDate) {
-      queryParams.submittedAt = appliedFilters.submittedDate;
-    }
+      if (appliedFilters.submittedDate) {
+        queryParams.submittedAt = appliedFilters.submittedDate;
+      }
 
-    if (appliedFilters.propertyName.trim()) {
-      queryParams.propertyName = appliedFilters.propertyName.trim();
-    }
+      if (appliedFilters.propertyName.trim()) {
+        queryParams.propertyName = appliedFilters.propertyName.trim();
+      }
 
-    console.log("🚀 HITTING API WITH PARAMS:", queryParams);
+      console.log("🚀 HITTING API WITH PARAMS:", queryParams);
 
-    const response = await application.getApplications(queryParams);
+      const response = await application.getApplications(queryParams);
 
-    if (response.success && response.data) {
-      const transformedData: CertificationData[] =
-        response.data.applications.map((app: ApplicationData) => ({
-          id: app.id,
-          "Application ID": app.id,
-          "Property Name": app.propertyDetails?.propertyName || "N/A",
-          Address: app.propertyDetails?.address || "N/A",
-          Ownership: app.propertyDetails?.ownership || "-",
-          "Current Step": app.currentStep || "-",
-          Status: capitalizeStatusForDisplay(app.status || ""),
-          "Submitted Date": app.submittedAt
-            ? formatDate(app.submittedAt)
-            : "—",
-        }));
+      if (response.success && response.data) {
+        const transformedData: CertificationData[] =
+          response.data.applications.map((app: ApplicationData) => ({
+            id: app.id,
+            // "Application ID": app.id,
+            "Property Name": app.propertyDetails?.propertyName || "N/A",
+            Address: app.propertyDetails?.address || "N/A",
+            Ownership: app.propertyDetails?.ownership || "-",
+            "Current Step": app.currentStep || "-",
+            Status: capitalizeStatusForDisplay(app.status || ""),
+            "Submitted Date": app.submittedAt
+              ? formatDate(app.submittedAt)
+              : "—",
+          }));
 
-      setAllCertificationData(transformedData);
-      setPaginationInfo(response.data.pagination || null);
-      setTotalItems(
-        response.data.pagination?.total || response.data.total || 0
-      );
-    } else {
-      console.log("❌ No applications found or API error");
+        setAllCertificationData(transformedData);
+        setPaginationInfo(response.data.pagination || null);
+        setTotalItems(
+          response.data.pagination?.total || response.data.total || 0
+        );
+      } else {
+        console.log("❌ No applications found or API error");
+        setAllCertificationData([]);
+        setPaginationInfo(null);
+        setTotalItems(0);
+      }
+    } catch (error) {
+      console.error("💥 Error fetching applications:", error);
       setAllCertificationData([]);
       setPaginationInfo(null);
       setTotalItems(0);
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error("💥 Error fetching applications:", error);
-    setAllCertificationData([]);
-    setPaginationInfo(null);
-    setTotalItems(0);
-  } finally {
-    setIsLoading(false);
-  }
-}, [
-  debouncedSearchTerm,
-  appliedFilters.ownership,
-  appliedFilters.status,
-  appliedFilters.submittedDate,
-  appliedFilters.propertyName,
-  currentPage,
-  itemsPerPage,
-]);
+  }, [
+    debouncedSearchTerm,
+    appliedFilters.ownership,
+    appliedFilters.status,
+    appliedFilters.submittedDate,
+    appliedFilters.propertyName,
+    currentPage,
+    itemsPerPage,
+  ]);
   useEffect(() => {
-  fetchApplications();
-}, [fetchApplications]);
+    fetchApplications();
+  }, [fetchApplications]);
 
   const displayData = useMemo(() => {
     return allCertificationData.map(({ id, ...rest }) => {

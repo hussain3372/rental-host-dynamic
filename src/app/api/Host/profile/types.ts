@@ -1,13 +1,13 @@
 export interface ProfileResponse {
   data: {
-
     id: number;
     email: string;
     role: string;
     emailVerified: boolean;
     firstName?: string;
     lastName?: string;
-  }
+    profilePicture: string | null;
+  };
 }
 
 export interface UpdateProfile {

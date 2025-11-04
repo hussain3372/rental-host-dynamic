@@ -49,7 +49,21 @@ export default function MyTicketsTable({
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
   const [loading, setLoading] = useState(true);
 
-  // ✅ FIXED: Separate applied filters and temp filters like Applications table
+  // ✅ FIXED: Add debounced search term
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
+
+  // ✅ FIXED: Debounced search effect
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  // Filter states
   const [appliedFilters, setAppliedFilters] = useState({
     status: "",
     submittedDate: "",
@@ -70,7 +84,8 @@ export default function MyTicketsTable({
     CertificationData[]
   >([]);
   const [totalItems, setTotalItems] = useState(0);
-  // ✅ FIXED: Sync temp filters when filter drawer opens
+
+  // Sync temp filters when filter drawer opens
   useEffect(() => {
     if (isFilterOpen) {
       setTempFilters(appliedFilters);
@@ -81,61 +96,7 @@ export default function MyTicketsTable({
       }
     }
   }, [isFilterOpen, appliedFilters]);
-  // ✅ Add function to fetch detailed ticket data
-  // const fetchTicketDetails = useCallback(async (ticketId: string) => {
-  //   try {
-  //     console.log("🟡 Fetching detailed ticket data for:", ticketId);
 
-  //     // Assuming you have an API method to get single ticket details
-  //     const response = await supportApi.getTicketById(ticketId);
-  //     console.log("🔵 Detailed Ticket API Response:", response);
-
-  //     // Adjust this based on your API response structure
-  //     const ticketData = response.data || response.data;
-
-  //     if (ticketData) {
-  //       const detailedTicket: DetailedTicket = {
-  //         id: ticketData.id,
-  //         ticketId: ticketData.id, // or ticketData.ticketId if available
-  //         issueType: ticketData.category,
-  //         subject: ticketData.subject,
-  //         description: ticketData.description || "No description available",
-  //         createdOn: new Date(ticketData.createdAt).toLocaleDateString("en-US", {
-  //           month: "short",
-  //           day: "numeric",
-  //           year: "numeric",
-  //         }),
-  //         status: ticketData.status,
-  //         attachment: ticketData.attachmentUrls && ticketData.attachmentUrls.length > 0 ? {
-  //           name: "Attachment", // You might want to get the actual file name from API
-  //           size: "N/A", // You might want to get the actual file size from API
-  //           url: ticketData.attachmentUrls[0] // Get the first attachment
-  //         } : undefined
-  //       };
-
-  //       setSelectedTicketDetails(detailedTicket);
-  //       setIsDetailDrawerOpen(true);
-  //     }
-  //   } catch (error) {
-  //     console.error("🔴 Error fetching ticket details:", error);
-  //     // Fallback to basic data if detailed fetch fails
-  //     const basicTicket = allCertificationData.find(ticket => ticket["Ticket Id"] === ticketId);
-  //     if (basicTicket) {
-  //       const fallbackTicket: DetailedTicket = {
-  //         id: basicTicket["Ticket Id"],
-  //         ticketId: basicTicket["Ticket Id"],
-  //         issueType: basicTicket["Issue Type"],
-  //         subject: basicTicket.Subject,
-  //         description: "Description not available",
-  //         createdOn: basicTicket["Created On"],
-  //         status: basicTicket.Status,
-  //         attachment: undefined
-  //       };
-  //       setSelectedTicketDetails(fallbackTicket);
-  //       setIsDetailDrawerOpen(true);
-  //     }
-  //   }
-  // }, [allCertificationData]);
   // Format date for API
   const formatDateForAPI = (date: Date | null): string => {
     if (!date) return "";
@@ -145,36 +106,31 @@ export default function MyTicketsTable({
     return `${year}-${month}-${day}`;
   };
 
-  // ✅ FIXED: Fetch tickets function with proper filter application
+  // ✅ FIXED: Fetch tickets function with debounced search
   const fetchTickets = useCallback(async () => {
     try {
-      // setLoading(true);
-
       if (
-        searchTerm.trim().length > 0 &&
-        searchTerm.trim().length < 3 &&
+        debouncedSearchTerm.trim().length > 0 && // ✅ Use debouncedSearchTerm
+        debouncedSearchTerm.trim().length < 3 && // ✅ Use debouncedSearchTerm
         !appliedFilters.status &&
         !appliedFilters.submittedDate
       ) {
         console.log(
           "🟡 Skipping API call - search term too short and no filters applied"
         );
-        // setAllCertificationData([]);
-        // setTotalItems(0);
         setLoading(false);
         return;
       }
 
-      const response = await supportApi.getAdminTickets(
-        currentPage,
-        itemsPerPage,
-        searchTerm.trim() || undefined,
-        undefined,
-        appliedFilters.status || undefined,
-        appliedFilters.submittedDate || undefined
-      );
+      const response = await supportApi.getTickets({
+        page: currentPage,
+        limit: itemsPerPage,
+        search: debouncedSearchTerm.trim() || undefined, // ✅ Use debouncedSearchTerm
+        status: appliedFilters.status || undefined,
+        createdAt: appliedFilters.submittedDate || undefined,
+      });
 
-      console.log("🔵 Admin Tickets API Response:", response);
+      console.log("🔵 My Tickets API Response:", response);
 
       let ticketsData = null;
       let apiTotal = 0;
@@ -191,7 +147,7 @@ export default function MyTicketsTable({
       }
 
       if (ticketsData && Array.isArray(ticketsData)) {
-        console.log("🟢 Admin tickets data found:", ticketsData);
+        console.log("🟢 My tickets data found:", ticketsData);
 
         const tickets: CertificationData[] = ticketsData.map(
           (item: Ticket, index: number) => ({
@@ -199,7 +155,6 @@ export default function MyTicketsTable({
             "Ticket Id": item.id,
             "Issue Type": item.category,
             Subject: item.subject,
-            // "Host Name": item.user?.name || "N/A",
             "Created On": new Date(item.createdAt).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -212,12 +167,12 @@ export default function MyTicketsTable({
         setAllCertificationData(tickets);
         setTotalItems(apiTotal);
       } else {
-        console.error("🔴 No valid admin tickets data found");
+        console.error("🔴 No valid my tickets data found");
         setAllCertificationData([]);
         setTotalItems(0);
       }
     } catch (error) {
-      console.error("🔴 Error fetching admin tickets:", error);
+      console.error("🔴 Error fetching my tickets:", error);
       setAllCertificationData([]);
       setTotalItems(0);
     } finally {
@@ -226,7 +181,7 @@ export default function MyTicketsTable({
   }, [
     currentPage,
     itemsPerPage,
-    searchTerm,
+    debouncedSearchTerm, 
     appliedFilters.status,
     appliedFilters.submittedDate,
   ]);
@@ -234,6 +189,7 @@ export default function MyTicketsTable({
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets, refreshTrigger]);
+
 
   // Unique dropdown values
   const uniqueStatuses = [
@@ -261,12 +217,16 @@ export default function MyTicketsTable({
   }, [filteredCertificationData, selectedRows, isAllDisplayedSelected]);
 
   const displayData = useMemo(() => {
-    return filteredCertificationData.map(({ id, ...rest }) => {
-      console.log(id);
-      return rest;
-    });
-  }, [filteredCertificationData]);
+    const result = filteredCertificationData.map(
+      ({ id, "Ticket Id": ticketId, ...rest }) => {
+        console.log(id, ticketId); // Keep for debugging
+        return rest; // Returns only: Issue Type, Subject, Created On, Status
+      }
+    );
 
+    console.log("🟢 Display Data for Table:", result.length, "items");
+    return result;
+  }, [filteredCertificationData]);
   // ✅ FIXED: Delete multiple tickets with API call and refetch
   const handleDeleteApplications = async (selectedRowIds: Set<number>) => {
     try {
@@ -318,7 +278,7 @@ export default function MyTicketsTable({
 
       await fetchTickets();
     } catch (error) {
-      console.error("🔴 Error deleting single ticket:", error);
+      console.error(" Error deleting single ticket:", error);
     } finally {
       setIsModalOpen(false);
       setSingleRowToDelete(null);
@@ -432,7 +392,6 @@ export default function MyTicketsTable({
     onFilterToggle(false);
   };
 
-  // Handle delete selected - opens modal for confirmation
   const handleDeleteSelected = () => {
     if (selectedRows.size > 0) {
       setModalType("multiple");
@@ -440,37 +399,31 @@ export default function MyTicketsTable({
     }
   };
 
-  // Dropdown items for table actions
   const dropdownItems = [
     {
       label: "View Details",
-      onClick: (row: Record<string, string>) => {
-        // ✅ FIXED: Find the original row by Ticket Id instead of using index
-        const ticketId = row["Ticket Id"];
-        const originalRow = filteredCertificationData.find(
-          (item) => item["Ticket Id"] === ticketId
-        );
+      onClick: (row: Record<string, string>, index: number) => {
+        const globalIndex = (currentPage - 1) * itemsPerPage + index;
+        const originalRow = filteredCertificationData[globalIndex];
 
         if (originalRow) {
           onViewDetails(originalRow);
         } else {
-          console.error(" Could not find original row for ticket:", ticketId);
+          console.error("Could not find original row at index:", globalIndex);
         }
       },
     },
     {
       label: "Delete Ticket",
-      onClick: (row: Record<string, string>) => {
-        // ✅ FIXED: Find the original row by Ticket Id instead of using index
-        const ticketId = row["Ticket Id"];
-        const originalRow = filteredCertificationData.find(
-          (item) => item["Ticket Id"] === ticketId
-        );
+      onClick: (row: Record<string, string>, index: number) => {
+        // ✅ Use index to find the original row with Ticket Id
+        const globalIndex = (currentPage - 1) * itemsPerPage + index;
+        const originalRow = filteredCertificationData[globalIndex];
 
         if (originalRow) {
           openDeleteSingleModal(row, originalRow.id);
         } else {
-          console.error(" Could not find original row for ticket:", ticketId);
+          console.error("Could not find original row at index:", globalIndex);
         }
       },
     },
@@ -504,18 +457,16 @@ export default function MyTicketsTable({
           title="My Tickets"
           control={tableControl}
           showDeleteButton={true}
-          onDeleteSingle={(row) => {
-            const ticketId = row["Ticket Id"];
-            const originalRow = filteredCertificationData.find(
-              (item) => item["Ticket Id"] === ticketId
-            );
+          onDeleteSingle={(row, index) => {
+            const globalIndex = (currentPage - 1) * itemsPerPage + index;
+            const originalRow = filteredCertificationData[globalIndex];
 
             if (originalRow) {
               openDeleteSingleModal(row, originalRow.id);
             } else {
               console.error(
-                " Could not find original row for ticket:",
-                ticketId
+                "Could not find original row at index:",
+                globalIndex
               );
             }
           }}

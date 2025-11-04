@@ -35,6 +35,13 @@ export default function ChangePasswordDrawer({
       return;
     }
 
+    // ✅ Password pattern check (Uppercase + Special character)
+    const passwordPattern = /^(?=.*[A-Z])(?=.*[!@#$%^&*]).+$/;
+    if (!passwordPattern.test(newPassword)) {
+      setError("Password must contain at least one uppercase letter and one special character.");
+      return;
+    }
+
     try {
       setLoading(true);
       const response = await setting.changePassword({
@@ -53,16 +60,18 @@ export default function ChangePasswordDrawer({
       }
     } catch (err) {
       console.error("Password change error:", err);
-      setError("Unexpected error occurred. Please try again.");
+      setError("Password must contain at least one uppercase letter and one special character.");
     } finally {
       setLoading(false);
     }
   };
+
   return (
     <div className="h-full flex flex-col justify-between text-white">
       <div className="space-y-5">
         <h2 className="text-[20px] font-medium">Change Password</h2>
 
+        {/* Current Password */}
         <div className="relative">
           <label className="block text-[14px] mb-[10px]">Current password</label>
           <input
@@ -70,8 +79,10 @@ export default function ChangePasswordDrawer({
             placeholder="Enter current password"
             value={currentPassword}
             onChange={(e) => setCurrentPassword(e.target.value)}
-            className="w-full p-3 pr-10 rounded-xl border border-[#404040] bg-gradient-to-b from-[#202020] to-[#101010]
-              text-[14px] text-white placeholder:text-white/40 focus:outline-none focus:border-[#EFFC76]"
+            className={`w-full p-3 pr-10 rounded-xl border ${
+              error && !currentPassword ? "border-red-500" : "border-[#404040]"
+            } bg-gradient-to-b from-[#202020] to-[#101010]
+              text-[14px] text-white placeholder:text-white/40 focus:outline-none focus:border-[#EFFC76]`}
           />
           <button
             type="button"
@@ -81,6 +92,8 @@ export default function ChangePasswordDrawer({
             {showCurrent ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         </div>
+
+        {/* New Password */}
         <div className="relative">
           <label className="block text-[14px] mb-[10px]">New password</label>
           <input
@@ -88,8 +101,12 @@ export default function ChangePasswordDrawer({
             placeholder="Enter new password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="w-full p-3 pr-10 rounded-xl border border-[#404040] bg-gradient-to-b from-[#202020] to-[#101010]
-              text-[14px] text-white placeholder:text-white/40 focus:outline-none focus:border-[#EFFC76]"
+            className={`w-full p-3 pr-10 rounded-xl border ${
+              error && !/^(?=.*[A-Z])(?=.*[!@#$%^&*]).+$/.test(newPassword)
+                ? "border-red-500"
+                : "border-[#404040]"
+            } bg-gradient-to-b from-[#202020] to-[#101010]
+              text-[14px] text-white placeholder:text-white/40 focus:outline-none focus:border-[#EFFC76]`}
           />
           <button
             type="button"
@@ -103,6 +120,7 @@ export default function ChangePasswordDrawer({
         {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
       </div>
 
+      {/* Button */}
       <div className="mt-6">
         <button
           disabled={loading}
@@ -114,6 +132,7 @@ export default function ChangePasswordDrawer({
         </button>
       </div>
 
+      {/* Success Modal */}
       {isSuccessModalOpen && (
         <Modal
           isOpen={isSuccessModalOpen}

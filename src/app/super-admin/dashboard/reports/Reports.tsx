@@ -1,5 +1,11 @@
 "use client";
-import React, { useMemo, useState, useEffect, useCallback, useRef } from "react";
+import React, {
+  useMemo,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import { reports } from "@/app/api/super-admin/reports";
@@ -106,11 +112,13 @@ export default function Reports() {
       }
 
       if (certificationFilters.reportType) {
-        params.reportType = certificationFilters.reportType as ReportParams["reportType"];
+        params.reportType =
+          certificationFilters.reportType as ReportParams["reportType"];
       }
 
       if (certificationFilters.certificationStatus) {
-        params.certificationStatus = certificationFilters.certificationStatus as ReportParams["certificationStatus"];
+        params.certificationStatus =
+          certificationFilters.certificationStatus as ReportParams["certificationStatus"];
       }
 
       if (certificationFilters.generatedDateTo) {
@@ -179,13 +187,13 @@ export default function Reports() {
   }, [fetchStats]);
 
   // Get unique values for filter options
-  const uniqueReportTypes = useMemo(() => 
-    [...new Set(allReportsData.map((item) => item.reportType))],
+  const uniqueReportTypes = useMemo(
+    () => [...new Set(allReportsData.map((item) => item.reportType))],
     [allReportsData]
   );
 
-  const uniqueStatuses = useMemo(() => 
-    [...new Set(allReportsData.map((item) => item.certificationStatus))],
+  const uniqueStatuses = useMemo(
+    () => [...new Set(allReportsData.map((item) => item.certificationStatus))],
     [allReportsData]
   );
 
@@ -259,68 +267,77 @@ export default function Reports() {
   }, [transformedData, selectedRows, isAllDisplayedSelected]);
 
   // Delete multiple reports
-  const handleDeleteApplications = useCallback(async (selectedRowIds: Set<string>) => {
-    try {
-      setIsLoading(true);
-      const deletePromises = Array.from(selectedRowIds).map((id) =>
-        reports.deleteReport(id)
-      );
+  const handleDeleteApplications = useCallback(
+    async (selectedRowIds: Set<string>) => {
+      try {
+        setIsLoading(true);
+        const deletePromises = Array.from(selectedRowIds).map((id) =>
+          reports.deleteReport(id)
+        );
 
-      await Promise.all(deletePromises);
-      toast.success("Reports deleted successfully");
+        await Promise.all(deletePromises);
+        toast.success("Reports deleted successfully");
 
-      setIsModalOpen(false);
-      setSelectedRows(new Set());
+        setIsModalOpen(false);
+        setSelectedRows(new Set());
 
-      // Refetch data
-      await fetchReports();
-    } catch (error) {
-      console.error("Error deleting reports:", error);
-      toast.error("Failed to delete reports");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchReports]);
+        // Refetch data
+        await fetchReports();
+      } catch (error) {
+        console.error("Error deleting reports:", error);
+        toast.error("Failed to delete reports");
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [fetchReports]
+  );
 
   // Delete single report
-  const handleDeleteSingleApplication = useCallback(async (
-    id: string
-  ) => {
-    try {
-      setIsLoading(true);
-      await reports.deleteReport(id);
+  const handleDeleteSingleApplication = useCallback(
+    async (id: string) => {
+      try {
+        setIsLoading(true);
+        await reports.deleteReport(id);
 
-      toast.success("Report deleted successfully");
-      setIsModalOpen(false);
-      setSingleRowToDelete(null);
+        toast.success("Report deleted successfully");
+        setIsModalOpen(false);
+        setSingleRowToDelete(null);
 
-      // Refetch data
-      await fetchReports();
+        // Refetch data
+        await fetchReports();
 
-      // Adjust page if needed
-      const remainingDataCount = totalItems - 1;
-      const maxPageAfterDeletion = Math.ceil(remainingDataCount / itemsPerPage);
+        // Adjust page if needed
+        const remainingDataCount = totalItems - 1;
+        const maxPageAfterDeletion = Math.ceil(
+          remainingDataCount / itemsPerPage
+        );
 
-      if (currentPage > maxPageAfterDeletion) {
-        setCurrentPage(Math.max(1, maxPageAfterDeletion));
+        if (currentPage > maxPageAfterDeletion) {
+          setCurrentPage(Math.max(1, maxPageAfterDeletion));
+        }
+      } catch (error) {
+        console.error("Error deleting report:", error);
+        toast.error("Failed to delete report");
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error("Error deleting report:", error);
-      toast.error("Failed to delete report");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [fetchReports, totalItems, currentPage, itemsPerPage]);
+    },
+    [fetchReports, totalItems, currentPage, itemsPerPage]
+  );
 
   const handlePageChange = useCallback((page: number) => {
     setCurrentPage(page);
   }, []);
 
-  const openDeleteSingleModal = useCallback((row: Record<string, string>, id: string) => {
-    setSingleRowToDelete({ row, id });
-    setModalType("single");
-    setIsModalOpen(true);
-  }, []);
+  const openDeleteSingleModal = useCallback(
+    (row: Record<string, string>, id: string) => {
+      setSingleRowToDelete({ row, id });
+      setModalType("single");
+      setIsModalOpen(true);
+    },
+    []
+  );
 
   const handleDeleteSelected = useCallback(() => {
     if (selectedRows.size > 0) {
@@ -335,7 +352,13 @@ export default function Reports() {
     } else if (modalType === "single" && singleRowToDelete) {
       handleDeleteSingleApplication(singleRowToDelete.id);
     }
-  }, [modalType, selectedRows, singleRowToDelete, handleDeleteApplications, handleDeleteSingleApplication]);
+  }, [
+    modalType,
+    selectedRows,
+    singleRowToDelete,
+    handleDeleteApplications,
+    handleDeleteSingleApplication,
+  ]);
 
   // Download report
   const handleDownloadReport = useCallback(async (reportId: string) => {
@@ -367,9 +390,13 @@ export default function Reports() {
   const displayData = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     const endIndex = startIndex + itemsPerPage;
+
     return transformedData
       .slice(startIndex, endIndex)
-      .map(({ ...rest }) => rest);
+      .map(({ "Report ID": reportId, ...rest }) => {
+        console.log("Report ID:", reportId);
+        return rest;
+      });
   }, [transformedData, currentPage, itemsPerPage]);
 
   useEffect(() => {
@@ -392,42 +419,72 @@ export default function Reports() {
     setCurrentPage(1);
   }, []);
 
-  const dropdownItems = useMemo(() => [
-    {
-      label: "Download Report",
-      onClick: (row: Record<string, string>) => {
-        const reportId = row["Report ID"];
-        handleDownloadReport(reportId);
-      },
-    },
-    {
-      label: "Delete Report",
-      onClick: (row: Record<string, string>) => {
-        const reportId = row["Report ID"];
-        openDeleteSingleModal(row, reportId);
-      },
-    },
-  ], [handleDownloadReport, openDeleteSingleModal]);
+  const dropdownItems = useMemo(
+    () => [
+      {
+        label: "Download Report",
+        onClick: (row: Record<string, string>, index: number) => {
+          // Use index to find the corresponding item in transformedData
+          const startIndex = (currentPage - 1) * itemsPerPage;
+          const originalIndex = startIndex + index;
+          const originalRow = transformedData[originalIndex];
 
-  const tableControl = useMemo(() => ({
-    hover: true,
-    striped: false,
-    bordered: false,
-    shadow: false,
-    compact: false,
-    headerBgColor: "#252628",
-    headerTextColor: "white",
-    rowBgColor: "black",
-    rowTextColor: "#e5e7eb",
-    hoverBgColor: "black",
-    hoverTextColor: "#ffffff",
-    fontSize: 13,
-    textAlign: "left" as const,
-    rowBorder: false,
-    headerBorder: true,
-    borderColor: "#374151",
-    highlightRowOnHover: true,
-  }), []);
+          if (originalRow) {
+            const reportId = originalRow["Report ID"];
+            handleDownloadReport(reportId);
+          } else {
+            console.error("🔴 Could not find original row for index:", index);
+          }
+        },
+      },
+      {
+        label: "Delete Report",
+        onClick: (row: Record<string, string>, index: number) => {
+          // Use index to find the corresponding item in transformedData
+          const startIndex = (currentPage - 1) * itemsPerPage;
+          const originalIndex = startIndex + index;
+          const originalRow = transformedData[originalIndex];
+
+          if (originalRow) {
+            const reportId = originalRow["Report ID"];
+            openDeleteSingleModal(row, reportId);
+          } else {
+            console.error("🔴 Could not find original row for index:", index);
+          }
+        },
+      },
+    ],
+    [
+      handleDownloadReport,
+      openDeleteSingleModal,
+      transformedData,
+      currentPage,
+      itemsPerPage,
+    ]
+  );
+
+  const tableControl = useMemo(
+    () => ({
+      hover: true,
+      striped: false,
+      bordered: false,
+      shadow: false,
+      compact: false,
+      headerBgColor: "#252628",
+      headerTextColor: "white",
+      rowBgColor: "black",
+      rowTextColor: "#e5e7eb",
+      hoverBgColor: "black",
+      hoverTextColor: "#ffffff",
+      fontSize: 13,
+      textAlign: "left" as const,
+      rowBorder: false,
+      headerBorder: true,
+      borderColor: "#374151",
+      highlightRowOnHover: true,
+    }),
+    []
+  );
 
   return (
     <>
@@ -520,9 +577,17 @@ export default function Reports() {
           title="Reports"
           control={tableControl}
           showDeleteButton={true}
-          onDeleteSingle={(row) => {
-            const reportId = row["Report ID"];
-            openDeleteSingleModal(row, reportId);
+          onDeleteSingle={(row, index) => {
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const originalIndex = startIndex + index;
+            const originalRow = transformedData[originalIndex];
+
+            if (originalRow) {
+              const reportId = originalRow["Report ID"];
+              openDeleteSingleModal(row, reportId);
+            } else {
+              console.error("🔴 Could not find original row for index:", index);
+            }
           }}
           showPagination={true}
           clickable={true}

@@ -74,6 +74,8 @@ export default function Graph() {
     fetchRevenueData();
   }, [range2]);
 
+  
+
   // Get the correct label field based on period type
   const getLabelField = (period: string) => {
     switch (period) {
@@ -268,7 +270,7 @@ export default function Graph() {
             <GlobalGraph
               type="bar"
               stacked
-              yAxisMax={5000}
+              // yAxisMax={5000}
               showStripedBars
               barThickness={range1 === "yearly" ? 20 : range1 === "monthly" ? 20 : 35}
               barGap={range1 === "yearly" ? 5 : 10}
@@ -344,7 +346,7 @@ export default function Graph() {
               >
                 <GlobalGraph
                   type="line"
-                  yAxisMax={50000}
+                  // yAxisMax={50000}
                   labels={activeRevenueData.labels}
                   datasets={[
                     {

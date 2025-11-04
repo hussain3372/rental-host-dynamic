@@ -1,17 +1,16 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
-import { profile } from "@/app/api/Admin/profile";
+// import { profile } from "@/app/api/Admin/profile";
 
 interface NavbarProps {
   isCollapsed: boolean;
 }
 
 export function Navbar({ isCollapsed }: NavbarProps) {
-  const [firstName, setFirstName] = useState<string>("");
-  const [lastName, setLastName] = useState<string>("");
-  const [email, setEmail] = useState<string>("");
+ 
   const [today, setToday] = useState<string>("");
   const [greeting, setGreeting] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
@@ -20,26 +19,15 @@ export function Navbar({ isCollapsed }: NavbarProps) {
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        const res = await profile.fetchProfileData();
-        console.log("Navbar Profile API Response:", res);
-        
-        if (res.data?.data) {
-          const profileData = res.data.data;
-          setFirstName(profileData.firstName || "");
-          setLastName(profileData.lastName || "");
-          setEmail(profileData.email || "");
-          
-          // Also update localStorage for consistency
-          localStorage.setItem("firstname", profileData.firstName || "");
-          localStorage.setItem("lastname", profileData.lastName || "");
-          localStorage.setItem("email", profileData.email || "");
-        }
+        // const res = await profile.fetchProfileData();
+        console.log("Navbar Profile API Response:");
+       
       } catch (error) {
         console.error("Error fetching profile in navbar:", error);
         // Fallback to localStorage if API fails
-        setFirstName(localStorage.getItem("firstname") || "");
-        setLastName(localStorage.getItem("lastname") || "");
-        setEmail(localStorage.getItem("email") || "");
+        // setFirstName(localStorage.getItem("firstname") || "");
+        // setLastName(localStorage.getItem("lastname") || "");
+        // setEmail(localStorage.getItem("email") || "");
       } finally {
         setLoading(false);
       }
@@ -63,6 +51,24 @@ export function Navbar({ isCollapsed }: NavbarProps) {
     else if (hour < 18) setGreeting("Good Afternoon");
     else if (hour < 21) setGreeting("Good Evening");
     else setGreeting("Good Night");
+  }, []);
+  const [first, setFirst] = useState<string>("");
+  const [last, setLast] = useState<string>("");
+  const [mail, setMail] = useState<string>("");
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
+  // Read from localStorage on the client only
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      setFirst(localStorage.getItem("firstname") || "");
+      setLast(localStorage.getItem("lastname") || "");
+      setMail(localStorage.getItem("email") || "");
+      setProfileImage(localStorage.getItem("profile"));
+    } catch (err) {
+      // Ignore localStorage errors during SSR or restricted environments
+      console.warn("Navbar: localStorage not available", err);
+    }
   }, []);
 
   if (loading) {
@@ -108,6 +114,7 @@ export function Navbar({ isCollapsed }: NavbarProps) {
       </>
     );
   }
+  
 
   return (
     <>
@@ -118,13 +125,13 @@ export function Navbar({ isCollapsed }: NavbarProps) {
           width: isCollapsed ? "calc(100vw - 139px)" : "calc(100vw - 279px)",
         }}
       >
-        <div className="flex justify-between items-center border-b border-b-[#3b3d3c]">
+        <div className="flex justify-between items-center pb-5 border-b border-b-[#3b3d3c]">
           {/* Left side */}
           <div className={`${isCollapsed ? "ml-[10px]" : "ml-0"}`}>
             <h1 className="font-medium text-[24px]">
-              {greeting}, {firstName || "User"}
+              {greeting}, {first || "User"}
             </h1>
-            <p className="text-[16px] pb-5 leading-[20px] font-normal text-white/60 pt-1">
+            <p className="text-[16px]  leading-[20px] font-normal text-white/60 pt-1">
               It&apos;s {today}
             </p>
           </div>
@@ -135,28 +142,38 @@ export function Navbar({ isCollapsed }: NavbarProps) {
             className="flex items-center gap-3 cursor-pointer"
           >
             <div className="h-10 w-10 rounded-full bg-[#2A2A2C] flex items-center justify-center">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                className="h-6 w-6 text-[#B0B0B0]"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                strokeWidth="1.8"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0zM4.5 20.25a8.25 8.25 0 0 1 15 0"
-                />
-              </svg>
+             {profileImage ? (
+                             <Image
+                               src={profileImage}
+                               alt="Profile"
+                               width={40}
+                               height={40}
+                               className="rounded-full object-cover h-full"
+                             />
+                           ) : (
+                             <svg
+                               xmlns="http://www.w3.org/2000/svg"
+                               className="h-6 w-6 text-[#B0B0B0]"
+                               fill="none"
+                               viewBox="0 0 24 24"
+                               stroke="currentColor"
+                               strokeWidth="1.8"
+                             >
+                               <path
+                                 strokeLinecap="round"
+                                 strokeLinejoin="round"
+                                 d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0zM4.5 20.25a8.25 8.25 0 0 1 15 0"
+                               />
+                             </svg>
+                           )}
             </div>
 
             <div>
               <p className="font-medium text-[14px] leading-[18px]">
-                {firstName} {lastName}
+                {first} {last}
               </p>
               <p className="text-[14px] leading-[18px] font-normal text-white/60">
-                {email || "example@gmail.com"}
+                {mail || "example@gmail.com"}
               </p>
             </div>
           </Link>
@@ -170,27 +187,37 @@ export function Navbar({ isCollapsed }: NavbarProps) {
           <Link href="/admin/dashboard/profile">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-full bg-[#2A2A2C] flex items-center justify-center">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-4 w-4 text-[#B0B0B0]"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0zM4.5 20.25a8.25 8.25 0 0 1 15 0"
-                  />
-                </svg>
+                 {profileImage ? (
+                             <Image
+                               src={profileImage}
+                               alt="Profile"
+                               width={40}
+                               height={40}
+                               className="rounded-full h-full w-full"
+                             />
+                           ) : (
+                             <svg
+                               xmlns="http://www.w3.org/2000/svg"
+                               className="h-6 w-6 text-[#B0B0B0]"
+                               fill="none"
+                               viewBox="0 0 24 24"
+                               stroke="currentColor"
+                               strokeWidth="1.8"
+                             >
+                               <path
+                                 strokeLinecap="round"
+                                 strokeLinejoin="round"
+                                 d="M15.75 7.5a3.75 3.75 0 1 1-7.5 0 3.75 3.75 0 0 1 7.5 0zM4.5 20.25a8.25 8.25 0 0 1 15 0"
+                               />
+                             </svg>
+                           )}
               </div>
               <div className="flex flex-col">
                 <p className="text-[13px] font-medium">
-                  {firstName} {lastName}
+                  {first} {last}
                 </p>
                 <p className="text-[12px] font-normal text-white/60">
-                  {email || "example@gmail.com"}
+                  {mail || "example@gmail.com"}
                 </p>
               </div>
             </div>

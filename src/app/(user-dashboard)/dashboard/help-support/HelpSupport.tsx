@@ -67,7 +67,7 @@ export default function HelpSupport() {
   const [submittedDate, setSubmittedDate] = useState<Date | null>(null);
 
   // Dropdown states
-  const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
+  const [subjectDropdownOpen] = useState(false);
   const [propertyDropdownOpen, setPropertyDropdownOpen] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
 
@@ -125,12 +125,7 @@ export default function HelpSupport() {
 
         const properties = [
           ...new Set(
-            ticketsData
-              .map(
-                (ticket: Ticket) =>
-                  ticket.id || ""
-              )
-              .filter(Boolean)
+            ticketsData.map((ticket: Ticket) => ticket.id || "").filter(Boolean)
           ),
         ];
 
@@ -211,121 +206,124 @@ export default function HelpSupport() {
     return `${year}-${month}-${day}`;
   };
 
- const fetchTickets = useCallback(async () => {
-  try {
-    // setLoading(true);
+  const fetchTickets = useCallback(async () => {
+    try {
+      // setLoading(true);
 
-    // ✅ ADDED: Prevent API call when search term has less than 3 characters and no filters
-    if (
-      debouncedSearchTerm.trim().length > 0 && 
-      debouncedSearchTerm.trim().length < 3 &&
-      !appliedFilters.subject &&
-      !appliedFilters.property &&
-      !appliedFilters.status &&
-      !appliedFilters.submittedDate
-    ) {
-      console.log("🟡 Skipping API call - search term too short and no filters applied");
-      // setAllCertificationData([]);
-      // setTotalItems(0);
-      setLoading(false);
-      return;
-    }
+      // ✅ ADDED: Prevent API call when search term has less than 3 characters and no filters
+      if (
+        debouncedSearchTerm.trim().length > 0 &&
+        debouncedSearchTerm.trim().length < 3 &&
+        !appliedFilters.subject &&
+        !appliedFilters.property &&
+        !appliedFilters.status &&
+        !appliedFilters.submittedDate
+      ) {
+        console.log(
+          "🟡 Skipping API call - search term too short and no filters applied"
+        );
+        // setAllCertificationData([]);
+        // setTotalItems(0);
+        setLoading(false);
+        return;
+      }
 
-    // Build API parameters correctly
-    const apiParams: TicketApiParams = {
-      page: currentPage,
-      limit: itemsPerPage,
-    };
+      // Build API parameters correctly
+      const apiParams: TicketApiParams = {
+        page: currentPage,
+        limit: itemsPerPage,
+      };
 
-    // Add search term if applicable
-    if (debouncedSearchTerm.trim().length >= 3) {
-      apiParams.search = debouncedSearchTerm.trim();
-    }
+      // Add search term if applicable
+      if (debouncedSearchTerm.trim().length >= 3) {
+        apiParams.search = debouncedSearchTerm.trim();
+      }
 
-    // Add filters - use correct parameter names
-    if (appliedFilters.subject?.trim()) {
-      apiParams.subject = appliedFilters.subject.trim();
-    }
+      // Add filters - use correct parameter names
+      if (appliedFilters.subject?.trim()) {
+        apiParams.subject = appliedFilters.subject.trim();
+      }
 
-    if (appliedFilters.property?.trim()) {
-      apiParams.property = appliedFilters.property.trim();
-    }
+      if (appliedFilters.property?.trim()) {
+        apiParams.property = appliedFilters.property.trim();
+      }
 
-    if (appliedFilters.status?.trim()) {
-      apiParams.status = appliedFilters.status.trim();
-    }
+      if (appliedFilters.status?.trim()) {
+        apiParams.status = appliedFilters.status.trim();
+      }
 
-    if (appliedFilters.submittedDate) {
-      apiParams.createdAt = appliedFilters.submittedDate;
-    }
+      if (appliedFilters.submittedDate) {
+        apiParams.createdAt = appliedFilters.submittedDate;
+      }
 
-    console.log("🚀 HITTING TICKETS API WITH PARAMS:", apiParams);
+      console.log("🚀 HITTING TICKETS API WITH PARAMS:", apiParams);
 
-    const response = await supportApi.getTickets(apiParams);
-    console.log("🔵 Full API Response:", response);
+      const response = await supportApi.getTickets(apiParams);
+      console.log("🔵 Full API Response:", response);
 
-    // Extract data based on your API response structure
-    let ticketsData = null;
-    let apiTotal = 0;
+      // Extract data based on your API response structure
+      let ticketsData = null;
+      let apiTotal = 0;
 
-    // Adjust this based on your actual API response structure
-    if (Array.isArray(response.data?.data?.data)) {
-      ticketsData = response.data.data.data;
-      apiTotal = Number(response.data.data.total) || 0;
-    } else if (Array.isArray(response.data?.data)) {
-      ticketsData = response.data.data;
-      apiTotal = Number(response.data.total) || ticketsData.length;
-    } else if (Array.isArray(response.data)) {
-      ticketsData = response.data;
-      apiTotal = ticketsData.length;
-    } else {
-      ticketsData = response.data?.tickets || response.data?.items || [];
-      
-      const totalFromResponse = response.data?.total || response.data?.count || ticketsData.length;
-      apiTotal = Number(totalFromResponse) || ticketsData.length;
-    }
+      // Adjust this based on your actual API response structure
+      if (Array.isArray(response.data?.data?.data)) {
+        ticketsData = response.data.data.data;
+        apiTotal = Number(response.data.data.total) || 0;
+      } else if (Array.isArray(response.data?.data)) {
+        ticketsData = response.data.data;
+        apiTotal = Number(response.data.total) || ticketsData.length;
+      } else if (Array.isArray(response.data)) {
+        ticketsData = response.data;
+        apiTotal = ticketsData.length;
+      } else {
+        ticketsData = response.data?.tickets || response.data?.items || [];
 
-    if (ticketsData && Array.isArray(ticketsData)) {
-      console.log("🟢 Tickets data found:", ticketsData);
+        const totalFromResponse =
+          response.data?.total || response.data?.count || ticketsData.length;
+        apiTotal = Number(totalFromResponse) || ticketsData.length;
+      }
 
-      const tickets: CertificationData[] = ticketsData.map(
-        (item: Ticket, index: number) => ({
-          id: index + 1,
-          "Ticket Id": item.id,
-          "Issue Type": item.category,
-          Subject: item.subject,
-          "Created On": new Date(item.createdAt).toLocaleDateString("en-US", {
-            month: "short",
-            day: "numeric",
-            year: "numeric",
-          }),
-          Status: item.status,
-        })
-      );
+      if (ticketsData && Array.isArray(ticketsData)) {
+        console.log("🟢 Tickets data found:", ticketsData);
 
-      setAllCertificationData(tickets);
-      setTotalItems(apiTotal);
-    } else {
-      console.error("🔴 No valid tickets data found");
+        const tickets: CertificationData[] = ticketsData.map(
+          (item: Ticket, index: number) => ({
+            id: index + 1,
+            "Ticket Id": item.id,
+            "Issue Type": item.category,
+            Subject: item.subject,
+            "Created On": new Date(item.createdAt).toLocaleDateString("en-US", {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }),
+            Status: item.status,
+          })
+        );
+
+        setAllCertificationData(tickets);
+        setTotalItems(apiTotal);
+      } else {
+        console.error("🔴 No valid tickets data found");
+        setAllCertificationData([]);
+        setTotalItems(0);
+      }
+    } catch (error) {
+      console.error("🔴 Error fetching tickets:", error);
       setAllCertificationData([]);
       setTotalItems(0);
+    } finally {
+      setLoading(false);
     }
-  } catch (error) {
-    console.error("🔴 Error fetching tickets:", error);
-    setAllCertificationData([]);
-    setTotalItems(0);
-  } finally {
-    setLoading(false);
-  }
-}, [
-  currentPage,
-  itemsPerPage,
-  debouncedSearchTerm,
-  appliedFilters.subject,
-  appliedFilters.property,
-  appliedFilters.status,
-  appliedFilters.submittedDate,
-]);
+  }, [
+    currentPage,
+    itemsPerPage,
+    debouncedSearchTerm,
+    appliedFilters.subject,
+    appliedFilters.property,
+    appliedFilters.status,
+    appliedFilters.submittedDate,
+  ]);
 
   useEffect(() => {
     fetchTickets();
@@ -342,16 +340,19 @@ export default function HelpSupport() {
     console.log("🟠 Using API-filtered data directly");
     return allCertificationData;
   }, [allCertificationData]);
-
-  const displayData = useMemo(() => {
-    const result = filteredCertificationData.map(({ id, ...rest }) => {
-      console.log(id);
-      return rest;
-    });
-
-    console.log("🟢 Display Data for Table:", result.length, "items");
-    return result;
-  }, [filteredCertificationData]);
+const displayData = useMemo(() => {
+  const result = filteredCertificationData.map(({ id, "Ticket Id": ticketId, ...rest }) => {
+    console.log(id, ticketId); // Keep for debugging
+    return rest; 
+  });
+  
+  console.log(
+    "🟢 Host Tickets Display Data for Table:",
+    result.length,
+    "items"
+  );
+  return result;
+}, [filteredCertificationData]);
 
   const handleResetFilter = () => {
     const resetFilters = {
@@ -400,32 +401,32 @@ export default function HelpSupport() {
 
   // ✅ FIXED: Delete multiple tickets with API call and refetch
   // ✅ FIXED: Delete multiple tickets - pass array directly
-const handleDeleteApplications = async (selectedRowIds: Set<number>) => {
-  try {
-    const idsToDelete = Array.from(selectedRowIds)
-      .map((id) =>
-        allCertificationData.find((item) => item.id === id)?.["Ticket Id"]
-      )
-      .filter(Boolean) as string[];
+  const handleDeleteApplications = async (selectedRowIds: Set<number>) => {
+    try {
+      const idsToDelete = Array.from(selectedRowIds)
+        .map(
+          (id) =>
+            allCertificationData.find((item) => item.id === id)?.["Ticket Id"]
+        )
+        .filter(Boolean) as string[];
 
-    console.log("🔴 Deleting multiple tickets:", idsToDelete);
+      console.log("🔴 Deleting multiple tickets:", idsToDelete);
 
-    // ✅ Pass the array directly to the API
-    await supportApi.deleteMultipleTickets(idsToDelete);
-    console.log("🟢 Multiple tickets deleted successfully");
+      // ✅ Pass the array directly to the API
+      await supportApi.deleteMultipleTickets(idsToDelete);
+      console.log("🟢 Multiple tickets deleted successfully");
 
-    // Clear selected rows
-    setSelectedRows(new Set());
-    
-    // Refetch tickets to get updated data from server
-    await fetchTickets();
-    
-  } catch (error) {
-    console.error("🔴 Error deleting multiple tickets:", error);
-  } finally {
-    setIsModalOpen(false);
-  }
-};
+      // Clear selected rows
+      setSelectedRows(new Set());
+
+      // Refetch tickets to get updated data from server
+      await fetchTickets();
+    } catch (error) {
+      console.error("🔴 Error deleting multiple tickets:", error);
+    } finally {
+      setIsModalOpen(false);
+    }
+  };
 
   // ✅ FIXED: Delete single ticket with API call and refetch
   const handleDeleteSingleApplication = async (
@@ -436,7 +437,7 @@ const handleDeleteApplications = async (selectedRowIds: Set<number>) => {
       const ticketId = allCertificationData.find((item) => item.id === id)?.[
         "Ticket Id"
       ];
-      
+
       if (!ticketId) {
         console.error("🔴 Ticket ID not found");
         return;
@@ -457,7 +458,6 @@ const handleDeleteApplications = async (selectedRowIds: Set<number>) => {
 
       // ✅ Refetch tickets to get updated data from server
       await fetchTickets();
-      
     } catch (error) {
       console.error("🔴 Error deleting single ticket:", error);
     } finally {
@@ -465,7 +465,6 @@ const handleDeleteApplications = async (selectedRowIds: Set<number>) => {
       setSingleRowToDelete(null);
     }
   };
-
 
   const openDeleteSingleModal = (row: Record<string, string>, id: number) => {
     setSingleRowToDelete({ row, id });
@@ -606,10 +605,10 @@ const handleDeleteApplications = async (selectedRowIds: Set<number>) => {
     },
   ];
 
-  const closeModal = ()=>{
-    setIsDrawerOpen(false)
-    fetchTickets()
-  }
+  const closeModal = () => {
+    setIsDrawerOpen(false);
+    fetchTickets();
+  };
 
   if (loading) {
     return (
@@ -694,79 +693,76 @@ const handleDeleteApplications = async (selectedRowIds: Set<number>) => {
           showFilter={true}
           onFilterToggle={setIsFilterOpen}
           onDeleteAll={handleDeleteSelected}
-          isDeleteAllDisabled={
-            selectedRows.size < 2
-          }
+          isDeleteAllDisabled={selectedRows.size < 2}
           showActionColumn={true}
           disableClientSidePagination={true}
         />
       </div>
 
-     <FilterDrawer
-  isOpen={isFilterOpen}
-  onClose={handleCloseFilter}
-  title="Apply Filter"
-  description="Refine listings to find the right tickets faster."
-  resetLabel="Reset"
-  onReset={handleResetFilter}
-  buttonLabel="Apply Filter"
-  onApply={handleApplyFilter}
-  filterValues={{
-    subject: tempFilters.subject,
-    property: tempFilters.property,
-    status: tempFilters.status,
-    submittedDate: submittedDate,
-  }}
-  onFilterChange={(newValues) => {
-    if (newValues.subject !== undefined) {
-      setTempFilters((prev) => ({
-        ...prev,
-        subject: newValues.subject as string,
-      }));
-    }
-    if (newValues.property !== undefined) {
-      setTempFilters((prev) => ({
-        ...prev,
-        property: newValues.property as string,
-      }));
-    }
-    if (newValues.status !== undefined) {
-      setTempFilters((prev) => ({
-        ...prev,
-        status: newValues.status as string,
-      }));
-    }
-    if (newValues.submittedDate !== undefined) {
-      setSubmittedDate(newValues.submittedDate as Date | null);
-    }
-  }}
-  dropdownStates={{
-    subject: subjectDropdownOpen,
-    property: propertyDropdownOpen,
-    status: statusDropdownOpen,
-  }}
-  onDropdownToggle={(key, value) => {
-    // if (key === "subject") setSubjectDropdownOpen(value);
-    if (key === "property") setPropertyDropdownOpen(value);
-    if (key === "status") setStatusDropdownOpen(value);
-  }}
-  fields={[
-    
-    {
-      label: "Status",
-      key: "status",
-      type: "dropdown",
-      placeholder: "Select status",
-      options: allStatuses, // ✅ Just pass the string array directly
-    },
-    {
-      label: "Created Date",
-      key: "submittedDate",
-      type: "date",
-      placeholder: "Select date",
-    },
-  ]}
-/>
+      <FilterDrawer
+        isOpen={isFilterOpen}
+        onClose={handleCloseFilter}
+        title="Apply Filter"
+        description="Refine listings to find the right tickets faster."
+        resetLabel="Reset"
+        onReset={handleResetFilter}
+        buttonLabel="Apply Filter"
+        onApply={handleApplyFilter}
+        filterValues={{
+          subject: tempFilters.subject,
+          property: tempFilters.property,
+          status: tempFilters.status,
+          submittedDate: submittedDate,
+        }}
+        onFilterChange={(newValues) => {
+          if (newValues.subject !== undefined) {
+            setTempFilters((prev) => ({
+              ...prev,
+              subject: newValues.subject as string,
+            }));
+          }
+          if (newValues.property !== undefined) {
+            setTempFilters((prev) => ({
+              ...prev,
+              property: newValues.property as string,
+            }));
+          }
+          if (newValues.status !== undefined) {
+            setTempFilters((prev) => ({
+              ...prev,
+              status: newValues.status as string,
+            }));
+          }
+          if (newValues.submittedDate !== undefined) {
+            setSubmittedDate(newValues.submittedDate as Date | null);
+          }
+        }}
+        dropdownStates={{
+          subject: subjectDropdownOpen,
+          property: propertyDropdownOpen,
+          status: statusDropdownOpen,
+        }}
+        onDropdownToggle={(key, value) => {
+          // if (key === "subject") setSubjectDropdownOpen(value);
+          if (key === "property") setPropertyDropdownOpen(value);
+          if (key === "status") setStatusDropdownOpen(value);
+        }}
+        fields={[
+          {
+            label: "Status",
+            key: "status",
+            type: "dropdown",
+            placeholder: "Select status",
+            options: allStatuses, // ✅ Just pass the string array directly
+          },
+          {
+            label: "Created Date",
+            key: "submittedDate",
+            type: "date",
+            placeholder: "Select date",
+          },
+        ]}
+      />
 
       <div
         className={`fixed inset-0 bg-[#121315CC] z-[3000000000] flex justify-end transition-opacity duration-300 ${

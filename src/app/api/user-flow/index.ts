@@ -1,6 +1,6 @@
 import { apiClient } from "../core/client";
 import { ApiResponse } from "../core/client";
-import { SearchResponse, SearchParams, PropertyResponse, Property } from "./types";
+import { SearchResponse, SearchParams, PropertyResponse, Property, CertificationData } from "./types";
 
 export const propertyAPI = {
   /**
@@ -21,13 +21,13 @@ export const propertyAPI = {
     const requestParams: Record<string, string | number | boolean | undefined> = {
       search,
     };
-    
+
     // Add other params if they exist, excluding search from params to avoid conflicts
     if (params) {
       const { search: _, ...otherParams } = params;
       Object.assign(requestParams, otherParams);
     }
-    
+
     return apiClient.get<SearchResponse>("/search/advanced", {
       headers: { "Content-Type": "application/json" },
       requiresAuth: false,
@@ -38,7 +38,7 @@ export const propertyAPI = {
   /**
    * Get a single property by ID
    */
-   getPropertyById: async (propertyId: string): Promise<ApiResponse<Property>> => {
+  getPropertyById: async (propertyId: string): Promise<ApiResponse<Property>> => {
     return apiClient.get<Property>(`/search/properties/${propertyId}`, {
       headers: { "Content-Type": "application/json" },
       requiresAuth: false,
@@ -53,5 +53,16 @@ export const propertyAPI = {
       headers: { "Content-Type": "application/json" },
       requiresAuth: false,
     });
+  },
+  getCertificationByQrCode: async (
+    qrCodeData: string
+  ): Promise<ApiResponse<CertificationData>> => {
+    return apiClient.get<CertificationData>(
+      `/certifications/verify/${qrCodeData}`,
+      {
+        headers: { "Content-Type": "application/json" },
+        requiresAuth: false, // ✅ Public access
+      }
+    );
   },
 };

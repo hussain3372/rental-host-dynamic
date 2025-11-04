@@ -12,10 +12,20 @@ const HeroSection = () => {
   const [searchInput, setSearchInput] = useState("");
 
   const handleSearchClick = () => {
+    if (searchInput.trim().length < 3) {
+      return;
+    }
     if (searchInput.trim() !== "") {
       router.push(`/search-page?query=${encodeURIComponent(searchInput)}`);
     }
   };
+
+  const handleKeyPress = (event:React.KeyboardEvent)=>{
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      handleSearchClick();
+    }
+  }
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -162,6 +172,7 @@ const HeroSection = () => {
         >
           <input
             type="text"
+            onKeyPress={handleKeyPress}
             placeholder={
               isMobile
                 ? "Search properties..." // short placeholder for sm

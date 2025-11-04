@@ -273,10 +273,17 @@ export default function HostTicketTable({
 
       console.log("🚀 HITTING HOST TICKETS API WITH PARAMS:", apiParams);
 
-      const response = await supportApi.getTickets(apiParams);
+      // const response = await supportApi.getTickets(apiParams);
+      const response = await supportApi.getAdminTickets(
+        currentPage,
+        itemsPerPage,
+        apiParams.search || undefined,
+        undefined,
+        apiParams.status || undefined,
+        apiParams.createdAt || undefined
+      );
       console.log("🔵 Full Host Tickets API Response:", response);
 
-      // Extract data based on your API response structure - same logic
       let ticketsData = null;
       let apiTotal = 0;
 
@@ -364,10 +371,12 @@ export default function HostTicketTable({
   }, [allCertificationData]);
 
   const displayData = useMemo(() => {
-    const result = filteredCertificationData.map(({ id, ...rest }) => {
-      console.log(id);
-      return rest;
-    });
+    const result = filteredCertificationData.map(
+      ({ id, "Ticket Id": ticketId, ...rest }) => {
+        console.log(id, ticketId); // Keep for debugging
+        return rest; // Returns only: Issue Type, Subject, Host Name, Created On, Status
+      }
+    );
 
     console.log(
       "🟢 Host Tickets Display Data for Table:",
@@ -567,38 +576,33 @@ export default function HostTicketTable({
   const dropdownItems = [
     {
       label: "View Details",
-      onClick: (row: Record<string, string>) => {
-        // ✅ FIXED: Find the original row by Ticket Id instead of using index
-        const ticketId = row["Ticket Id"];
-        const originalRow = filteredCertificationData.find(
-          (item) => item["Ticket Id"] === ticketId
-        );
+      onClick: (row: Record<string, string>, index: number) => {
+        // ✅ Use index to find the original row with Ticket Id
+        const globalIndex = (currentPage - 1) * itemsPerPage + index;
+        const originalRow = filteredCertificationData[globalIndex];
 
         if (originalRow) {
           onViewDetails(originalRow);
         } else {
-          console.error(" Could not find original row for ticket:", ticketId);
+          console.error("Could not find original row at index:", globalIndex);
         }
       },
     },
     {
       label: "Delete Ticket",
-      onClick: (row: Record<string, string>) => {
-        // ✅ FIXED: Find the original row by Ticket Id instead of using index
-        const ticketId = row["Ticket Id"];
-        const originalRow = filteredCertificationData.find(
-          (item) => item["Ticket Id"] === ticketId
-        );
+      onClick: (row: Record<string, string>, index: number) => {
+        // ✅ Use index to find the original row with Ticket Id
+        const globalIndex = (currentPage - 1) * itemsPerPage + index;
+        const originalRow = filteredCertificationData[globalIndex];
 
         if (originalRow) {
           openDeleteSingleModal(row, originalRow.id);
         } else {
-          console.error(" Could not find original row for ticket:", ticketId);
+          console.error("Could not find original row at index:", globalIndex);
         }
       },
     },
   ];
-
   // Loading state
   if (loading) {
     return (
@@ -628,18 +632,17 @@ export default function HostTicketTable({
           title="Host Tickets"
           control={tableControl}
           showDeleteButton={true}
-          onDeleteSingle={(row) => {
-            const ticketId = row["Ticket Id"];
-            const originalRow = filteredCertificationData.find(
-              (item) => item["Ticket Id"] === ticketId
-            );
+          onDeleteSingle={(row, index) => {
+            // ✅ Use index to find the original row
+            const globalIndex = (currentPage - 1) * itemsPerPage + index;
+            const originalRow = filteredCertificationData[globalIndex];
 
             if (originalRow) {
               openDeleteSingleModal(row, originalRow.id);
             } else {
               console.error(
-                " Could not find original row for ticket:",
-                ticketId
+                "Could not find original row at index:",
+                globalIndex
               );
             }
           }}

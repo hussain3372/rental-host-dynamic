@@ -7,6 +7,7 @@ export interface ProfileResponse {
     emailVerified: boolean;
     firstName?: string;
     lastName?: string;
+    profilePicture:string
   }
 }
 

@@ -62,7 +62,7 @@ export default function LoginPage() {
   const [fcmToken, setFcmToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const generateFcmTokenSilently = async () => {
+    const requestNotificationPermissionAndGenerateToken = async () => {
       try {
         if (!messaging) {
           console.log("❌ FCM not supported or messaging not initialized");
@@ -72,6 +72,19 @@ export default function LoginPage() {
         console.log("🔄 Checking notification permission...");
         console.log("Current permission:", Notification.permission);
 
+        // REQUEST PERMISSION IF NOT GRANTED
+        if (Notification.permission === "default") {
+          console.log("📢 Requesting notification permission...");
+          const permission = await Notification.requestPermission();
+          console.log("Permission result:", permission);
+
+          if (permission !== "granted") {
+            console.log("❌ Notification permission denied by user");
+            return;
+          }
+        }
+
+        // Generate token if permission is granted
         if (Notification.permission === "granted") {
           console.log("✅ Permission granted, generating FCM token...");
           const token = await getToken(messaging, {
@@ -87,16 +100,14 @@ export default function LoginPage() {
             console.log("❌ No FCM token received - token is null/empty");
           }
         } else {
-          console.log(
-            "ℹ️ Notification permission not granted, token generation skipped"
-          );
+          console.log("❌ Notification permission not granted:", Notification.permission);
         }
       } catch (error) {
         console.error("❌ FCM token generation failed:", error);
       }
     };
 
-    generateFcmTokenSilently();
+    requestNotificationPermissionAndGenerateToken();
   }, []);
 
   const handleLogin = async (formData: LoginFormData) => {
@@ -159,7 +170,7 @@ export default function LoginPage() {
         return;
       }
 
-      // Step 5: Complete login for HOST users without MFA
+      // Step 5: Complete login for ADMIN users without MFA
       const token = response?.data?.accessToken || "";
       if (token) {
         Cookies.set("adminAccessToken", token, {

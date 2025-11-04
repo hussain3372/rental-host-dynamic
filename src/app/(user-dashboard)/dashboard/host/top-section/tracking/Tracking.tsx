@@ -24,17 +24,6 @@ interface CertificationData {
   Status: string;
 }
 
-interface PaginationData {
-  total: number;
-  pageSize: number;
-  currentPage: number;
-  totalPages: number;
-  nextPage: number | null;
-  prevPage: number | null;
-  hasNextPage: boolean;
-  hasPrevPage: boolean;
-}
-
 interface ApplicationTrackerData {
   id: number;
   title: string;
@@ -46,43 +35,23 @@ interface ApplicationTrackerData {
 export default function Tracking() {
   const router = useRouter();
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(6);
   const [isLoading, setIsLoading] = useState(false);
-
   const [appliedFilters, setAppliedFilters] = useState({
     listedProperty: "",
     status: "",
     expiryDate: "",
   });
-
   const [tempFilters, setTempFilters] = useState({
     listedProperty: "",
     status: "",
     expiryDate: "",
   });
-
   const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [expiryDate, setExpiryDate] = useState<Date | null>(null);
-
   const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([]);
-  const [paginationData, setPaginationData] = useState<PaginationData>({
-    total: 0,
-    pageSize: 6,
-    currentPage: 1,
-    totalPages: 1,
-    nextPage: null,
-    prevPage: null,
-    hasNextPage: false,
-    hasPrevPage: false
-  });
-
   const [trackingData, setTrackingData] = useState<ApplicationTrackerData[]>([]);
   const [isTrackerLoading, setIsTrackerLoading] = useState(false);
-
   const [tooltip, setTooltip] = useState({
     show: false,
     text: "",
@@ -90,45 +59,31 @@ export default function Tracking() {
     x: 0,
     y: 0
   });
-
   const [allProperties, setAllProperties] = useState<string[]>([]);
   const [allStatuses, setAllStatuses] = useState<string[]>([]);
 
-  // Debounce search term
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      if (searchTerm.trim().length >= 3 || searchTerm.trim() === "") {
-        setDebouncedSearchTerm(searchTerm);
-      }
-    }, 500);
-
-    return () => {
-      clearTimeout(handler);
-    };
-  }, [searchTerm]);
-
+  // Remove search-related state and effects
 
   // Fetch filter options
- const fetchFilterOptions = useCallback(async () => {
-  try {
-    const response = await certifications.getCertifications();
-    
-    if (response?.data?.certifications && Array.isArray(response.data.certifications)) {
-      const properties = [...new Set(response.data.certifications.map((item) => 
-        item.application?.propertyDetails?.propertyName || ""
-      ))].filter(Boolean);
-      
-      const statuses = [...new Set(response.data.certifications.map((item) => 
-        item.status ? capitalizeStatus(item.status) : ""
-      ))].filter(Boolean);
-
-      setAllProperties(properties as string[]);
-      setAllStatuses(statuses as string[]);
+  const fetchFilterOptions = useCallback(async () => {
+    try {
+      const response = await certifications.getCertifications();
+     
+      if (response?.data?.certifications && Array.isArray(response.data.certifications)) {
+        const properties = [...new Set(response.data.certifications.map((item) =>
+          item.application?.propertyDetails?.propertyName || ""
+        ))].filter(Boolean);
+       
+        const statuses = [...new Set(response.data.certifications.map((item) =>
+          item.status ? capitalizeStatus(item.status) : ""
+        ))].filter(Boolean);
+        setAllProperties(properties as string[]);
+        setAllStatuses(statuses as string[]);
+      }
+    } catch (error) {
+      console.error("Error fetching filter options:", error);
     }
-  } catch (error) {
-    console.error("Error fetching filter options:", error);
-  }
-}, []);
+  }, []);
 
   useEffect(() => {
     fetchFilterOptions();
@@ -163,44 +118,35 @@ export default function Tracking() {
     return status.toUpperCase().replace(" ", "_");
   };
 
- const buildApiParams = useCallback((): ApiParams => {
-  const params: ApiParams = {
-    page: currentPage,
-    pageSize: itemsPerPage,
-  };
+  const buildApiParams = useCallback((): ApiParams => {
+    const params: ApiParams = {
+      page: 1, 
+      pageSize: 5, 
+    };
+    
+    // Remove search from API params
+    if (appliedFilters.listedProperty.trim()) {
+      params.propertyName = appliedFilters.listedProperty.trim();
+    }
+    if (appliedFilters.status.trim()) {
+      params.status = getStatusForAPI(appliedFilters.status.trim());
+    }
+    if (appliedFilters.expiryDate) {
+      params.expiresAt = appliedFilters.expiryDate; 
+    }
+    return params;
+  }, [appliedFilters]); // Remove search term dependency
 
-  // Add search param only if we have at least 3 characters
-  if (debouncedSearchTerm.trim().length >= 3) {
-    params.search = debouncedSearchTerm.trim();
-  }
-
-  // Add ALL active filters simultaneously
-  if (appliedFilters.listedProperty.trim()) {
-    params.propertyName = appliedFilters.listedProperty.trim(); // Use propertyName param
-  }
-
-  if (appliedFilters.status.trim()) {
-    params.status = getStatusForAPI(appliedFilters.status.trim());
-  }
-
-  if (appliedFilters.expiryDate) {
-    params.issuedAt = appliedFilters.expiryDate;
-    params.expiresAt = appliedFilters.expiryDate;
-  }
-
-  return params;
-}, [debouncedSearchTerm, appliedFilters, currentPage, itemsPerPage]);
   const fetchCertifications = useCallback(async () => {
     try {
-      // setIsLoading(true);
+      setIsLoading(true);
       const params = buildApiParams();
-
       console.log("🚀 HITTING CERTIFICATIONS API WITH PARAMS:", params);
-
       const response = await certifications.getCertifications(params);
-
       if (response?.data?.certifications && Array.isArray(response.data.certifications)) {
-        const mappedData: CertificationData[] = response.data.certifications.map(
+        const firstFiveRecords = response.data.certifications.slice(0, 5);
+       
+        const mappedData: CertificationData[] = firstFiveRecords.map(
           (item, index: number) => ({
             id: item.id || `cert-${index}`,
             "Property Name": item.application?.propertyDetails?.propertyName || "Coastal Hillside Estate",
@@ -215,42 +161,18 @@ export default function Tracking() {
             Status: item.status ? capitalizeStatus(item.status) : "Verified",
           })
         );
-
         setAllCertificationData(mappedData);
-
-        // Set pagination data if available from API
-       
       } else {
         console.error("❌ Unexpected certifications response:", response);
         setAllCertificationData([]);
-        setPaginationData({
-          total: 0,
-          pageSize: itemsPerPage,
-          currentPage: 1,
-          totalPages: 1,
-          nextPage: null,
-          prevPage: null,
-          hasNextPage: false,
-          hasPrevPage: false
-        });
       }
     } catch (error) {
       console.error("🚨 Error fetching certifications:", error);
       setAllCertificationData([]);
-      setPaginationData({
-        total: 0,
-        pageSize: itemsPerPage,
-        currentPage: 1,
-        totalPages: 1,
-        nextPage: null,
-        prevPage: null,
-        hasNextPage: false,
-        hasPrevPage: false
-      });
     } finally {
       setIsLoading(false);
     }
-  }, [buildApiParams, currentPage, itemsPerPage]);
+  }, [buildApiParams]);
 
   useEffect(() => {
     fetchCertifications();
@@ -260,21 +182,18 @@ export default function Tracking() {
     try {
       setIsTrackerLoading(true);
       const response = await dashboard.fetchApplicationTracker();
-
       if (response?.data?.data && Array.isArray(response.data.data)) {
         const firstFourProperties = response.data.data.slice(0, 4);
-        
+       
         const mappedTrackerData: ApplicationTrackerData[] = firstFourProperties.map((item, index: number) => {
           const colorIndex = index % 4;
           const colors = [
-            { bg: "#aae6ff", minibg: "#2185AF" }, 
-            { bg: "#f5ff94", minibg: "#BCCC29" }, 
-            { bg: "#CCFFA4", minibg: "#6BBE2B" }, 
+            { bg: "#aae6ff", minibg: "#2185AF" },
+            { bg: "#f5ff94", minibg: "#BCCC29" },
+            { bg: "#CCFFA4", minibg: "#6BBE2B" },
             { bg: "#EFC8FF", minibg: "#A745CE" },
           ];
-
           const colorSet = colors[colorIndex];
-
           return {
             id: item.id ? parseInt(item.id) : index + 1,
             title: item.name?.propertyName || "Unnamed Property",
@@ -283,7 +202,6 @@ export default function Tracking() {
             minibg: colorSet.minibg,
           };
         });
-
         setTrackingData(mappedTrackerData);
       } else {
         setTrackingData([]);
@@ -300,11 +218,11 @@ export default function Tracking() {
     fetchApplicationTracker();
   }, [fetchApplicationTracker]);
 
-  // Tooltip handlers
+  // Tooltip handlers (unchanged)
   const handleMouseEnter = (e: React.MouseEvent, text: string, bgColor: string) => {
     const element = e.currentTarget;
     const isTextOverflowing = element.scrollWidth > element.clientWidth;
-    
+   
     if (isTextOverflowing) {
       setTooltip({
         show: true,
@@ -338,7 +256,6 @@ export default function Tracking() {
 
   const handleFilterChange = (filters: Record<string, string | Date | null>) => {
     const updatedFilters = { ...tempFilters };
-
     if (filters.listedProperty !== undefined) {
       updatedFilters.listedProperty = filters.listedProperty as string;
     }
@@ -348,7 +265,6 @@ export default function Tracking() {
     if (filters.expiryDate !== undefined) {
       setExpiryDate(filters.expiryDate as Date | null);
     }
-
     setTempFilters(updatedFilters);
   };
 
@@ -358,34 +274,27 @@ export default function Tracking() {
       status: "",
       expiryDate: "",
     };
-
     setTempFilters(resetFilters);
     setAppliedFilters(resetFilters);
     setExpiryDate(null);
-    setSearchTerm("");
-    setDebouncedSearchTerm("");
-    setCurrentPage(1);
+    // Remove search reset
     setIsFilterOpen(false);
   };
 
   const handleApplyFilter = () => {
     const dateString = formatDateForAPI(expiryDate);
-    
+   
     const filtersToApply = {
       listedProperty: tempFilters.listedProperty,
       status: tempFilters.status,
       expiryDate: dateString,
     };
-
     console.log("🟢 APPLYING CERTIFICATION FILTERS:", filtersToApply);
-
     setAppliedFilters(filtersToApply);
-    setCurrentPage(1);
     setIsFilterOpen(false);
   };
 
   const handleCloseFilter = () => {
-    // Reset temp filters to current applied state when closing without applying
     setTempFilters(appliedFilters);
     if (appliedFilters.expiryDate) {
       setExpiryDate(new Date(appliedFilters.expiryDate));
@@ -400,17 +309,6 @@ export default function Tracking() {
       setShowPropertyDropdown(value);
     } else if (key === "status") {
       setShowStatusDropdown(value);
-    }
-  };
-
-  const handlePageChange = (page: number) => {
-    setCurrentPage(page);
-  };
-
-  const handleSearch = (term: string) => {
-    setSearchTerm(term);
-    if (term.trim().length >= 3 || term.trim() === "") {
-      setCurrentPage(1);
     }
   };
 
@@ -436,6 +334,7 @@ export default function Tracking() {
 
   const displayData = useMemo(() => {
     return allCertificationData.map(({ id, ...rest }) => {
+      console.log(id)
       return rest;
     });
   }, [allCertificationData]);
@@ -463,7 +362,7 @@ export default function Tracking() {
   return (
     <>
       {tooltip.show && (
-        <div 
+        <div
           className="fixed z-50 px-3 py-2 text-sm text-[#121315CC] font-semibold rounded-lg shadow-lg pointer-events-none transition-opacity duration-200"
           style={{
             backgroundColor: tooltip.bgColor,
@@ -474,13 +373,12 @@ export default function Tracking() {
           }}
         >
           {tooltip.text}
-          <div 
+          <div
             className="absolute w-2 h-2 rotate-45 -bottom-1 left-4"
             style={{ backgroundColor: tooltip.bgColor }}
           />
         </div>
       )}
-
       <div className="py-[20px] flex flex-col w-full gap-3 xl:flex-row">
         {/* Left Panel - Application Tracker */}
         <div className="rounded-md w-full lg:max-w-[50%] bg-[#121315] p-5 ">
@@ -489,7 +387,6 @@ export default function Tracking() {
               Application Tracker
             </p>
           </div>
-
           {isTrackerLoading ? (
             <div className="pt-[37px] flex items-center justify-center">
               <p className="text-white">Loading application tracker...</p>
@@ -505,7 +402,7 @@ export default function Tracking() {
                       width: `${item.percentage}%`,
                     }}
                   >
-                    <span 
+                    <span
                       className="whitespace-nowrap overflow-hidden pr-2 absolute bottom-2 left-2 right-2 cursor-help"
                       onMouseEnter={(e) => handleMouseEnter(e, item.title, item.bg)}
                       onMouseMove={handleMouseMove}
@@ -529,7 +426,6 @@ export default function Tracking() {
             </div>
           )}
         </div>
-
         {/* Right Panel - Certification Table */}
         <div className="flex-1 w-full xl:w-[70%] max-w-none">
           <div className="bg-[#121315] min-w-[50vw] home-table z-[10000000] rounded-lg overflow-hidden">
@@ -538,11 +434,9 @@ export default function Tracking() {
               title="Certification"
               control={tableControl}
               showDeleteButton={false}
-              showPagination={true}
+              showPagination={false}
               clickable={true}
               dropdownItems={dropdownItems}
-              searchTerm={searchTerm}
-              onSearchChange={handleSearch}
               showFilter={true}
               onFilterToggle={setIsFilterOpen}
               selectedRows={new Set()}
@@ -552,17 +446,11 @@ export default function Tracking() {
               isAllSelected={false}
               isSomeSelected={false}
               rowIds={[]}
-              currentPage={currentPage}
-              onPageChange={handlePageChange}
-              itemsPerPage={paginationData.pageSize}
-              totalItems={paginationData.total || 0}
-              disableClientSidePagination={true}
             />
           </div>
         </div>
       </div>
-
-      {/* Filter Drawer - Filters will persist until reset or reload */}
+      {/* Filter Drawer */}
       <FilterDrawer
         isOpen={isFilterOpen}
         onClose={handleCloseFilter}

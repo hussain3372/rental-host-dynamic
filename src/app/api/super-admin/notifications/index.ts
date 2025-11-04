@@ -1,5 +1,6 @@
-// ADMIN - DEBUG VERSION
 import { apiClient, ApiResponse } from "../../core/client";
+import { AxiosRequestConfig } from 'axios';
+
 import Cookies from "js-cookie";
 import {
   NotificationsResponse,
@@ -22,12 +23,35 @@ const getAuthHeaders = () => {
   };
 };
 
+interface GetNotificationsParams {
+  offset: number;
+  limit: number;
+  read?: string;
+}
+
 export const notificationsApi = {
-  getNotifications: async (): Promise<ApiResponse<NotificationsResponse>> => {
-    console.log("📡 GET /notifications");
+  getNotifications: async (
+    offset: number = 0, 
+    limit: number = 10,
+    read: boolean | undefined = undefined
+  ): Promise<ApiResponse<NotificationsResponse>> => {
+    console.log(`📡 GET /notifications with offset: ${offset}, limit: ${limit}, read: ${read}`);
+    
+    // Build query parameters with proper typing
+    const params: GetNotificationsParams = {
+      offset,
+      limit
+    };
+    
+    // Add read status parameter if provided
+    if (read !== undefined) {
+      params.read = read.toString();
+    }
+    
     return apiClient.get<NotificationsResponse>("/notifications", {
       headers: getAuthHeaders(),
       requiresAuth: false,
+      params : params as AxiosRequestConfig['params']
     });
   },
   

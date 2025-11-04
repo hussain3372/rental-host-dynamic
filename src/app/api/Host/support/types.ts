@@ -28,7 +28,7 @@ export interface CreateTicketPayload {
   subject: string;
   description: string;
   category: string; // issue type dropdown value
-  priority: string; // priority dropdown value
+  priority?: string; // priority dropdown value
   attachmentUrls?: string[];
   tags?: string[];
 }

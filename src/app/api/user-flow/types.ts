@@ -42,7 +42,75 @@ export interface PropertyDetails {
   description: string;
   propertyName: string;
   propertyType: string;
+  area:string;
 }
+export interface CertificationData {
+  id: string;
+  applicationId: string;
+  hostId: number;
+  certificateNumber: string;
+  status: string;
+  issuedAt: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  revokedBy: number | null;
+  revokeReason: string | null;
+  badgeUrl: string;
+  qrCodeUrl: string;
+  qrCodeData: string;
+  verificationUrl: string;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  certificateTemplateId: string;
+
+  host?: {
+    id: number;
+    name: string;
+    email: string;
+    phone: string;
+    companyName?: string;
+  };
+
+  application?: {
+    id: string;
+    hostId: number;
+    status: string;
+    currentStep: string;
+    submittedAt: string;
+    reviewedBy: number;
+    reviewedAt: string;
+    reviewNotes: string | null;
+    createdAt: string;
+    updatedAt: string;
+    deletedAt: string | null;
+    propertyDetails?: {
+      rent: number;
+      images: string[];
+      address: string;
+      bedrooms: number;
+      currency: string;
+      bathrooms: number;
+      maxGuests: number;
+      ownership: string;
+      description: string;
+      propertyName: string;
+      propertyType: string;
+    };
+    documents?: {
+      id: string;
+      applicationId: string;
+      fileName: string;
+      originalName: string;
+      mimeType: string;
+      size: number;
+      url: string;
+      documentType: string;
+      uploadedAt: string;
+    }[];
+  };
+}
+
 
 export interface Host {
   id: number | string;
@@ -170,4 +238,6 @@ export interface ApiProperty {
     propertyName: string;
     propertyType: string;
   };
+ 
+
 }

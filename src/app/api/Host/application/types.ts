@@ -101,8 +101,7 @@ export interface ApplicationData {
   documents: DocumentItem[];
   payments: PaymentItem[];
   certification?: Certification | null;
-  complianceChecklist : string[]
-
+  complianceChecklist: string[];
 }
 
 // ----------------------------
@@ -125,7 +124,6 @@ export interface ApplicationsListResponse {
   applications: ApplicationData[];
   total: number;
   pagination?: PaginationInfo; // Add this
-
 }
 
 export interface ApplicationRequest {
@@ -169,19 +167,17 @@ export interface FileUploadResponse {
   count: number;
   uploaded: UploadedFile[];
   success?: boolean;
-  urls:string
-  images :File[]
-  
+  urls: string;
+  images: File[];
 }
 
 export interface UploadDocumentPayload {
   files: File[];
   documentTye:
-  | "ID_DOCUMENT"
-  | "SAFETY_PERMIT"
-  | "INSURANCE_CERTIFICATE"
-  | "PROPERTY_DEED"
-
+    | "ID_DOCUMENT"
+    | "SAFETY_PERMIT"
+    | "INSURANCE_CERTIFICATE"
+    | "PROPERTY_DEED";
 }
 
 export interface UploadedDocument {
@@ -191,9 +187,8 @@ export interface UploadedDocument {
   originalName: string;
   size: number;
   mimetype: string;
-  uploaded: string[]
+  uploaded: string[];
 }
-
 
 export interface ChecklistItem {
   id: number;
@@ -202,8 +197,7 @@ export interface ChecklistItem {
   checklistId: string;
   name: string;
   description: string | null;
-    isRequired?: boolean;
-
+  isRequired?: boolean;
 }
 
 export interface CheckListResponse {
@@ -223,15 +217,26 @@ export interface PaymentResponse {
   success: boolean;
   message: string;
 }
+
+export interface PaymentResponseReal {
+   data: string;
+  success: boolean;
+  message: string;
+  paymentId: string;
+  clientSecret: string;
+  amount: number;
+  currency: string;
+  status: string;
+}
 export interface SubmitResponse {
-  data: string
-  success: boolean
-  message: string
+  data: string;
+  success: boolean;
+  message: string;
 }
 export interface getApplicationByIdResponse {
-  data: string[]
-  success: boolean
-  message: string
+  data: string[];
+  success: boolean;
+  message: string;
 }
 interface DocumentPayload {
   fileName: string;
@@ -240,11 +245,11 @@ interface DocumentPayload {
   size: number;
   url: string;
   documentType:
-  | 'ID_DOCUMENT'
-  | 'SAFETY_PERMIT'
-  | 'INSURANCE_CERTIFICATE'
-  | 'PROPERTY_DEED'
-  | string; // string fallback for any other types
+    | "ID_DOCUMENT"
+    | "SAFETY_PERMIT"
+    | "INSURANCE_CERTIFICATE"
+    | "PROPERTY_DEED"
+    | string; // string fallback for any other types
 }
 
 export interface ApiPayload {
@@ -262,7 +267,7 @@ export interface CheckListApiResponse {
   success: boolean;
   message?: string;
   status?: number;
-  checklists : string[]
+  checklists: string[];
 }
 export interface ApiChecklistItem {
   id: string | number;
@@ -271,3 +276,9 @@ export interface ApiChecklistItem {
   isActive?: boolean;
 }
 
+export interface CreatePaymentPayload {
+  applicationId: string;
+  amount: number;
+  currency: string;
+  description?: string;
+}

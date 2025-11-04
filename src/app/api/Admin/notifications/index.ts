@@ -1,3 +1,4 @@
+
 // ADMIN - DEBUG VERSION
 import { apiClient, ApiResponse } from "../../core/client";
 import Cookies from "js-cookie";
@@ -8,6 +9,14 @@ import {
   MarkAllRead,
   Notification
 } from "./types";
+
+interface NotificationParams {
+  offset: number;
+  limit: number;
+  read?: string;
+  [key: string]: string | number | undefined;
+}
+
 
 const getAuthHeaders = () => {
   const token = Cookies.get("adminAccessToken");
@@ -23,11 +32,28 @@ const getAuthHeaders = () => {
 };
 
 export const notificationsApi = {
-  getNotifications: async (): Promise<ApiResponse<NotificationsResponse>> => {
-    console.log("📡 GET /notifications");
+  getNotifications: async (
+    offset: number = 0, 
+    limit: number = 10,
+    read: boolean | undefined = undefined // New optional parameter
+  ): Promise<ApiResponse<NotificationsResponse>> => {
+    console.log(`📡 GET /notifications with offset: ${offset}, limit: ${limit}, read: ${read}`);
+    
+    // Build query parameters
+    const params: NotificationParams = {
+      offset,
+      limit
+    };
+    
+    // Add read status parameter if provided
+    if (read !== undefined) {
+      params.read = read.toString();
+    }
+    
     return apiClient.get<NotificationsResponse>("/notifications", {
       headers: getAuthHeaders(),
       requiresAuth: false,
+      params
     });
   },
   

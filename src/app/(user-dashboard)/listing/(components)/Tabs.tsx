@@ -700,7 +700,7 @@ export default function MultiStepForm() {
         }
 
         localStorage.removeItem("applicationData");
-        localStorage.removeItem("propertyType");
+        // localStorage.removeItem("propertyType");
         setCurrentApplicationData(null);
         setUploadedDocuments([]);
         router.push('/dashboard/application')

@@ -1,7 +1,6 @@
 import { apiClient } from "../core/client";
 import { ApiResponse } from "../core/client";
 
-
 import {
   SignUpRequest,
   SignUpRes,
@@ -15,6 +14,8 @@ import {
   ForgotPasswordSuccessResponse,
   EmailRequest,
   EmailResponse,
+  GoogleResponse,
+  GoogleRequest,
 } from "./types";
 
 export const auth = {
@@ -66,7 +67,9 @@ export const auth = {
     payload: EmailRequest
   ): Promise<ApiResponse<EmailResponse>> =>
     apiClient.post<EmailResponse>("/auth/verify-email", payload),
-    
- 
 
+  googleAuth: async (
+    payload: GoogleRequest
+  ): Promise<ApiResponse<GoogleResponse>> =>
+    apiClient.post<GoogleResponse>("/auth/google/callback",payload),
 };

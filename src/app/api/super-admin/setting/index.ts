@@ -7,7 +7,7 @@ import {
 } from "./types";
 import Cookies from "js-cookie";
 
-const token = Cookies.get("adminAccessToken");
+const token = Cookies.get("superAdminAccessToken");
 
 export const setting = {
   getSetting: async (): Promise<ApiResponse<SettingData>> => {

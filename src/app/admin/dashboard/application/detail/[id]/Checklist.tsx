@@ -2,6 +2,7 @@ import Image from "next/image";
 import React, { useState } from "react";
 import type { Application, Document } from "@/app/api/Admin/application/types";
 import { application as applicationApi } from "@/app/api/Admin/application";
+import toast from "react-hot-toast";
 
 interface ChecklistProps {
   notes: string[];
@@ -9,7 +10,8 @@ interface ChecklistProps {
 }
 
 export default function Checklist({ notes, application }: ChecklistProps) {
-  const [isLoading, setIsLoading] = useState(false);
+const [isApproving, setIsApproving] = useState(false);
+const [isRejecting, setIsRejecting] = useState(false);
 
   // Convert complianceChecklist object to array format for display
   const checklist = application.complianceChecklist
@@ -59,26 +61,48 @@ export default function Checklist({ notes, application }: ChecklistProps) {
   };
 
   const handleApproveReject = async (action: "approve" | "reject") => {
-    if (!application?.id) return;
+  if (!application?.id) return;
 
-    try {
-      setIsLoading(true);
-      const response = await applicationApi.approveORrejectApplication(
-        application.id,
-        action
-      );
-
-      if (response.success) {
-        window.location.reload();
-      } else {
-        console.error(`Failed to ${action} application:`, response.message);
-      }
-    } catch (error) {
-      console.error(`Error ${action}ing application:`, error);
-    } finally {
-      setIsLoading(false);
+  try {
+    if (action === "approve") {
+      setIsApproving(true);
+    } else {
+      setIsRejecting(true);
     }
-  };
+
+    const response = await applicationApi.approveORrejectApplication(
+      application.id,
+      action
+    );
+
+    if (response.success) {
+      toast.success(`Application ${action}d successfully!`);
+      window.location.reload();
+    } else {
+      // Extract proper error message from the response structure
+      const errorMessage = response.message || 
+                          response.message || 
+                          `Failed to ${action} application`;
+      console.error(`Failed to ${action} application:`, errorMessage);
+      toast.error(errorMessage);
+    }
+  } catch (error) {
+    console.error(`Error ${action}ing application:`, error);
+    
+    // Handle different error structures
+    const errorMessage = error instanceof Error ? 
+                        error.message : 
+                        `Failed to ${action} application`;
+    toast.error(errorMessage);
+  } finally {
+    if (action === "approve") {
+      setIsApproving(false);
+    } else {
+      setIsRejecting(false);
+    }
+  }
+};
+
 
   const showActionButtons =
     application.status === "SUBMITTED" && !application.certification;
@@ -166,19 +190,19 @@ export default function Checklist({ notes, application }: ChecklistProps) {
       {showActionButtons && (
         <div className="pt-15 flex w-full justify-end gap-3">
           <button
-            onClick={() => handleApproveReject("reject")}
-            disabled={isLoading}
-            className="hollow-btn font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-            {isLoading ? "Processing..." : "Reject"}
-          </button>
-          <button
-            onClick={() => handleApproveReject("approve")}
-            disabled={isLoading}
-            className="yellow-btn text-[#101010] font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {isLoading ? "Processing..." : "Approve"}
-          </button>
+  onClick={() => handleApproveReject("reject")}
+  disabled={isRejecting || isApproving}
+  className="hollow-btn font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  {isRejecting ? "Rejecting..." : "Reject"}
+</button>
+<button
+  onClick={() => handleApproveReject("approve")}
+  disabled={isApproving || isRejecting}
+  className="yellow-btn text-[#101010] font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+>
+  {isApproving ? "Approving..." : "Approve"}
+</button>
         </div>
       )}
 

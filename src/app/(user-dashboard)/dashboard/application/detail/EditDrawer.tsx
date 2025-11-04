@@ -499,7 +499,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
       setDocuments([]);
     }
 
-    // Prepare step data WITHOUT documents
+    // Prepare step data WITH compliance checklist and documents in propertyDetails
     const stepData = {
       propertyDetails: {
         propertyName,
@@ -513,16 +513,12 @@ const updateCurrentStep = async (): Promise<boolean> => {
         bathrooms: localApplicationData.propertyDetails?.bathrooms || 20,
         currency: localApplicationData.propertyDetails?.currency || "AED",
         maxGuests: localApplicationData.propertyDetails?.maxGuests || 20,
+        // Include compliance checklist in propertyDetails
+        complianceChecklist: compliances,
+        // Include existing documents in propertyDetails
+        documents: existingDocuments
       }
-      
     };
-
-    // Add compliance checklist only
-    if (activeTab === "compliances" || activeTab === "documents") {
-      localApplicationData.complianceChecklist = compliances;
-    }
-
-    // Documents are NOT included in step data
 
     const stepNameMap: Record<Tab, string> = {
       property: "PROPERTY_DETAILS",
@@ -538,10 +534,12 @@ const updateCurrentStep = async (): Promise<boolean> => {
     const stepResponse = await application.updateStep(updatePayload);
 
     if (stepResponse.success) {
-      // Update localStorage with latest step data (without documents)
+      // Update localStorage with latest step data (including compliance and documents)
       const updatedAppData = {
         ...localApplicationData,
-        ...stepData
+        ...stepData,
+        complianceChecklist: compliances,
+        documents: existingDocuments
       };
       localStorage.setItem("applicationData", JSON.stringify(updatedAppData));
       
@@ -589,7 +587,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
         
         // Clean up localStorage  
         localStorage.removeItem("applicationData");
-        localStorage.removeItem("propertyType");
+        // localStorage.removeItem("propertyType");
         
         return true;
       } else {

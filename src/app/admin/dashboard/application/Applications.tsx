@@ -40,7 +40,7 @@ export default function Applications() {
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(6);
+  const [itemsPerPage] = useState(10);
   const [isLoading, setIsLoading] = useState(true);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -68,16 +68,18 @@ export default function Applications() {
 
   const [submittedDate, setSubmittedDate] = useState<Date | null>(null);
 
-  const [allCertificationData, setAllCertificationData] = useState<CertificationData[]>([]);
+  const [allCertificationData, setAllCertificationData] = useState<
+    CertificationData[]
+  >([]);
   const [paginationData, setPaginationData] = useState<PaginationData>({
     total: 0,
-    pageSize: 6,
+    pageSize: 10,
     currentPage: 1,
     totalPages: 1,
     nextPage: null,
     prevPage: null,
     hasNextPage: false,
-    hasPrevPage: false
+    hasPrevPage: false,
   });
 
   const [allStatuses, setAllStatuses] = useState<string[]>([]);
@@ -111,14 +113,20 @@ export default function Applications() {
 
       if (response.success && response.data) {
         const applications = response.data.applications;
-        
-        const statuses = [...new Set(applications.map((app) => 
-          app.status ? app.status.toUpperCase() : ''
-        ))].filter(Boolean);
-        
-        const ownerships = [...new Set(applications.map((app) => 
-          app.propertyDetails?.ownership || ''
-        ))].filter(Boolean);
+
+        const statuses = [
+          ...new Set(
+            applications.map((app) =>
+              app.status ? app.status.toUpperCase() : ""
+            )
+          ),
+        ].filter(Boolean);
+
+        const ownerships = [
+          ...new Set(
+            applications.map((app) => app.propertyDetails?.ownership || "")
+          ),
+        ].filter(Boolean);
 
         setAllStatuses(statuses);
         setAllOwnerships(ownerships);
@@ -155,8 +163,8 @@ export default function Applications() {
   const formatDateForAPI = (date: Date | null): string => {
     if (!date) return "";
     const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
     return `${year}-${month}-${day}`;
   };
 
@@ -196,11 +204,11 @@ export default function Applications() {
       if (appliedFilters.ownership.trim()) {
         queryParams.ownership = appliedFilters.ownership.trim();
       }
-      
+
       if (appliedFilters.status.trim()) {
         queryParams.status = getStatusForAPI(appliedFilters.status.trim());
       }
-      
+
       if (appliedFilters.submittedDate) {
         queryParams.submittedAt = appliedFilters.submittedDate;
       }
@@ -210,16 +218,29 @@ export default function Applications() {
       const response = await application.getApplication(queryParams);
 
       if (response.success && response.data) {
-        const transformedData: CertificationData[] = response.data.applications.map((app: unknown) => ({
-          id: (app as { id: string }).id,
-          "Application ID": (app as { id: string }).id.substring(0, 8) + "...",
-          "Property Name": (app as { propertyDetails?: { propertyName?: string } }).propertyDetails?.propertyName || "N/A",
-          Address: (app as { propertyDetails?: { address?: string } }).propertyDetails?.address || "N/A", 
-          Ownership: (app as { propertyDetails?: { ownership?: string } }).propertyDetails?.ownership || "N/A",
-          "Current Step": (app as { currentStep?: string }).currentStep || "N/A",
-          Status: capitalizeStatusForDisplay((app as { status: string }).status),
-          "Submitted Date": (app as { submittedAt?: string }).submittedAt ? formatDate((app as { submittedAt?: string }).submittedAt!) : "—",
-        }));
+        const transformedData: CertificationData[] =
+          response.data.applications.map((app: unknown) => ({
+            id: (app as { id: string }).id,
+            "Application ID":
+              (app as { id: string }).id.substring(0, 8) + "...",
+            "Property Name":
+              (app as { propertyDetails?: { propertyName?: string } })
+                .propertyDetails?.propertyName || "N/A",
+            Address:
+              (app as { propertyDetails?: { address?: string } })
+                .propertyDetails?.address || "N/A",
+            Ownership:
+              (app as { propertyDetails?: { ownership?: string } })
+                .propertyDetails?.ownership || "N/A",
+            "Current Step":
+              (app as { currentStep?: string }).currentStep || "N/A",
+            Status: capitalizeStatusForDisplay(
+              (app as { status: string }).status
+            ),
+            "Submitted Date": (app as { submittedAt?: string }).submittedAt
+              ? formatDate((app as { submittedAt?: string }).submittedAt!)
+              : "—",
+          }));
 
         setAllCertificationData(transformedData);
 
@@ -237,7 +258,7 @@ export default function Applications() {
           nextPage: null,
           prevPage: null,
           hasNextPage: false,
-          hasPrevPage: false
+          hasPrevPage: false,
         });
       }
     } catch (error) {
@@ -251,7 +272,7 @@ export default function Applications() {
         nextPage: null,
         prevPage: null,
         hasNextPage: false,
-        hasPrevPage: false
+        hasPrevPage: false,
       });
     } finally {
       setIsLoading(false);
@@ -270,11 +291,12 @@ export default function Applications() {
     fetchApplications();
   }, [fetchApplications]);
 
-  const displayData = useMemo(() => {
-    return allCertificationData.map(({ id, ...rest }) => {
-      return rest;
-    });
-  }, [allCertificationData]);
+ const displayData = useMemo(() => {
+  return allCertificationData.map(({ id, "Application ID": appId, ...rest }) => {
+    console.log(id,appId)
+    return rest;
+  });
+}, [allCertificationData]);
 
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set(selectedRows);
@@ -413,7 +435,7 @@ export default function Applications() {
 
   const handleApplyFilter = () => {
     const dateString = formatDateForAPI(submittedDate);
-    
+
     const filtersToApply = {
       ownership: tempFilters.ownership,
       status: tempFilters.status,
@@ -513,6 +535,7 @@ export default function Applications() {
             openDeleteSingleModal(row, originalRow.id);
           }}
           showPagination={true}
+           hideIdColumn={true} 
           clickable={true}
           selectedRows={selectedRows}
           setSelectedRows={setSelectedRows}
@@ -554,10 +577,16 @@ export default function Applications() {
         }}
         onFilterChange={(newValues) => {
           if (newValues.ownership !== undefined) {
-            setTempFilters(prev => ({ ...prev, ownership: newValues.ownership as string }));
+            setTempFilters((prev) => ({
+              ...prev,
+              ownership: newValues.ownership as string,
+            }));
           }
           if (newValues.status !== undefined) {
-            setTempFilters(prev => ({ ...prev, status: newValues.status as string }));
+            setTempFilters((prev) => ({
+              ...prev,
+              status: newValues.status as string,
+            }));
           }
           if (newValues["Submitted On"] !== undefined) {
             setSubmittedDate(newValues["Submitted On"] as Date | null);
@@ -584,7 +613,9 @@ export default function Applications() {
             key: "status",
             type: "dropdown",
             placeholder: "Select status",
-            options: allStatuses.map(status => capitalizeStatusForDisplay(status)),
+            options: allStatuses.map((status) =>
+              capitalizeStatusForDisplay(status)
+            ),
           },
           {
             label: "Submitted On",

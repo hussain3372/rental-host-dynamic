@@ -70,3 +70,11 @@ export interface EmailResponse {
   message: string;
   success: boolean;
 }
+export interface GoogleRequest{
+  token : string
+}
+export interface GoogleResponse {
+  data : string
+  success : boolean
+  message : string
+}

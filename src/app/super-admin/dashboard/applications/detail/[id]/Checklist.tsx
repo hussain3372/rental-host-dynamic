@@ -9,6 +9,7 @@ interface ChecklistProps {
   application: Application;
 }
 
+
 interface DocumentItem {
   id: string;
   documentType: string;
@@ -18,8 +19,8 @@ interface DocumentItem {
 }
 
 export default function Checklist({ notes, application }: ChecklistProps) {
-  const [isLoading, setIsLoading] = useState(false);
-
+const [isApproving, setIsApproving] = useState(false);
+const [isRejecting, setIsRejecting] = useState(false);
   // Convert complianceChecklist object to array format for display
   const checklist = application.complianceChecklist ? 
     Object.entries(application.complianceChecklist).map(([name, completed]) => ({
@@ -185,24 +186,40 @@ export default function Checklist({ notes, application }: ChecklistProps) {
     );
   };
 
-  const handleApproveReject = async (action: 'approve' | 'reject') => {
-    if (!application?.id) return;
+ const handleApproveReject = async (action: 'approve' | 'reject') => {
+  if (!application?.id) return;
 
-    try {
-      setIsLoading(true);
-      const response = await applicationApi.approveORrejectApplication(application.id, action);
-      
-      if (response.success) {
-        window.location.reload();
-      } else {
-        console.error(`Failed to ${action} application:`, response.message);
-      }
-    } catch (error) {
-      console.error(`Error ${action}ing application:`, error);
-    } finally {
-      setIsLoading(false);
+  try {
+    if (action === 'approve') {
+      setIsApproving(true);
+    } else {
+      setIsRejecting(true);
     }
-  };
+    
+    const response = await applicationApi.approveORrejectApplication(application.id, action);
+    
+    if (response.success) {
+      window.location.reload();
+    } else {
+      console.error(`Failed to ${action} application:`, response.message);
+      toast.error(response.message || `Failed to ${action} application`);
+    }
+  } catch (error) {
+  console.error(`Error ${action}ing application:`, error);
+  
+  // Extract error message from the error response
+  const errorMessage = error instanceof Error ? error.message : 
+                      `Failed to ${action} application`;
+  
+  toast.error(errorMessage);
+} finally {
+    if (action === 'approve') {
+      setIsApproving(false);
+    } else {
+      setIsRejecting(false);
+    }
+  }
+};
 
   const showActionButtons = application.status === 'SUBMITTED';
 
@@ -312,19 +329,19 @@ export default function Checklist({ notes, application }: ChecklistProps) {
       {showActionButtons && (
         <div className="pt-15 flex w-full justify-end gap-3">
           <button 
-            onClick={() => handleApproveReject('reject')}
-            disabled={isLoading}
-            className='hollow-btn font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed'
-          >
-            {isLoading ? 'Processing...' : 'Reject'}
-          </button>
-          <button 
-            onClick={() => handleApproveReject('approve')}
-            disabled={isLoading}
-            className='yellow-btn text-[#101010] font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed'
-          >
-            {isLoading ? 'Processing...' : 'Approve'}
-          </button>
+  onClick={() => handleApproveReject('reject')}
+  disabled={isRejecting || isApproving}
+  className='hollow-btn font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed'
+>
+  {isRejecting ? 'Rejecting...' : 'Reject'}
+</button>
+<button 
+  onClick={() => handleApproveReject('approve')}
+  disabled={isApproving || isRejecting}
+  className='yellow-btn text-[#101010] font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed'
+>
+  {isApproving ? 'Approving...' : 'Approve'}
+</button>
         </div>
       )}
     </div>

@@ -307,8 +307,12 @@ export function Table<T extends Record<string, unknown>>({
     return buttons;
   };
 
-  const keys = displayData.length > 0 ? Object.keys(displayData[0]) : [];
-  const paddingSize = control.compact ? "8px 12px" : "12px 16px";
+// ✅ Remove only the exact "ID" column (case-insensitive)
+const keys = displayData.length > 0 
+  ? Object.keys(displayData[0]).filter((key) => 
+      key.toLowerCase() !== "id"
+    )
+  : [];  const paddingSize = control.compact ? "8px 12px" : "12px 16px";
 
   const getBorderWidth = () => {
     if (control.borderStyle === "double") {
@@ -561,12 +565,12 @@ export function Table<T extends Record<string, unknown>>({
                             }}
                           >
                             Action
-                            <Image
+                            {/* <Image
                               src="/images/menu.png"
                               alt="menu"
                               height={16}
                               width={16}
-                            />
+                            /> */}
                           </th>
                         )}
                     </tr>
