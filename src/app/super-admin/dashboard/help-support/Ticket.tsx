@@ -584,7 +584,7 @@ export default function Ticket({
             }
           }}
           showPagination={true}
-          clickable={true}
+          clickable={false}
           selectedRows={selectedRows}
           setSelectedRows={setSelectedRows}
           onSelectAll={handleSelectAll}

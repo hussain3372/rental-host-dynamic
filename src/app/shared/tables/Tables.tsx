@@ -45,7 +45,7 @@ interface TableProps<T> {
   totalItems?: number;
   showPagination?: boolean;
   showFilter?: boolean;
-    totalPages?: number; // Add this
+  totalPages?: number; // Add this
   hasNextPage?: boolean; // Add this
   hasPrevPage?: boolean; // Add this
   onFilterToggle?: (isOpen: boolean) => void;
@@ -66,6 +66,9 @@ interface TableProps<T> {
   rowIds?: string[];
   showActionColumn?: boolean;
   disableClientSidePagination?: boolean;
+  showSearch?: boolean;
+  noWrapHeader?: boolean;
+   noSearchPadding?: boolean;
 }
 
 export function Table<T extends Record<string, unknown>>({
@@ -96,7 +99,8 @@ export function Table<T extends Record<string, unknown>>({
   showFilter = false,
   onFilterToggle = () => {},
   showActionColumn = false,
-  disableClientSidePagination = false, // ✅ ADD THIS
+  disableClientSidePagination = false,
+  showSearch = true,
 }: TableProps<T>) {
   const [displayData, setDisplayData] = useState<T[]>(data);
   const [activeSortDropdown, setActiveSortDropdown] = useState<string | null>(
@@ -307,12 +311,12 @@ export function Table<T extends Record<string, unknown>>({
     return buttons;
   };
 
-// ✅ Remove only the exact "ID" column (case-insensitive)
-const keys = displayData.length > 0 
-  ? Object.keys(displayData[0]).filter((key) => 
-      key.toLowerCase() !== "id"
-    )
-  : [];  const paddingSize = control.compact ? "8px 12px" : "12px 16px";
+  // ✅ Remove only the exact "ID" column (case-insensitive)
+  const keys =
+    displayData.length > 0
+      ? Object.keys(displayData[0]).filter((key) => key.toLowerCase() !== "id")
+      : [];
+  const paddingSize = control.compact ? "8px 12px" : "12px 16px";
 
   const getBorderWidth = () => {
     if (control.borderStyle === "double") {
@@ -360,33 +364,36 @@ const keys = displayData.length > 0
     <div style={{ marginBottom: 15 }}>
       <div className="bg-[#121315] rounded-lg relative z-[10] overflow-hidden">
         <div className="flex flex-col sm:flex-row justify-between lg:items-center pt-5 px-5">
+      
           <h2 className="text-white text-[16px] font-semibold leading-[20px]">
             {title}
           </h2>
           <div className="flex flex-wrap sm:flex-row items-start sm:items-center pt-3 sm:pt-0 gap-3">
-            <div className="relative w-full sm:w-[204px]">
-              <input
-                type="text"
-                placeholder="Search"
-                value={searchTerm}
-                onChange={(e) => onSearchChange(e.target.value)}
-                onKeyDown={(e) => {
-                  // Prevent form submission when pressing Enter
-                  if (e.key === "Enter") {
-                    e.preventDefault();
-                  }
-                }}
-                className="bg-white/12 border rounded-lg text-white/40 placeholder-white/60 w-full px-3 py-2 text-sm pl-8 border-none outline-none"
-              />
-              <div className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-500">
-                <Image
-                  src="/images/search.png"
-                  alt="search"
-                  width={16}
-                  height={16}
+            {showSearch && (
+              <div className="relative w-full sm:w-[204px]">
+                <input
+                  type="text"
+                  placeholder="Search"
+                  value={searchTerm}
+                  onChange={(e) => onSearchChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    // Prevent form submission when pressing Enter
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                    }
+                  }}
+                  className="bg-white/12 border rounded-lg text-white/40 placeholder-white/60 w-full px-3 py-2 text-sm pl-8 border-none outline-none"
                 />
+                <div className="absolute left-2.5 top-2.5 w-4 h-4 text-gray-500">
+                  <Image
+                    src="/images/search.png"
+                    alt="search"
+                    width={16}
+                    height={16}
+                  />
+                </div>
               </div>
-            </div>
+            )}
 
             {showFilter && (
               <button

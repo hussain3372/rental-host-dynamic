@@ -647,7 +647,7 @@ export default function HostTicketTable({
             }
           }}
           showPagination={true}
-          clickable={true}
+          clickable={false}
           selectedRows={selectedRows}
           setSelectedRows={setSelectedRows}
           onSelectAll={handleSelectAll}

@@ -471,7 +471,7 @@ export default function MyTicketsTable({
             }
           }}
           showPagination={true}
-          clickable={true}
+          clickable={false}
           selectedRows={selectedRows}
           setSelectedRows={setSelectedRows}
           onSelectAll={handleSelectAll}

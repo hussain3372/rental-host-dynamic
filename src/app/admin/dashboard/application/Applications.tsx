@@ -291,12 +291,14 @@ export default function Applications() {
     fetchApplications();
   }, [fetchApplications]);
 
- const displayData = useMemo(() => {
-  return allCertificationData.map(({ id, "Application ID": appId, ...rest }) => {
-    console.log(id,appId)
-    return rest;
-  });
-}, [allCertificationData]);
+  const displayData = useMemo(() => {
+    return allCertificationData.map(
+      ({ id, "Application ID": appId, ...rest }) => {
+        console.log(id, appId);
+        return rest;
+      }
+    );
+  }, [allCertificationData]);
 
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set(selectedRows);
@@ -535,8 +537,8 @@ export default function Applications() {
             openDeleteSingleModal(row, originalRow.id);
           }}
           showPagination={true}
-           hideIdColumn={true} 
-          clickable={true}
+          hideIdColumn={true}
+          clickable={false}
           selectedRows={selectedRows}
           setSelectedRows={setSelectedRows}
           onSelectAll={handleSelectAll}

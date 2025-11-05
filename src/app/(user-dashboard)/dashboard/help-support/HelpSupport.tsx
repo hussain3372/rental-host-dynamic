@@ -340,19 +340,21 @@ export default function HelpSupport() {
     console.log("🟠 Using API-filtered data directly");
     return allCertificationData;
   }, [allCertificationData]);
-const displayData = useMemo(() => {
-  const result = filteredCertificationData.map(({ id, "Ticket Id": ticketId, ...rest }) => {
-    console.log(id, ticketId); // Keep for debugging
-    return rest; 
-  });
-  
-  console.log(
-    "🟢 Host Tickets Display Data for Table:",
-    result.length,
-    "items"
-  );
-  return result;
-}, [filteredCertificationData]);
+  const displayData = useMemo(() => {
+    const result = filteredCertificationData.map(
+      ({ id, "Ticket Id": ticketId, ...rest }) => {
+        console.log(id, ticketId); // Keep for debugging
+        return rest;
+      }
+    );
+
+    console.log(
+      "🟢 Host Tickets Display Data for Table:",
+      result.length,
+      "items"
+    );
+    return result;
+  }, [filteredCertificationData]);
 
   const handleResetFilter = () => {
     const resetFilters = {
@@ -634,17 +636,17 @@ const displayData = useMemo(() => {
 
       <div className="flex flex-col gap-3 sm:gap-0 sm:flex-row items-start justify-between mb-[22px]">
         <div>
-          <h1 className="text-[20px] leading-[24px] font-semibold text-white mb-2">
+          <h1 className="text-[20px] leading-6 font-semibold text-white mb-2">
             Help & Support
           </h1>
-          <p className="text-[16px] leading-[20px] text-[#FFFFFF99] font-regular max-w-[573px]">
+          <p className="text-[16px] leading-5 text-[#FFFFFF99] font-regular max-w-[573px]">
             Manage your support tickets and stay informed with system
             announcements.
           </p>
         </div>
         <button
           onClick={() => setIsDrawerOpen(true)}
-          className="yellow-btn cursor-pointer text-black px-[20px] py-[12px] rounded-[8px] font-semibold text-[18px] leading-[22px] hover:bg-[#E5F266] transition-colors duration-300"
+          className="yellow-btn cursor-pointer text-black px-5 py-3 rounded-lg font-semibold text-[18px] leading-[22px] hover:bg-[#E5F266] transition-colors duration-300"
         >
           Create Ticket
         </button>
@@ -662,7 +664,7 @@ const displayData = useMemo(() => {
             openDeleteSingleModal(row, originalRow.id);
           }}
           showPagination={true}
-          clickable={true}
+          clickable={false}
           selectedRows={selectedRows}
           setSelectedRows={setSelectedRows}
           onSelectAll={handleSelectAll}
@@ -765,13 +767,13 @@ const displayData = useMemo(() => {
       />
 
       <div
-        className={`fixed inset-0 bg-[#121315CC] z-[3000000000] flex justify-end transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-[#121315CC] z-3000000000 flex justify-end transition-opacity duration-300 ${
           isDrawerOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={closeModal}
       >
         <div
-          className={`w-full lg:max-w-[608px] md:max-w-[500px] max-w-[280px] p-5 sm:p-7 bg-[#0A0C0B] h-full overflow-auto scrollbar-hide rounded-[12px] border border-[#FFFFFF1F] transform transition-transform duration-300 ease-in-out ${
+          className={`w-full lg:max-w-[608px] md:max-w-[500px] max-w-[280px] p-5 sm:p-7 bg-[#0A0C0B] h-full overflow-auto scrollbar-hide rounded-xl border border-[#FFFFFF1F] transform transition-transform duration-300 ease-in-out ${
             isDrawerOpen ? "translate-x-0" : "translate-x-full"
           }`}
           onClick={(e) => e.stopPropagation()}
@@ -781,13 +783,13 @@ const displayData = useMemo(() => {
       </div>
 
       <div
-        className={`fixed inset-0 bg-[#121315CC] z-[3000000001] flex justify-end transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-[#121315CC] z-3000000001 flex justify-end transition-opacity duration-300 ${
           isDetailDrawerOpen ? "opacity-100" : "opacity-0 pointer-events-none"
         }`}
         onClick={() => setIsDetailDrawerOpen(false)}
       >
         <div
-          className={`w-full lg:max-w-[608px] md:max-w-[500px] max-w-[280px] bg-[#0A0C0B] h-full flex flex-col rounded-[12px] border border-[#FFFFFF1F] transform transition-transform duration-300 ease-in-out ${
+          className={`w-full lg:max-w-[608px] md:max-w-[500px] max-w-[280px] bg-[#0A0C0B] h-full flex flex-col rounded-xl border border-[#FFFFFF1F] transform transition-transform duration-300 ease-in-out ${
             isDetailDrawerOpen ? "translate-x-0" : "translate-x-full"
           }`}
           onClick={(e) => e.stopPropagation()}
@@ -795,7 +797,10 @@ const displayData = useMemo(() => {
           <div className="flex-1 overflow-y-auto scrollbar-hide">
             <TicketDetailDrawer
               isOpen={isDetailDrawerOpen}
-              onClose={() => setIsDetailDrawerOpen(false)}
+              onClose={() => {
+                fetchTickets();
+                setIsDetailDrawerOpen(false);
+              }}
               ticket={selectedTicket}
             />
           </div>
