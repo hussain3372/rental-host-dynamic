@@ -317,7 +317,7 @@ export default function MultiStepForm() {
     }
   };
 
-    const uploadDocuments = async (
+  const uploadDocuments = async (
     files: FileData[]
   ): Promise<UploadedDocument[]> => {
     if (files.length === 0) return [];
@@ -334,22 +334,45 @@ export default function MultiStepForm() {
       const response = await application.uploadDocuments(formData);
 
       if (!response.data) {
-        throw new Error("No response data received from document upload");
+        const err = new Error("No response data received from document upload");
+        toast.error(`Failed to upload documents: ${err.message}`);
+        return [];
       }
 
-      // Simple approach - assume response.data is the array of documents
       const uploadedDocs = Array.isArray(response.data) ? response.data : [];
 
-      // Store the uploaded documents in state
       setUploadedDocuments(uploadedDocs);
-
       return uploadedDocs;
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Document upload error:", error);
-      throw new Error(
-        error instanceof Error
-          ? `Failed to upload documents: ${error.message}`
+
+      // Narrow the error into the expected shape rather than using `any`.
+      const err = error as {
+        response?: { status?: number; data?: { message?: string } } | undefined;
+      };
+
+      // ✅ Handle 413 error (Content Too Large)
+      if (err?.response?.status === 413) {
+        toast.error("File size too large. Maximum allowed size is 10 MB.");
+        return [];
+      }
+
+      // ✅ Handle other errors
+      const backendMessage =
+        err?.response?.data?.message ||
+        (error instanceof Error ? error.message : undefined);
+
+      toast.error(
+        backendMessage
+          ? `Failed to upload documents: ${backendMessage}`
           : "Failed to upload documents due to server error"
+      );
+
+      throw new Error(
+        backendMessage ||
+          (error instanceof Error
+            ? error.message
+            : "Failed to upload documents")
       );
     }
   };
@@ -446,7 +469,7 @@ export default function MultiStepForm() {
   };
 
   const handleStep1bUpdate = async (): Promise<boolean> => {
-    if (formData.images.length < 3 ) {
+    if (formData.images.length < 3) {
       toast.error("Please upload at least 3 images");
       return false;
     }
@@ -677,8 +700,6 @@ export default function MultiStepForm() {
       const stored = localStorage.getItem("applicationData");
       const localApplicationData = stored ? JSON.parse(stored) : null;
 
-
-
       if (!localApplicationData?.id) {
         throw new Error(
           "No application data found. Please complete all previous steps."
@@ -694,7 +715,7 @@ export default function MultiStepForm() {
 
       if (response.success) {
         toast.success("Application submitted successfully!", { id: toastId });
-        
+
         if (response.data) {
           localStorage.setItem("submissionData", JSON.stringify(response.data));
         }
@@ -703,7 +724,7 @@ export default function MultiStepForm() {
         // localStorage.removeItem("propertyType");
         setCurrentApplicationData(null);
         setUploadedDocuments([]);
-        router.push('/dashboard/application')
+        router.push("/dashboard/application");
         return true;
       } else {
         const errorMsg = response.message || "Submission failed";
@@ -901,18 +922,18 @@ export default function MultiStepForm() {
             return (
               <div
                 key={s.id}
-                className="flex lg:flex-row z-10 flex-col items-center lg:items-start gap-4 relative flex-shrink-0"
+                className="flex lg:flex-row z-10 flex-col items-center lg:items-start gap-4 relative shrink-0"
               >
                 <div className="flex flex-col lg:flex-col items-center">
                   <div
                     className={`flex justify-center items-center rounded-full ${
                       isCompleted || isActive
-                        ? "bg-[#353825] h-[56px] w-[56px]"
-                        : "h-[56px] lg:h-[30px] w-[56px]"
+                        ? "bg-[#353825] h-14 w-14"
+                        : "h-14 lg:h-[30px] w-14"
                     }`}
                   >
                     <div
-                      className={`w-[44px] h-[44px] flex items-center justify-center rounded-full ${
+                      className={`w-11 h-11 flex items-center justify-center rounded-full ${
                         isCompleted || isActive ? "bg-[#EFFC76]" : "bg-white/12"
                       }`}
                     >
@@ -939,10 +960,10 @@ export default function MultiStepForm() {
                   >
                     STEP {s.id}
                   </p>
-                  <p className="text-[16px] font-semibold leading-[20px] pt-[6px] text-white">
+                  <p className="text-[16px] font-semibold leading-5 pt-1.5 text-white">
                     {s.title}
                   </p>
-                  <p className="pt-[6px] text-[12px] text-white/80 font-regular leading-[16px]">
+                  <p className="pt-1.5 text-[12px] text-white/80 font-regular leading-4">
                     {s.desc}
                   </p>
                 </div>
@@ -985,7 +1006,7 @@ export default function MultiStepForm() {
             <button
               onClick={handleNextClick}
               disabled={isLoading}
-              className="w-full sm:w-auto px-8 py-3 text-[16px] bg-gradient-to-b yellow-btn text-black font-semibold rounded-md shadow-lg hover:opacity-90 disabled:opacity-50 disabled:!cursor-not-allowed"
+              className="w-full sm:w-auto px-8 py-3 text-[16px] bg-linear-to-b yellow-btn text-black font-semibold rounded-md shadow-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed!"
             >
               {isLoading
                 ? "Please wait ..."

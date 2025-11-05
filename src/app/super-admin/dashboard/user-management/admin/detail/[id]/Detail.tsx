@@ -362,6 +362,10 @@ export default function Detail() {
     setIsDropdownOpen(false);
   }, []);
 
+  const tableControls = {
+    hover : true
+  }
+
   const statusOptions = useMemo(() => [
     { label: "Active", onClick: () => handleStatusSelect("Active") },
     { label: "Inactive", onClick: () => handleStatusSelect("Inactive") },
@@ -700,6 +704,7 @@ export default function Detail() {
           data={displayData}
           title="Assigned Applications"
           showDeleteButton={true}
+          control={tableControls}
           onDeleteSingle={(row, index) => {
             const originalRow = allApplicationsData[index];
             openDeleteSingleModal(row, originalRow.id);

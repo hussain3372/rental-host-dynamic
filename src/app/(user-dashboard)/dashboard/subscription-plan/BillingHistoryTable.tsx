@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { Table } from "@/app/shared/tables/Tables";
 import FilterDrawer from "@/app/shared/tables/Filter";
 import { setting } from "@/app/api/Host/setting";
@@ -7,9 +7,9 @@ import { setting } from "@/app/api/Host/setting";
 interface PaymentData {
   id: string;
   createdAt: string;
-  amount: number;
+  amount: string; // Changed from number to string to match API response
   currency: string;
-  status: string;
+  status: "COMPLETED" | "PENDING" | string; // Added specific status types
   application?: {
     propertyDetails?: {
       propertyName: string;
@@ -18,263 +18,390 @@ interface PaymentData {
 }
 
 interface CertificationData {
-  id: number;
+  id: string;
   "Plan Name": string;
   Amount: string;
   "Purchase Date": string;
   "End Date": string;
   Status: string;
-  // Add ISO dates for proper filtering
-  purchaseDateISO: string;
-  endDateISO: string;
 }
 
-// const status = ["COMPLETED", "PENDING", "REJECTED"];
+interface ApiParams {
+  skip?: number;
+  take?: number;
+  search?: string;
+  planName?: string;
+  status?: string;
+  purchaseDate?: string;
+  endDate?: string;
+}
+
+interface FilterValues {
+  planName: string;
+  status: string;
+  purchaseDate: string;
+  endDate: string;
+}
+
+interface FilterDrawerValues {
+  planName?: string;
+  status?: string;
+  "Purchase Date"?: Date | null;
+  "End Date"?: Date | null;
+}
 
 export default function BillingHistory() {
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [apiData, setApiData] = useState<PaymentData[]>([]);
+  const [isFilterOpen, setIsFilterOpen] = useState<boolean>(false);
+  const [searchTerm, setSearchTerm] = useState<string>("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
 
-  const [certificationFilters, setCertificationFilters] = useState({
+  const [currentPage, setCurrentPage] = useState<number>(1);
+  const [itemsPerPage] = useState<number>(10);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+
+  const [showPlanNameDropdown, setShowPlanNameDropdown] = useState<boolean>(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState<boolean>(false);
+
+  const [appliedFilters, setAppliedFilters] = useState<FilterValues>({
     planName: "",
     status: "",
     purchaseDate: "",
     endDate: "",
   });
 
-  // State for date pickers
+  const [tempFilters, setTempFilters] = useState<FilterValues>({
+    planName: "",
+    status: "",
+    purchaseDate: "",
+    endDate: "",
+  });
+
   const [purchaseDate, setPurchaseDate] = useState<Date | null>(null);
   const [endDate, setEndDate] = useState<Date | null>(null);
 
-  // Dropdown states
-  const [planDropdownOpen, setPlanDropdownOpen] = useState(false);
-  const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
+  const [allBillingData, setAllBillingData] = useState<CertificationData[]>([]);
+  const [totalItems, setTotalItems] = useState<number>(0);
 
-  // Fetch data from API with proper query parameters
+  // State for filter options
+  const [allStatuses, setAllStatuses] = useState<string[]>([]);
+  const [allPlanNames, setAllPlanNames] = useState<string[]>([]);
+
+  // Debounce search term
   useEffect(() => {
-    const fetchBillingData = async () => {
-      try {
-        setLoading(true);
-        setError(null);
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
 
-        console.log("Fetching billing data with query parameters...");
-
-        const response = await setting.getBillingWithParams({
-          // status: "COMPLETED",
-          skip: 0,
-          take: 10,
-        });
-
-        console.log("API Response:", response);
-
-        // In the useEffect where you set the API data:
-        if (response.success && response.data && response.data.payments) {
-          // Convert amount from string to number
-          const paymentsWithNumberAmount = response.data.payments.map(
-            (payment) => ({
-              ...payment,
-              amount: parseFloat(payment.amount) || 0,
-            })
-          );
-          setApiData(paymentsWithNumberAmount);
-        }
-      } catch (err: unknown) {
-        console.error("Error fetching billing data:", err);
-        setError((err as Error).message || "Failed to load billing history");
-      } finally {
-        setLoading(false);
-      }
+    return () => {
+      clearTimeout(handler);
     };
+  }, [searchTerm]);
 
-    fetchBillingData();
+  // Convert status to uppercase for API
+  const getStatusForAPI = (status: string): string => {
+    if (!status) return "";
+    return status.toUpperCase();
+  };
+
+  // Fetch filter options method
+  const fetchFilterOptions = useCallback(async (): Promise<void> => {
+    try {
+      const response = await setting.getBillingWithParams({
+        skip: 0,
+        take: 1000,
+      });
+
+      if (response.success && response.data && response.data.payments) {
+        const payments = response.data.payments;
+
+        const statuses = [
+          ...new Set(
+            payments.map((payment: PaymentData) => 
+              payment.status ? payment.status.toUpperCase() : ""
+            )
+          ),
+        ].filter(Boolean);
+
+        const planNames = [
+          ...new Set(
+            payments.map(
+              (payment: PaymentData) =>
+                payment.application?.propertyDetails?.propertyName || ""
+            )
+          ),
+        ].filter(Boolean);
+
+        setAllStatuses(statuses);
+        setAllPlanNames(planNames);
+      }
+    } catch (err) {
+      console.error("Error fetching filter options:", err);
+    }
   }, []);
 
-  // Transform API data to match existing CertificationData structure
-  const certificationData = useMemo((): CertificationData[] => {
-    if (!apiData.length) return [];
+  useEffect(() => {
+    fetchFilterOptions();
+  }, [fetchFilterOptions]);
 
-    return apiData.map((payment, index) => {
-      const purchaseDateObj = new Date(payment.createdAt);
-      const endDateObj = new Date(payment.createdAt);
-
-      return {
-        id: index + 1,
-        "Plan Name":
-          payment.application?.propertyDetails?.propertyName ||
-          `Property ${index + 1}`,
-        Amount: `${payment.amount} ${payment.currency}`,
-        "Purchase Date": purchaseDateObj.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        }),
-        "End Date": endDateObj.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        }),
-        Status: payment.status,
-        // Store ISO dates for consistent filtering
-        purchaseDateISO: purchaseDateObj.toISOString().split("T")[0], // YYYY-MM-DD
-        endDateISO: endDateObj.toISOString().split("T")[0], // YYYY-MM-DD
-      };
-    });
-  }, [apiData]);
-
-  // Unique dropdown values
-  const uniquePlanNames = [
-    ...new Set(certificationData.map((item) => item["Plan Name"])),
-  ];
-  const uniqueStatuses = [
-    ...new Set(certificationData.map((item) => item["Status"])),
-  ];
-
-  // FIXED: Filter + search logic with proper date comparison
-  const filteredCertificationData = useMemo(() => {
-    let filtered = certificationData;
-
-    if (searchTerm) {
-      filtered = filtered.filter(
-        (item) =>
-          item["Plan Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item["Amount"].toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-    if (certificationFilters.planName) {
-      filtered = filtered.filter(
-        (item) => item["Plan Name"] === certificationFilters.planName
-      );
-    }
-    if (certificationFilters.status) {
-      filtered = filtered.filter(
-        (item) => item["Status"] === certificationFilters.status
-      );
-    }
-
-    // FIXED: Date filtering using ISO dates
-    if (certificationFilters.purchaseDate) {
-      filtered = filtered.filter(
-        (item) => item.purchaseDateISO === certificationFilters.purchaseDate
-      );
-    }
-
-    // FIXED: Date filtering using ISO dates
-    if (certificationFilters.endDate) {
-      filtered = filtered.filter(
-        (item) => item.endDateISO === certificationFilters.endDate
-      );
-    }
-
-    return filtered;
-  }, [searchTerm, certificationFilters, certificationData]);
-
-  // Handle row click to open detail page
-  const handleRowClick = (row: Record<string, string>, index: number) => {
-    const originalRow = filteredCertificationData[index];
-    const actualPaymentId = apiData[index]?.id;
-    window.location.href = `/dashboard/billing/detail/${
-      actualPaymentId || originalRow.id
-    }`;
-  };
-
-  // Transform data to exclude ID from display and ensure all values are strings
-  // Remove this line:
-  // const status = ["COMPLETED", "PENDING", "REJECTED"];
-
-  // In the transform function, remove unused destructured parameters:
-  const displayData = useMemo((): Record<string, string>[] => {
-    return filteredCertificationData.map(
-      ({ id, purchaseDateISO, endDateISO, ...rest }) => {
-        console.log(id, purchaseDateISO, endDateISO);
-        const stringRow: Record<string, string> = {};
-        Object.entries(rest).forEach(([key, value]) => {
-          stringRow[key] = String(value);
-        });
-        return stringRow;
+  useEffect(() => {
+    if (isFilterOpen) {
+      setTempFilters(appliedFilters);
+      if (appliedFilters.purchaseDate) {
+        setPurchaseDate(new Date(appliedFilters.purchaseDate));
+      } else {
+        setPurchaseDate(null);
       }
-    );
-  }, [filteredCertificationData]);
+      if (appliedFilters.endDate) {
+        setEndDate(new Date(appliedFilters.endDate));
+      } else {
+        setEndDate(null);
+      }
+    }
+  }, [isFilterOpen, appliedFilters]);
 
-  // Table control
-  const tableControl = {
-    hover: true,
-    striped: false,
-    bordered: false,
-    shadow: false,
-    compact: false,
-    headerBgColor: "#252628",
-    headerTextColor: "white",
-    rowBgColor: "black",
-    rowTextColor: "#e5e7eb",
-    hoverBgColor: "#2D2D2D",
-    hoverTextColor: "#ffffff",
-    fontSize: 13,
-    textAlign: "left" as const,
-    rowBorder: false,
-    headerBorder: true,
-    borderColor: "#374151",
-    highlightRowOnHover: true,
+  // Date formatting methods
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
+    });
   };
 
-  // Reset filters
-  const handleResetFilter = () => {
-    setCertificationFilters({
+  const formatDateForAPI = (date: Date | null): string => {
+    if (!date) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const capitalizeStatusForDisplay = (status: string): string => {
+    if (!status) return "";
+    return status.charAt(0) + status.slice(1).toLowerCase();
+  };
+
+  // Calculate skip value based on current page
+  const getSkipValue = (page: number): number => {
+    return (page - 1) * itemsPerPage;
+  };
+
+  // Updated fetchBillingData method following the same pattern
+  const fetchBillingData = useCallback(async (): Promise<void> => {
+    try {
+      // Don't make API call if search term is 1-2 characters
+      if (
+        debouncedSearchTerm.trim().length > 0 &&
+        debouncedSearchTerm.trim().length < 3
+      ) {
+        console.log("🔍 Search term too short, skipping API call");
+        setIsLoading(false);
+        return;
+      }
+
+      // setIsLoading(true);
+
+      const queryParams: ApiParams = {
+        skip: getSkipValue(currentPage),
+        take: itemsPerPage,
+      };
+
+      // Only include search if it has 3+ characters
+      if (debouncedSearchTerm.trim().length >= 3) {
+        queryParams.search = debouncedSearchTerm.trim();
+      }
+
+      if (appliedFilters.planName.trim()) {
+        queryParams.planName = appliedFilters.planName.trim();
+      }
+
+      if (appliedFilters.status.trim()) {
+        queryParams.status = getStatusForAPI(appliedFilters.status.trim());
+      }
+
+      if (appliedFilters.purchaseDate) {
+        queryParams.purchaseDate = appliedFilters.purchaseDate;
+      }
+
+      if (appliedFilters.endDate) {
+        queryParams.endDate = appliedFilters.endDate;
+      }
+
+      console.log("🚀 HITTING BILLING API WITH PARAMS:", queryParams);
+
+      const response = await setting.getBillingWithParams(queryParams);
+
+      if (response.success && response.data && response.data.payments) {
+        const transformedData: CertificationData[] = response.data.payments.map(
+          (payment: PaymentData, index: number) => ({
+            id: payment.id,
+            "Plan Name":
+              payment.application?.propertyDetails?.propertyName ||
+              `Property ${index + 1}`,
+            Amount: `${payment.amount} ${payment.currency}`,
+            "Purchase Date": payment.createdAt
+              ? formatDate(payment.createdAt)
+              : "—",
+            "End Date": payment.createdAt
+              ? formatDate(payment.createdAt)
+              : "—",
+            Status: capitalizeStatusForDisplay(payment.status || ""),
+          })
+        );
+
+        setAllBillingData(transformedData);
+        setTotalItems(response.data.total || response.data.payments.length || 0);
+        setError(null);
+      } else {
+        console.log("❌ No billing data found or API error");
+        setAllBillingData([]);
+        setTotalItems(0);
+        setError("No billing data found");
+      }
+    } catch (err) {
+      console.error("💥 Error fetching billing data:", err);
+      setAllBillingData([]);
+      setTotalItems(0);
+      setError("Failed to load billing history. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [
+    debouncedSearchTerm,
+    appliedFilters.planName,
+    appliedFilters.status,
+    appliedFilters.purchaseDate,
+    appliedFilters.endDate,
+    currentPage,
+    itemsPerPage,
+  ]);
+
+  useEffect(() => {
+    fetchBillingData();
+  }, [fetchBillingData]);
+
+  // Include id in display data for row click handling
+  const displayData = useMemo((): Record<string, string>[] => {
+    return allBillingData.map(({ id, ...rest }) => {
+      const stringRow: Record<string, string> = {};
+      Object.entries(rest).forEach(([key, value]) => {
+        stringRow[key] = String(value);
+      });
+      stringRow.id = id;
+      return stringRow;
+    });
+  }, [allBillingData]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    searchTerm,
+    appliedFilters.planName,
+    appliedFilters.status,
+    appliedFilters.purchaseDate,
+    appliedFilters.endDate,
+  ]);
+
+  // Filter handler methods
+  const handleResetFilter = (): void => {
+    const resetFilters: FilterValues = {
       planName: "",
       status: "",
       purchaseDate: "",
       endDate: "",
-    });
-    setSearchTerm("");
+    };
+
+    setTempFilters(resetFilters);
+    setAppliedFilters(resetFilters);
     setPurchaseDate(null);
     setEndDate(null);
-  };
-
-  // FIXED: Apply filter with proper date handling
-  const handleApplyFilter = () => {
-    const newFilters = { ...certificationFilters };
-
-    // Store dates as ISO strings (YYYY-MM-DD) for consistent comparison
-    if (purchaseDate) {
-      newFilters.purchaseDate = purchaseDate.toISOString().split("T")[0];
-    } else {
-      newFilters.purchaseDate = "";
-    }
-
-    if (endDate) {
-      newFilters.endDate = endDate.toISOString().split("T")[0];
-    } else {
-      newFilters.endDate = "";
-    }
-
-    setCertificationFilters(newFilters);
+    setSearchTerm("");
+    setCurrentPage(1);
     setIsFilterOpen(false);
   };
 
-  // Only keep View Details in dropdown
+  const handleApplyFilter = (): void => {
+    const purchaseDateString = formatDateForAPI(purchaseDate);
+    const endDateString = formatDateForAPI(endDate);
+
+    const filtersToApply: FilterValues = {
+      planName: tempFilters.planName,
+      status: tempFilters.status,
+      purchaseDate: purchaseDateString,
+      endDate: endDateString,
+    };
+
+    console.log("🟢 APPLYING BILLING FILTERS:", filtersToApply);
+
+    setAppliedFilters(filtersToApply);
+    setCurrentPage(1);
+    setIsFilterOpen(false);
+  };
+
+  const handleCloseFilter = (): void => {
+    setTempFilters(appliedFilters);
+    if (appliedFilters.purchaseDate) {
+      setPurchaseDate(new Date(appliedFilters.purchaseDate));
+    } else {
+      setPurchaseDate(null);
+    }
+    if (appliedFilters.endDate) {
+      setEndDate(new Date(appliedFilters.endDate));
+    } else {
+      setEndDate(null);
+    }
+    setIsFilterOpen(false);
+  };
+
+  const handlePageChange = (page: number): void => {
+    setCurrentPage(page);
+  };
+
+  const handleSearch = (term: string): void => {
+    setSearchTerm(term);
+    setCurrentPage(1);
+  };
+
+  const handleFilterChange = (newValues: Partial<FilterDrawerValues>): void => {
+    if (newValues.planName !== undefined) {
+      setTempFilters((prev) => ({
+        ...prev,
+        planName: newValues.planName as string,
+      }));
+    }
+    if (newValues.status !== undefined) {
+      setTempFilters((prev) => ({
+        ...prev,
+        status: newValues.status as string,
+      }));
+    }
+    if (newValues["Purchase Date"] !== undefined) {
+      setPurchaseDate(newValues["Purchase Date"] as Date | null);
+    }
+    if (newValues["End Date"] !== undefined) {
+      setEndDate(newValues["End Date"] as Date | null);
+    }
+  };
+
   const dropdownItems = [
     {
       label: "View Details",
-      onClick: (row: Record<string, string>, index: number) => {
-        const originalRow = filteredCertificationData[index];
-        const actualPaymentId = apiData[index]?.id;
-        window.location.href = `/dashboard/billing/detail/${
-          actualPaymentId || originalRow.id
-        }`;
+      onClick: (row: Record<string, string>) => {
+        if (row.id) {
+          window.location.href = `/dashboard/billing/detail/${row.id}`;
+        }
       },
     },
   ];
 
-  // Add debug logging to see what's happening
-  useEffect(() => {
-    console.log("Current filters:", certificationFilters);
-    console.log("Filtered data count:", filteredCertificationData.length);
-    console.log("All data count:", certificationData.length);
-  }, [certificationFilters, filteredCertificationData, certificationData]);
+  // Table control
+  const tableControl = {
+    hover: true,
+  };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="text-white">Loading billing history...</div>
@@ -293,56 +420,59 @@ export default function BillingHistory() {
     );
   }
 
-  if (!apiData.length && !loading) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-white">No billing history found</div>
-      </div>
-    );
+  // Only hide completely if there's no data initially and no error
+  if (!isLoading && allBillingData.length === 0 && !error) {
+    return null;
   }
 
   return (
     <>
       <div className="flex flex-col justify-between">
-        <Table
-          data={displayData}
-          title="Billing History"
-          control={tableControl}
-          showDeleteButton={false}
-          showPagination={true}
-          clickable={true}
-          onRowClick={handleRowClick}
-          dropdownItems={dropdownItems}
-          searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
-          showFilter={true}
-          onFilterToggle={setIsFilterOpen}
-        />
+        <form onSubmit={(e) => e.preventDefault()}>
+          <Table
+            data={displayData}
+            title="Billing History"
+            control={tableControl}
+            showDeleteButton={false}
+            showPagination={true}
+            clickable={false}
+            dropdownItems={dropdownItems}
+            searchTerm={searchTerm}
+            onSearchChange={handleSearch}
+            currentPage={currentPage}
+            onPageChange={handlePageChange}
+            itemsPerPage={itemsPerPage}
+            totalItems={totalItems}
+            showFilter={true}
+            onFilterToggle={setIsFilterOpen}
+            disableClientSidePagination={true}
+          />
+        </form>
       </div>
 
       <FilterDrawer
         isOpen={isFilterOpen}
-        onClose={() => setIsFilterOpen(false)}
+        onClose={handleCloseFilter}
         title="Apply Filter"
         description="Refine listings to find the right billing history faster."
         resetLabel="Reset"
         onReset={handleResetFilter}
         buttonLabel="Apply Filter"
         onApply={handleApplyFilter}
-        filterValues={certificationFilters}
-        onFilterChange={(filters) => {
-          setCertificationFilters((prev) => ({
-            ...prev,
-            ...filters,
-          }));
+        filterValues={{
+          planName: tempFilters.planName,
+          status: tempFilters.status,
+          "Purchase Date": purchaseDate,
+          "End Date": endDate,
         }}
+        onFilterChange={handleFilterChange}
         dropdownStates={{
-          planName: planDropdownOpen,
-          status: statusDropdownOpen,
+          planName: showPlanNameDropdown,
+          status: showStatusDropdown,
         }}
-        onDropdownToggle={(key, value) => {
-          if (key === "planName") setPlanDropdownOpen(value);
-          if (key === "status") setStatusDropdownOpen(value);
+        onDropdownToggle={(key: string, value: boolean) => {
+          if (key === "planName") setShowPlanNameDropdown(value);
+          if (key === "status") setShowStatusDropdown(value);
         }}
         fields={[
           {
@@ -350,24 +480,28 @@ export default function BillingHistory() {
             key: "planName",
             type: "dropdown",
             placeholder: "Select plan",
-            options: uniquePlanNames,
+            options: allPlanNames.map((planName) =>
+              capitalizeStatusForDisplay(planName)
+            ),
           },
           {
             label: "Status",
             key: "status",
             type: "dropdown",
             placeholder: "Select status",
-            options: uniqueStatuses,
+            options: allStatuses.map((status) =>
+              capitalizeStatusForDisplay(status)
+            ),
           },
           {
-            label: "Purchase date",
-            key: "purchaseDate",
+            label: "Purchase Date",
+            key: "Purchase Date",
             type: "date",
             placeholder: "Select date",
           },
           {
-            label: "End date",
-            key: "endDate",
+            label: "End Date",
+            key: "End Date",
             type: "date",
             placeholder: "Select date",
           },

@@ -1,7 +1,7 @@
 "use client";
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { Table } from "@/app/shared/tables/Tables";
-// import FilterDrawer from "@/app/shared/tables/Filter";
+import FilterDrawer from "@/app/shared/tables/Filter";
 import { certifications } from "@/app/api/Host/certification/index";
 import { dashboard } from "@/app/api/Host/dashboard";
 import { useRouter } from "next/navigation";
@@ -34,21 +34,21 @@ interface ApplicationTrackerData {
 
 export default function Tracking() {
   const router = useRouter();
-  // const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  // const [appliedFilters, setAppliedFilters] = useState({
-  //   listedProperty: "",
-  //   status: "",
-  //   expiryDate: "",
-  // });
-  // const [tempFilters, setTempFilters] = useState({
-  //   listedProperty: "",
-  //   status: "",
-  //   expiryDate: "",
-  // });
-  // const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
-  // const [showStatusDropdown, setShowStatusDropdown] = useState(false);
-  // const [expiryDate, setExpiryDate] = useState<Date | null>(null);
+  const [appliedFilters, setAppliedFilters] = useState({
+    listedProperty: "",
+    status: "",
+    expiryDate: "",
+  });
+  const [tempFilters, setTempFilters] = useState({
+    listedProperty: "",
+    status: "",
+    expiryDate: "",
+  });
+  const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [expiryDate, setExpiryDate] = useState<Date | null>(null);
   const [allCertificationData, setAllCertificationData] = useState<
     CertificationData[]
   >([]);
@@ -56,6 +56,8 @@ export default function Tracking() {
     []
   );
   const [isTrackerLoading, setIsTrackerLoading] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [tooltip, setTooltip] = useState({
     show: false,
     text: "",
@@ -63,8 +65,18 @@ export default function Tracking() {
     x: 0,
     y: 0,
   });
-  const [, setAllProperties] = useState<string[]>([]);
-  const [, setAllStatuses] = useState<string[]>([]);
+  const [allProperties, setAllProperties] = useState<string[]>([]);
+  const [allStatuses, setAllStatuses] = useState<string[]>([]);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500); // 500ms delay after typing stops
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
 
   // Remove search-related state and effects
 
@@ -105,24 +117,24 @@ export default function Tracking() {
   }, [fetchFilterOptions]);
 
   // Sync temp filters with applied filters when drawer opens
-  // useEffect(() => {
-  //   if (isFilterOpen) {
-  //     setTempFilters(appliedFilters);
-  //     if (appliedFilters.expiryDate) {
-  //       setExpiryDate(new Date(appliedFilters.expiryDate));
-  //     } else {
-  //       setExpiryDate(null);
-  //     }
-  //   }
-  // }, [isFilterOpen, appliedFilters]);
+  useEffect(() => {
+    if (isFilterOpen) {
+      setTempFilters(appliedFilters);
+      if (appliedFilters.expiryDate) {
+        setExpiryDate(new Date(appliedFilters.expiryDate));
+      } else {
+        setExpiryDate(null);
+      }
+    }
+  }, [isFilterOpen, appliedFilters]);
 
-  // const formatDateForAPI = (date: Date | null): string => {
-  //   if (!date) return "";
-  //   const year = date.getFullYear();
-  //   const month = String(date.getMonth() + 1).padStart(2, "0");
-  //   const day = String(date.getDate()).padStart(2, "0");
-  //   return `${year}-${month}-${day}`;
-  // };
+  const formatDateForAPI = (date: Date | null): string => {
+    if (!date) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
 
   const capitalizeStatus = (status: string): string => {
     return (
@@ -131,37 +143,60 @@ export default function Tracking() {
     );
   };
 
-  // const getStatusForAPI = (status: string): string => {
-  //   if (!status) return "";
-  //   return status.toUpperCase().replace(" ", "_");
-  // };
-
-const buildApiParams = useCallback((): ApiParams => {
-  const params: ApiParams = {
-    page: 1,
-    pageSize: 5,
+  const getStatusForAPI = (status: string): string => {
+    if (!status) return "";
+    return status.toUpperCase().replace(" ", "_");
   };
+  const buildApiParams = useCallback((): ApiParams | null => {
+    // ✅ Return null when no API call should be made
+    const params: ApiParams = {
+      page: 1,
+      pageSize: 5,
+    };
 
-  // Remove search from API params
-  // if (appliedFilters.listedProperty.trim()) {
-  //   params.propertyName = appliedFilters.listedProperty.trim();
-  // }
-  // if (appliedFilters.status.trim()) {
-  //   params.status = getStatusForAPI(appliedFilters.status.trim());
-  // }
-  // if (appliedFilters.expiryDate) {
-  //   params.expiresAt = appliedFilters.expiryDate;
-  // }
-  
-  return params;
-}, []);
+    // ✅ DON'T include search param if less than 3 characters
+    if (
+      debouncedSearchTerm.trim().length > 0 &&
+      debouncedSearchTerm.trim().length < 3
+    ) {
+      console.log("🔍 Search term too short, skipping API call");
+      return null; // ✅ Return null to prevent API call
+    }
 
+    // ✅ Only include search if it has 3+ characters
+    if (debouncedSearchTerm.trim().length >= 3) {
+      params.search = debouncedSearchTerm.trim();
+    }
+
+    if (appliedFilters.listedProperty.trim()) {
+      params.propertyName = appliedFilters.listedProperty.trim();
+    }
+    if (appliedFilters.status.trim()) {
+      params.status = getStatusForAPI(appliedFilters.status.trim());
+    }
+    if (appliedFilters.expiryDate) {
+      params.expiresAt = appliedFilters.expiryDate;
+    }
+
+    return params;
+  }, [appliedFilters, debouncedSearchTerm]);
+
+  // ✅ ADD debouncedSearchTerm dependency
   const fetchCertifications = useCallback(async () => {
     try {
-      setIsLoading(true);
+      // setIsLoading(true);
       const params = buildApiParams();
+
+      // ✅ Don't make API call if params is null (search too short)
+      if (params === null) {
+        console.log("🔍 Skipping API call - search term too short");
+        setIsLoading(false);
+        return;
+      }
+
       console.log("🚀 HITTING CERTIFICATIONS API WITH PARAMS:", params);
       const response = await certifications.getCertifications(params);
+
       if (
         response?.data?.certifications &&
         Array.isArray(response.data.certifications)
@@ -201,8 +236,22 @@ const buildApiParams = useCallback((): ApiParams => {
   }, [buildApiParams]);
 
   useEffect(() => {
+    // Don't fetch if search term is 1-2 characters
+    if (
+      debouncedSearchTerm.trim().length > 0 &&
+      debouncedSearchTerm.trim().length < 3
+    ) {
+      console.log("🔍 Search term too short, not calling API");
+      return;
+    }
+
     fetchCertifications();
-  }, [fetchCertifications]);
+  }, [fetchCertifications, debouncedSearchTerm]);
+
+  // ✅ ADD SEARCH HANDLER
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+  };
 
   const fetchApplicationTracker = useCallback(async () => {
     try {
@@ -285,84 +334,71 @@ const buildApiParams = useCallback((): ApiParams => {
     });
   };
 
-  // const handleFilterChange = (
-  //   filters: Record<string, string | Date | null>
-  // ) => {
-  //   const updatedFilters = { ...tempFilters };
-  //   if (filters.listedProperty !== undefined) {
-  //     updatedFilters.listedProperty = filters.listedProperty as string;
-  //   }
-  //   if (filters.status !== undefined) {
-  //     updatedFilters.status = filters.status as string;
-  //   }
-  //   if (filters.expiryDate !== undefined) {
-  //     setExpiryDate(filters.expiryDate as Date | null);
-  //   }
-  //   setTempFilters(updatedFilters);
-  // };
+  const handleFilterChange = (
+    filters: Record<string, string | Date | null>
+  ) => {
+    const updatedFilters = { ...tempFilters };
+    if (filters.listedProperty !== undefined) {
+      updatedFilters.listedProperty = filters.listedProperty as string;
+    }
+    if (filters.status !== undefined) {
+      updatedFilters.status = filters.status as string;
+    }
+    if (filters.expiryDate !== undefined) {
+      setExpiryDate(filters.expiryDate as Date | null);
+    }
+    setTempFilters(updatedFilters);
+  };
 
-  // const handleResetFilter = () => {
-  //   const resetFilters = {
-  //     listedProperty: "",
-  //     status: "",
-  //     expiryDate: "",
-  //   };
-  //   setTempFilters(resetFilters);
-  //   setAppliedFilters(resetFilters);
-  //   setExpiryDate(null);
-  //   // Remove search reset
-  //   setIsFilterOpen(false);
-  // };
+  const handleResetFilter = () => {
+    const resetFilters = {
+      listedProperty: "",
+      status: "",
+      expiryDate: "",
+    };
+    setTempFilters(resetFilters);
+    setAppliedFilters(resetFilters);
+    setExpiryDate(null);
 
-  // const handleApplyFilter = () => {
-  //   const dateString = formatDateForAPI(expiryDate);
+    // ✅ RESET SEARCH TOO
+    setSearchTerm("");
+    setDebouncedSearchTerm("");
 
-  //   const filtersToApply = {
-  //     listedProperty: tempFilters.listedProperty,
-  //     status: tempFilters.status,
-  //     expiryDate: dateString,
-  //   };
-  //   console.log("🟢 APPLYING CERTIFICATION FILTERS:", filtersToApply);
-  //   setAppliedFilters(filtersToApply);
-  //   setIsFilterOpen(false);
-  // };
+    setIsFilterOpen(false);
+  };
+  const handleApplyFilter = () => {
+    const dateString = formatDateForAPI(expiryDate);
 
-  // const handleCloseFilter = () => {
-  //   setTempFilters(appliedFilters);
-  //   if (appliedFilters.expiryDate) {
-  //     setExpiryDate(new Date(appliedFilters.expiryDate));
-  //   } else {
-  //     setExpiryDate(null);
-  //   }
-  //   setIsFilterOpen(false);
-  // };
+    const filtersToApply = {
+      listedProperty: tempFilters.listedProperty,
+      status: tempFilters.status,
+      expiryDate: dateString,
+    };
+    console.log("🟢 APPLYING CERTIFICATION FILTERS:", filtersToApply);
+    setAppliedFilters(filtersToApply);
+    setIsFilterOpen(false);
+  };
 
-  // const handleDropdownToggle = (key: string, value: boolean) => {
-  //   if (key === "listedProperty") {
-  //     setShowPropertyDropdown(value);
-  //   } else if (key === "status") {
-  //     setShowStatusDropdown(value);
-  //   }
-  // };
+  const handleCloseFilter = () => {
+    setTempFilters(appliedFilters);
+    if (appliedFilters.expiryDate) {
+      setExpiryDate(new Date(appliedFilters.expiryDate));
+    } else {
+      setExpiryDate(null);
+    }
+    setIsFilterOpen(false);
+  };
+
+  const handleDropdownToggle = (key: string, value: boolean) => {
+    if (key === "listedProperty") {
+      setShowPropertyDropdown(value);
+    } else if (key === "status") {
+      setShowStatusDropdown(value);
+    }
+  };
 
   const tableControl = {
     hover: true,
-    striped: false,
-    bordered: false,
-    shadow: false,
-    compact: false,
-    headerBgColor: "#252628",
-    headerTextColor: "white",
-    rowBgColor: "black",
-    rowTextColor: "#e5e7eb",
-    hoverBgColor: "black",
-    hoverTextColor: "#ffffff",
-    fontSize: 13,
-    textAlign: "left" as const,
-    rowBorder: false,
-    headerBorder: true,
-    borderColor: "#374151",
-    highlightRowOnHover: true,
   };
 
   const displayData = useMemo(() => {
@@ -470,11 +506,13 @@ const buildApiParams = useCallback((): ApiParams => {
               control={tableControl}
               showDeleteButton={false}
               showPagination={false}
-              showSearch={false}
               clickable={false}
               dropdownItems={dropdownItems}
-              showFilter={false}
-              // onFilterToggle={setIsFilterOpen}
+              // ✅ ADD SEARCH PROPS
+              searchTerm={searchTerm}
+              onSearchChange={handleSearch}
+              showFilter={true}
+              onFilterToggle={setIsFilterOpen}
               selectedRows={new Set()}
               setSelectedRows={() => {}}
               onSelectAll={() => {}}
@@ -486,7 +524,8 @@ const buildApiParams = useCallback((): ApiParams => {
           </div>
         </div>
       </div>
-      {/* <FilterDrawer
+      {/* Filter Drawer */}
+      <FilterDrawer
         isOpen={isFilterOpen}
         onClose={handleCloseFilter}
         title="Apply Filter"
@@ -506,23 +545,29 @@ const buildApiParams = useCallback((): ApiParams => {
           status: showStatusDropdown,
         }}
         onDropdownToggle={handleDropdownToggle}
-       fields={[
-  {
-    label: "Status",
-    key: "status",
-    type: "dropdown",
-    placeholder: "Select status",
-    options: allStatuses,
-  },
-  {
-    label: "Expiry date",
-    key: "expiryDate",
-    type: "date",
-    placeholder: "Select date",
-  },
-]}
-
-      /> */}
+        fields={[
+          {
+            label: "Listed property",
+            key: "listedProperty",
+            type: "dropdown",
+            placeholder: "Select property",
+            options: allProperties,
+          },
+          {
+            label: "Status",
+            key: "status",
+            type: "dropdown",
+            placeholder: "Select status",
+            options: allStatuses,
+          },
+          {
+            label: "Expiry date",
+            key: "expiryDate",
+            type: "date",
+            placeholder: "Select date",
+          },
+        ]}
+      />
     </>
   );
 }

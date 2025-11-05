@@ -160,7 +160,7 @@ export function Table<T extends Record<string, unknown>>({
     let css = "";
 
     displayData.forEach((_, idx) => {
-      let bgColor = control.rowBgColor || "#ffffff";
+      let bgColor = control.rowBgColor || "#121315";
 
       if (control.nthChildColors && control.nthChildColors.length > 0) {
         const nthColors = control.nthChildColors || [];
@@ -191,7 +191,7 @@ export function Table<T extends Record<string, unknown>>({
       if (control.hover || control.highlightRowOnHover) {
         css += `
           #${tableId} tbody tr:hover {
-            background-color: ${control.hoverBgColor || "#f0f0f0"} !important;
+            background-color: ${control.hoverBgColor || "#2a2b2e"} !important;
             color: ${control.hoverTextColor || "#424242"} !important;
             box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
             z-index: 1 !important;
@@ -432,7 +432,7 @@ export function Table<T extends Record<string, unknown>>({
           </div>
         </div>
 
-        <div className="p-0 cursor-pointer">
+        <div className="p-0 ">
           <div
             style={{
               overflowX: "auto",
@@ -536,7 +536,7 @@ export function Table<T extends Record<string, unknown>>({
                               display: "flex",
                               alignItems: "center",
                               gap: "8px",
-                              cursor: "pointer",
+                              // cursor: "pointer",
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
@@ -601,7 +601,7 @@ export function Table<T extends Record<string, unknown>>({
                   ) : (
                     tableData.map((row, idx) => (
                       <tr
-                        className="rounded-md !bg-transparent"
+                        className="rounded-md bg-transparent"
                         key={idx}
                         style={{ cursor: clickable ? "pointer" : "default" }}
                         onClick={(e) => handleRowClick(row, idx, e)}

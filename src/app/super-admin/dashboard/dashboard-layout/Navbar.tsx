@@ -3,6 +3,21 @@
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
 import Image from "next/image";
+import { profile } from "@/app/api/super-admin/profile";
+import toast from "react-hot-toast";
+
+interface ProfileData {
+  firstName: string;
+  lastName: string;
+  email: string;
+  profilePicture?: string;
+}
+
+interface ApiResponse<T> {
+  data: {
+    data: T;
+  };
+}
 
 interface NavbarProps {
   isCollapsed: boolean;
@@ -17,17 +32,54 @@ export function Navbar({ isCollapsed }: NavbarProps) {
   const [greeting, setGreeting] = useState<string>("");
   const [loading, setLoading] = useState<boolean>(true);
 
-  // ✅ Load data from localStorage and set up event listeners
-  useEffect(() => {
-    const loadFromLocalStorage = () => {
-      setFirstName(localStorage.getItem("superName") || "");
-      setLastName(localStorage.getItem("superLast") || "");
-      setEmail(localStorage.getItem("superEmail") || "");
-      setProfileImage(localStorage.getItem("superProfile"));
-    };
+  // ✅ Fetch profile data from API
+  const fetchProfileData = async (): Promise<void> => {
+    try {
+      setLoading(true);
+      const res = await profile.fetchProfileData() as ApiResponse<ProfileData>;
+      
+      if (res.data) {
+        const data = res.data.data;
+        setFirstName(data.firstName || "");
+        setLastName(data.lastName || "");
+        setEmail(data.email || "");
+        setProfileImage(data.profilePicture || null);
+        
+        // Update localStorage for consistency
+        try {
+          localStorage.setItem("superName", data.firstName || "");
+          localStorage.setItem("superLast", data.lastName || "");
+          localStorage.setItem("superEmail", data.email || "");
+          if (data.profilePicture) {
+            localStorage.setItem('superProfile', data.profilePicture);
+          }
+        } catch (localStorageError) {
+          console.warn("LocalStorage not available:", localStorageError);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching profile in navbar:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to load profile data";
+      toast.error(errorMessage);
+      
+      // Fallback to localStorage if API fails
+      try {
+        setFirstName(localStorage.getItem("superName") || "User");
+        setLastName(localStorage.getItem("superLast") || "");
+        setEmail(localStorage.getItem("superEmail") || "");
+        setProfileImage(localStorage.getItem("superProfile"));
+      } catch (fallbackError) {
+        console.warn("Fallback also failed:", fallbackError);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    // Initial load
-    loadFromLocalStorage();
+  // ✅ Load data from API and set up event listeners
+  useEffect(() => {
+    // Initial API call
+    fetchProfileData();
 
     // ✅ Format the date dynamically
     const date = new Date();
@@ -46,48 +98,71 @@ export function Navbar({ isCollapsed }: NavbarProps) {
     else if (hour < 21) setGreeting("Good Evening");
     else setGreeting("Good Night");
 
-    // ✅ Listen for profile image updates
+    // ✅ Listen for profile image updates from ProfilePage
     const handleProfileImageUpdate = (event: CustomEvent) => {
-      setProfileImage(event.detail.profileImage);
+      try {
+        setProfileImage(event.detail.profileImage);
+        // Also update localStorage
+        localStorage.setItem('superProfile', event.detail.profileImage);
+      } catch (error) {
+        console.error("Error updating profile image:", error);
+      }
     };
 
-    // ✅ Listen for profile data updates
+    // ✅ Listen for profile data updates from ProfilePage
     const handleProfileUpdate = (event: CustomEvent) => {
-      const { firstName: newFirstName, lastName: newLastName, email: newEmail } = event.detail;
-      setFirstName(newFirstName || "");
-      setLastName(newLastName || "");
-      setEmail(newEmail || "");
+      try {
+        const { firstName: newFirstName, lastName: newLastName, email: newEmail } = event.detail;
+        setFirstName(newFirstName || "");
+        setLastName(newLastName || "");
+        setEmail(newEmail || "");
+        
+        // Update localStorage
+        localStorage.setItem("superName", newFirstName || "");
+        localStorage.setItem("superLast", newLastName || "");
+        localStorage.setItem("superEmail", newEmail || "");
+      } catch (error) {
+        console.error("Error updating profile data:", error);
+      }
     };
 
-    // ✅ Listen for storage changes
+    // ✅ Listen for storage changes (across tabs)
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'superProfile') {
-        setProfileImage(e.newValue);
+      try {
+        if (e.key === 'superProfile') {
+          setProfileImage(e.newValue);
+        }
+        if (e.key === 'superName') {
+          setFirstName(e.newValue || "");
+        }
+        if (e.key === 'superLast') {
+          setLastName(e.newValue || "");
+        }
+        if (e.key === 'superEmail') {
+          setEmail(e.newValue || "");
+        }
+      } catch (error) {
+        console.error("Error handling storage change:", error);
       }
-      if (e.key === 'superName') {
-        setFirstName(e.newValue || "");
-      }
-      if (e.key === 'superLast') {
-        setLastName(e.newValue || "");
-      }
-      if (e.key === 'superEmail') {
-        setEmail(e.newValue || "");
-      }
+    };
+
+    // ✅ Listen for refresh event (manual refresh trigger)
+    const handleRefreshProfile = () => {
+      fetchProfileData();
     };
 
     // Add event listeners
     window.addEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
     window.addEventListener('profileDataUpdated', handleProfileUpdate as EventListener);
     window.addEventListener('storage', handleStorageChange);
-
-    // Set loading to false after initial load
-    setLoading(false);
+    window.addEventListener('refreshProfile', handleRefreshProfile);
 
     // Cleanup
     return () => {
       window.removeEventListener('profileImageUpdated', handleProfileImageUpdate as EventListener);
       window.removeEventListener('profileDataUpdated', handleProfileUpdate as EventListener);
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('refreshProfile', handleRefreshProfile);
     };
   }, []);
 
@@ -144,7 +219,7 @@ export function Navbar({ isCollapsed }: NavbarProps) {
           width: isCollapsed ? "calc(100vw - 139px)" : "calc(100vw - 279px)",
         }}
       >
-        <div className="flex justify-between items-center border-b pb-5  border-b-[#3b3d3c]">
+        <div className="flex justify-between items-center border-b pb-5 border-b-[#3b3d3c]">
           {/* Left side */}
           <div className={`${isCollapsed ? "ml-[10px]" : "ml-0"}`}>
             <h1 className="font-medium text-[24px]">
@@ -158,7 +233,7 @@ export function Navbar({ isCollapsed }: NavbarProps) {
           {/* Right side */}
           <Link
             href="/super-admin/dashboard/profile"
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
           >
             <div className="h-10 w-10 rounded-full bg-[#2A2A2C] flex items-center justify-center overflow-hidden">
               {profileImage ? (
@@ -168,6 +243,10 @@ export function Navbar({ isCollapsed }: NavbarProps) {
                   width={40}
                   height={40}
                   className="rounded-full object-cover w-full h-full"
+                  onError={() => {
+                    setProfileImage(null);
+                    toast.error("Failed to load profile image");
+                  }}
                 />
               ) : (
                 <svg
@@ -192,7 +271,7 @@ export function Navbar({ isCollapsed }: NavbarProps) {
                 {firstName} {lastName}
               </p>
               <p className="text-[14px] leading-[18px] font-normal text-white/60">
-                {email || "example@gmail.com"}
+                {email || "No email provided"}
               </p>
             </div>
           </Link>
@@ -213,6 +292,10 @@ export function Navbar({ isCollapsed }: NavbarProps) {
                     width={32}
                     height={32}
                     className="rounded-full object-cover w-full h-full"
+                    onError={() => {
+                      setProfileImage(null);
+                      toast.error("Failed to load profile image");
+                    }}
                   />
                 ) : (
                   <svg
@@ -236,7 +319,7 @@ export function Navbar({ isCollapsed }: NavbarProps) {
                   {firstName} {lastName}
                 </p>
                 <p className="text-[12px] font-normal text-white/60">
-                  {email || "example@gmail.com"}
+                  {email || "No email provided"}
                 </p>
               </div>
             </div>

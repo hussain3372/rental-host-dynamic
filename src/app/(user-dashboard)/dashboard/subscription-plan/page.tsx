@@ -1,7 +1,7 @@
 "use client";
 import React from "react";
 import NotificationPreferences from "./NotificationPreferences";
-// import BillingHistoryTable from "./BillingHistoryTable";
+import BillingHistoryTable from "./BillingHistoryTable";
 export default function page() {
   return (
     <>
@@ -16,7 +16,7 @@ export default function page() {
         </p>
       </div>
       {/* <SubscriptionPlan /> */}
-      {/* <BillingHistoryTable /> */}
+      <BillingHistoryTable />
       <NotificationPreferences />
     </>
   );

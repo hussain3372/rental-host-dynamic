@@ -64,29 +64,35 @@ export const setting = {
   // In your settings/index.ts file, add this function:
 
   getBillingWithParams: async (params: {
-    status?: string;
-    skip?: number;
-    take?: number;
-  }): Promise<ApiResponse<PaymentResponse>> => {
-    // Build query string from parameters
-    const queryParams = new URLSearchParams();
+  search?: string;
+  planName?: string;
+  status?: string;
+  purchaseDate?: string;
+  endDate?: string;
+  skip?: number;
+  take?: number;
+}): Promise<ApiResponse<PaymentResponse>> => {
+  // Build query string from parameters
+  const queryParams = new URLSearchParams();
 
-    if (params.status) queryParams.append("status", params.status);
-    if (params.skip !== undefined)
-      queryParams.append("skip", params.skip.toString());
-    if (params.take !== undefined)
-      queryParams.append("take", params.take.toString());
+  if (params.search) queryParams.append("search", params.search);
+  if (params.planName) queryParams.append("planName", params.planName);
+  if (params.status) queryParams.append("status", params.status);
+  if (params.purchaseDate) queryParams.append("purchaseDate", params.purchaseDate);
+  if (params.endDate) queryParams.append("endDate", params.endDate);
+  if (params.skip !== undefined) queryParams.append("skip", params.skip.toString());
+  if (params.take !== undefined) queryParams.append("take", params.take.toString());
 
-    const queryString = queryParams.toString();
-    const url = `/payments/my-payments${queryString ? `?${queryString}` : ""}`;
+  const queryString = queryParams.toString();
+  const url = `/payments/my-payments${queryString ? `?${queryString}` : ""}`;
 
-    console.log("Making API call to:", url);
+  console.log("Making Billing API call to:", url);
 
-    return apiClient.get<PaymentResponse>(url, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-  },
+  return apiClient.get<PaymentResponse>(url, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+},
 };

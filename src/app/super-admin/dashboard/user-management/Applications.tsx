@@ -94,6 +94,10 @@ export default function Applications() {
     totalPages: 1
   });
 
+  const tableControls = {
+    hover : true
+  }
+
   // Temporary filter states (before Apply is clicked)
   const [tempCertificationFilters, setTempCertificationFilters] = useState({
     "Listed Properties": "", 
@@ -547,6 +551,7 @@ export default function Applications() {
               data={currentData}
               title="Registered Hosts"
               showDeleteButton={true}
+              control={tableControls}
               onDeleteSingle={openDeleteSingleModal}
               showPagination={true}
               clickable={true}
@@ -581,6 +586,8 @@ export default function Applications() {
               showDeleteButton={true}
               onDeleteSingle={openDeleteSingleModal}
               showPagination={true}
+                            control={tableControls}
+
               clickable={true}
               selectedRows={selectedRows}
               setSelectedRows={setSelectedRows}

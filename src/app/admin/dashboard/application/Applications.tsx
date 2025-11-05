@@ -392,22 +392,7 @@ export default function Applications() {
 
   const tableControl = {
     hover: true,
-    striped: false,
-    bordered: false,
-    shadow: false,
-    compact: false,
-    headerBgColor: "#252628",
-    headerTextColor: "white",
-    rowBgColor: "black",
-    rowTextColor: "#e5e7eb",
-    hoverBgColor: "black",
-    hoverTextColor: "#ffffff",
-    fontSize: 13,
-    textAlign: "left" as const,
-    rowBorder: false,
-    headerBorder: true,
-    borderColor: "#374151",
-    highlightRowOnHover: true,
+    
   };
 
   useEffect(() => {

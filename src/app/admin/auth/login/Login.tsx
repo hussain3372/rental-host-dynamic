@@ -145,7 +145,7 @@ export default function LoginPage() {
 
         // Store email for MFA flow
         const email = (response?.data as MfaResponse)?.email;
-        if (email) localStorage.setItem("email", email);
+        if (email) localStorage.setItem("adminEmail", email);
         localStorage.setItem("userMfaEnabled", "true");
 
         setLoading(false);
@@ -156,9 +156,9 @@ export default function LoginPage() {
 
       // Step 3: Store user data (only for non-MFA users)
       if (user) {
-        if (user.firstname) localStorage.setItem("firstname", user.firstname);
-        if (user.lastname) localStorage.setItem("lastname", user.lastname);
-        if (user.email) localStorage.setItem("email", user.email);
+        if (user.firstname) localStorage.setItem("adminFirstName", user.firstname);
+        if (user.lastname) localStorage.setItem("adminLastName", user.lastname);
+        if (user.email) localStorage.setItem("adminEmail", user.email);
         localStorage.setItem("userMfaEnabled", "false");
         if (user.role) localStorage.setItem("userRole", user.role);
       }

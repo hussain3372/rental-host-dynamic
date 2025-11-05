@@ -163,7 +163,7 @@ export function Table<T extends Record<string, unknown>>({
     let css = "";
 
     displayData.forEach((_, idx) => {
-      let bgColor = control.rowBgColor || "#ffffff";
+      let bgColor = control.rowBgColor || "#121315";
 
       if (control.nthChildColors && control.nthChildColors.length > 0) {
         const nthColors = control.nthChildColors || [];
@@ -194,7 +194,7 @@ export function Table<T extends Record<string, unknown>>({
       if (control.hover || control.highlightRowOnHover) {
         css += `
           #${tableId} tbody tr:hover {
-            background-color: ${control.hoverBgColor || "#f0f0f0"} !important;
+            background-color: ${control.hoverBgColor || "#2a2b2e"} !important;
             color: ${control.hoverTextColor || "#424242"} !important;
             box-shadow: 0 4px 8px rgba(0,0,0,0.15) !important;
             z-index: 1 !important;
@@ -476,7 +476,7 @@ export function Table<T extends Record<string, unknown>>({
           </div>
         </div>
 
-        <div className="p-0 cursor-pointer">
+        <div className="p-0 ">
           <div
             className="scrollbar-hide"
             style={{
@@ -658,7 +658,7 @@ export function Table<T extends Record<string, unknown>>({
                   <tbody className="!bg-transparent table-container">
                     {tableData.map((row, idx) => (
                       <tr
-                        className="rounded-md !bg-transparent"
+                        className="rounded-md bg-transparent"
                         key={idx}
                         style={{ cursor: "default" }}
                         onClick={() => handleRowClick(row, idx)}

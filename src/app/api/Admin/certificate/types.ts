@@ -19,6 +19,38 @@ export interface Application {
   propertyDetails: PropertyDetails;
 }
 
+// Optional document item returned with applications/certificates
+export interface DocumentItem {
+  id: string;
+  documentType: string;
+  fileName: string;
+  originalName?: string;
+  url?: string;
+  mimeType?: string;
+  size?: number;
+  uploadedAt?: string;
+}
+
+export interface ChecklistEntry {
+  id: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface ComplianceItem {
+  id: string;
+  checked: boolean;
+  checkedAt?: string | null;
+  notes?: string | null;
+  checklist?: ChecklistEntry;
+}
+
+// Extend Application to optionally include documents and compliance items
+export interface ApplicationWithExtras extends Application {
+  documents?: DocumentItem[];
+  complianceItems?: ComplianceItem[];
+}
+
 export interface Host {
   id: number;
   name: string;

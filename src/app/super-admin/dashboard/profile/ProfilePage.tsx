@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import EditProfileDrawer from "./EditProfileDrawer";
 import Cookies from "js-cookie";
 import { profile } from "@/app/api/super-admin/profile";
+import toast from "react-hot-toast";
 
 interface ProfileData {
   firstName: string;
@@ -37,106 +38,234 @@ export default function ProfilePage() {
   const router = useRouter();
 
   // Fetch Profile Data on Mount
-  useEffect(() => {
-    const fetchData = async (): Promise<void> => {
-      try {
-        const res = await profile.fetchProfileData();
-        console.log(res);
-        if (res.data) {
-          const { firstName, lastName, email: userEmail, profilePicture } = res.data.data;
-          
-          setName(
-            firstName && lastName
-              ? `${firstName} ${lastName}`
-              : firstName || "User"
-          );
-          setEmail(userEmail || "");
-          setProfileImage(profilePicture || null);
-        }
-      } catch (error) {
-        console.error("Error fetching profile:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, []);
-
-  // Handle Save from Drawer
-  const handleSaveChanges = async (newName: string, newEmail: string): Promise<void> => {
+  // Fetch Profile Data on Mount
+useEffect(() => {
+  const fetchData = async (): Promise<void> => {
     try {
-      const [firstName, ...rest] = newName.split(" ");
-      const lastName = rest.join(" ") || "";
+      setLoading(true);
+      const res = await profile.fetchProfileData();
+      
+      if (res.data) {
+        const { firstName, lastName, email: userEmail, profilePicture } = res.data.data;
+        
+        setName(
+          firstName && lastName
+            ? `${firstName} ${lastName}`
+            : firstName || "User"
+        );
+        setEmail(userEmail || "");
+        setProfileImage(profilePicture || null);
 
-      const payload = { firstName, lastName, email: newEmail };
-      await profile.updateProfileData(payload);
-
-      localStorage.setItem("superName", firstName);
-      localStorage.setItem("superLast", lastName);
-      localStorage.setItem("superEmail", newEmail);
-
-      setName(newName);
-      setEmail(newEmail);
-      setIsDrawerOpen(false);
-    } catch (error) {
-      console.error("Error updating profile:", error);
+        // Update localStorage
+        localStorage.setItem("superName", firstName || "");
+        localStorage.setItem("superLast", lastName || "");
+        localStorage.setItem("superEmail", userEmail || "");
+        if (profilePicture) {
+          localStorage.setItem('superProfile', profilePicture);
+        }
+        
+      }
+    } catch (error: unknown) {
+      console.error("Error fetching profile:", error);
+      
+      // Extract error message
+      let errorMessage = "Failed to load profile data";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      } else if (typeof error === 'object' && error !== null) {
+        const apiError = error as { response?: { data?: { message?: string } } };
+        errorMessage = apiError.response?.data?.message || errorMessage;
+      }
+      
+      toast.error(errorMessage);
+      
+      // Fallback to localStorage
+      const storedName = localStorage.getItem("superName") || "User";
+      const storedLast = localStorage.getItem("superLast") || "";
+      const storedEmail = localStorage.getItem("superEmail") || "";
+      const storedProfile = localStorage.getItem("superProfile");
+      
+      setName(storedLast ? `${storedName} ${storedLast}` : storedName);
+      setEmail(storedEmail);
+      setProfileImage(storedProfile);
+    } finally {
+      setLoading(false);
     }
   };
 
+  fetchData();
+}, []);
+  // Handle Save from Drawer
+  // Handle Save from Drawer
+// Handle Save from Drawer
+const handleSaveChanges = async (newName: string, newEmail: string): Promise<void> => {
+  try {
+    const [firstName, ...rest] = newName.split(" ");
+    const lastName = rest.join(" ") || "";
+
+    const payload = { firstName, lastName, email: newEmail };
+    await profile.updateProfileData(payload);
+
+    // Update localStorage
+    localStorage.setItem("superName", firstName);
+    localStorage.setItem("superLast", lastName);
+    localStorage.setItem("superEmail", newEmail);
+
+    setName(newName);
+    setEmail(newEmail);
+    setIsDrawerOpen(false);
+
+    // Notify navbar
+    window.dispatchEvent(new CustomEvent('profileDataUpdated', {
+      detail: { firstName, lastName, email: newEmail }
+    }));
+    
+    toast.success("Profile updated successfully!");
+  } catch (error: unknown) {
+    console.error("Error updating profile:", error);
+    
+    // Extract error message
+    let errorMessage = "Failed to update profile";
+    if (error instanceof Error) {
+      errorMessage = error.message;
+    } else if (typeof error === 'object' && error !== null) {
+      const apiError = error as { response?: { data?: { message?: string } } };
+      errorMessage = apiError.response?.data?.message || errorMessage;
+    }
+    
+    toast.error(errorMessage);
+    throw error; // Re-throw for drawer to handle
+  }
+};
+
   // Handle Logout
-  const handleLogout = (): void => {
-    Cookies.remove("superAdminAccessToken");
-    router.push("/super-admin/auth/login");
-  };
+  const handleLogout = async () => {
+      
+
+      // Clear client-side storage
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Function to delete a specific cookie
+      const deleteCookie = (name: string) => {
+        // Standard deletion
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        // Try with SameSite
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax;`;
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict;`;
+        // Try with domain
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=localhost;`;
+      };
+
+      // Delete specific application cookies
+      deleteCookie('superAdminAccessToken');
+      deleteCookie('refreshToken');
+      deleteCookie('next-auth.session-token');
+      deleteCookie('next-auth.csrf-token');
+      deleteCookie('next-auth.callback-url');
+
+      // Create a logout URL that clears Google session and redirects back
+      const logoutUrl = 'https://accounts.google.com/Logout';
+      const returnUrl = `${window.location.origin}/super-admin/auth/login`;
+      
+      // Open Google logout in a hidden iframe to clear Google cookies
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = logoutUrl;
+      document.body.appendChild(iframe);
+
+      // Wait a moment for Google logout, then redirect
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+        window.location.href = returnUrl;
+      }, 1000);
+      router.push('/super-admin/auth/login')
+    };
 
   // Handle Change Photo
   const handleChangePhotoClick = (): void => {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Handle File Change
+// Handle File Change
+const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
+  const file = e.target.files?.[0];
+  if (!file) return;
 
-    try {
-      setUploading(true);
-      
-      // Show preview instantly
-      const previewUrl = URL.createObjectURL(file);
-      setProfileImage(previewUrl);
-      
-      // Upload to server using your API client
-      const res = await profile.updateProfileImage(file);
+  let previewUrl: string | null = null;
 
-      if (res?.data?.data?.profilePicture) {
-        const newProfileImage = res.data.data.profilePicture;
-        setProfileImage(newProfileImage);
-        // Store in localStorage
-        localStorage.setItem('superProfile', newProfileImage);
-        
-        // Dispatch custom event to notify navbar
-        window.dispatchEvent(new CustomEvent('profileImageUpdated', {
-          detail: { profileImage: newProfileImage }
-        }));
-      }
-
-      // Clean up the preview URL
-      URL.revokeObjectURL(previewUrl);
-    } catch (err) {
-      console.error("Error uploading profile image:", err);
-      // Revert to previous image on error
-      const previousProfile = localStorage.getItem('superProfile');
-      setProfileImage(previousProfile);
-    } finally {
-      setUploading(false);
-      // Clear the file input
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
+  try {
+    setUploading(true);
+    
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error("Please select a valid image file (JPEG, PNG, or WEBP)");
     }
-  };
 
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      throw new Error("Image size must be less than 5MB");
+    }
+
+    // Show preview instantly
+    previewUrl = URL.createObjectURL(file);
+    setProfileImage(previewUrl);
+    
+    // Upload to server
+    const res = await profile.updateProfileImage(file);
+
+    // Check for API errors
+    if (res.errors && res.errors.length > 0) {
+      throw new Error(res.errors[0]);
+    }
+
+    if (res?.data?.data?.profilePicture) {
+      const newProfileImage = res.data.data.profilePicture;
+      setProfileImage(newProfileImage);
+      localStorage.setItem('superProfile', newProfileImage);
+      
+      // Notify navbar
+      window.dispatchEvent(new CustomEvent('profileImageUpdated', {
+        detail: { profileImage: newProfileImage }
+      }));
+      
+      toast.success("Profile picture updated successfully!");
+    } else {
+      throw new Error("Failed to upload image - no response from server");
+    }
+  } catch (err: unknown) {
+    console.error("Error uploading profile image:", err);
+    
+    // Extract error message
+    let errorMessage = "Failed to upload profile picture";
+    if (err instanceof Error) {
+      errorMessage = err.message;
+    } else if (typeof err === 'object' && err !== null) {
+      const apiError = err as { response?: { data?: { message?: string } } };
+      errorMessage = apiError.response?.data?.message || errorMessage;
+    }
+    
+    toast.error(errorMessage);
+    
+    // Revert to previous image
+    const previousProfile = localStorage.getItem('superProfile');
+    setProfileImage(previousProfile);
+  } finally {
+    setUploading(false);
+    
+    // Clean up preview URL
+    if (previewUrl) {
+      URL.revokeObjectURL(previewUrl);
+    }
+    
+    // Clear file input
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
+};
   if (loading) {
     return (
       <div className="flex items-center justify-center h-[400px] text-white">

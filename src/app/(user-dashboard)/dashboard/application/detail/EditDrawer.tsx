@@ -4,11 +4,12 @@ import { Check, ChevronRight, ChevronLeft } from "lucide-react";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { application } from "@/app/api/Host/application"; 
+import StripePaymentModal from "@/app/(user-dashboard)/listing/(components)/StripePaymentModal";
 
-type Tab = "property" | "compliances" | "documents";
+type Tab = "property" | "compliances" | "documents" | "payment";
 
 interface ChecklistItem {
-  id: string | number;  // Allow both string and number
+  id: string | number;
   name: string;
   description: string | null;
 }
@@ -20,18 +21,17 @@ interface ApiChecklistItem {
   isActive?: boolean;
 }
 
-// OR create a separate interface for API response
-
-
 interface FileData {
   name: string;
   size: number;
   file: File;
   documentType: "ID_DOCUMENT" | "SAFETY_PERMIT" | "INSURANCE_CERTIFICATE" | "PROPERTY_DEED";
   originalName: string;
+  documentId?: string; // Add document ID for updates
 }
 
 interface UploadedDocument {
+  id?: string; // Add ID field
   documentType: string;
   fileName: string;
   originalName: string;
@@ -58,7 +58,6 @@ interface ApplicationData {
   complianceChecklist?: {
     [key: string]: boolean;
   };
-  
   documents?: UploadedDocument[];
 }
 
@@ -85,14 +84,17 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
   const [previewImages, setPreviewImages] = useState<string[]>([]);
   const [existingImages, setExistingImages] = useState<string[]>([]);
 
-  // Compliances State - dynamic based on API
+  // Compliances State
   const [compliances, setCompliances] = useState<{ [key: string]: boolean }>({});
 
-  // Documents State using FileData structure
+  // Documents State
   const [documents, setDocuments] = useState<FileData[]>([]);
-
-  // Existing document URLs from API
   const [existingDocuments, setExistingDocuments] = useState<UploadedDocument[]>([]);
+
+  // Payment State
+  const [selectedMethod, setSelectedMethod] = useState("stripe");
+  const [showStripeModal, setShowStripeModal] = useState(false);
+  const SUBSCRIPTION_AMOUNT = 9900; // $99.00
 
   // Track completed steps
   const [completedSteps, setCompletedSteps] = useState<Set<Tab>>(new Set());
@@ -122,62 +124,57 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
   }, [onClose]);
 
   // Fetch checklist from API
- const fetchChecklist = async () => {
-  setLoadingChecklist(true);
-  try {
-    const response = await application.getCheckList();
-    if (response.success && response.data) {
-      let checklistData: ChecklistItem[] = [];
-      
-      // Handle different response structures
-      if (Array.isArray(response.data)) {
-        checklistData = response.data.map((item: ApiChecklistItem) => ({
-          id: item.id,
-          name: item.name,
-          description: item.description ?? null
-        }));
-      } else if (response.data.data && Array.isArray(response.data.data)) {
-        checklistData = response.data.data.map((item: ApiChecklistItem) => ({
-          id: item.id,
-          name: item.name,
-          description: item.description ?? null
-        }));
-      } else if (response.data.checklists && Array.isArray(response.data.checklists)) {
-        // Handle string arrays by converting them to ChecklistItem objects
-        checklistData = response.data.checklists.map((item: string, index: number) => ({
-          id: index,
-          name: item,
-          description: null
-        }));
-      }
+  const fetchChecklist = async () => {
+    setLoadingChecklist(true);
+    try {
+      const response = await application.getCheckList();
+      if (response.success && response.data) {
+        let checklistData: ChecklistItem[] = [];
+        
+        if (Array.isArray(response.data)) {
+          checklistData = response.data.map((item: ApiChecklistItem) => ({
+            id: item.id,
+            name: item.name,
+            description: item.description ?? null
+          }));
+        } else if (response.data.data && Array.isArray(response.data.data)) {
+          checklistData = response.data.data.map((item: ApiChecklistItem) => ({
+            id: item.id,
+            name: item.name,
+            description: item.description ?? null
+          }));
+        } else if (response.data.checklists && Array.isArray(response.data.checklists)) {
+          checklistData = response.data.checklists.map((item: string, index: number) => ({
+            id: index,
+            name: item,
+            description: null
+          }));
+        }
 
-      setChecklistItems(checklistData);
-      
-      // Initialize compliance state with all items unchecked
-      const initialCompliances: { [key: string]: boolean } = {};
-      checklistData.forEach(item => {
-        initialCompliances[item.name] = false;
-      });
-      setCompliances(initialCompliances);
+        setChecklistItems(checklistData);
+        
+        const initialCompliances: { [key: string]: boolean } = {};
+        checklistData.forEach(item => {
+          initialCompliances[item.name] = false;
+        });
+        setCompliances(initialCompliances);
+      }
+    } catch (error) {
+      console.error("Error fetching checklist:", error);
+    } finally {
+      setLoadingChecklist(false);
     }
-  } catch (error) {
-    console.error("Error fetching checklist:", error);
-    // toast.error("Failed to load checklist");
-  } finally {
-    setLoadingChecklist(false);
-  }
-};
-  // Fetch application data when component mounts or applicationId changes
+  };
+
+  // Fetch application data
   useEffect(() => {
     const fetchApplicationData = async () => {
       let appId = applicationId;
       
       if (!appId) {
-        // Try to get from localStorage if no applicationId provided
         const stored = localStorage.getItem("applicationData");
         const storedData = stored ? JSON.parse(stored) : null;
         if (!storedData?.id) return;
-        
         appId = storedData.id;
       }
 
@@ -186,35 +183,28 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
         const response = await application.getApplicationById(appId || "");
         
         if (response.success && response.data) {
-         const appData = ((response.data as { application?: ApplicationData }).application ?? response.data) as ApplicationData;
-          console.log('Application data loaded:', appData);
+          const appData = ((response.data as { application?: ApplicationData }).application ?? response.data) as ApplicationData;
 
-          // Populate property details
           if (appData.propertyDetails) {
             setPropertyName(appData.propertyDetails.propertyName || "");
             setPropertyAddress(appData.propertyDetails.address || "");
             setDescription(appData.propertyDetails.description || "");
             
-            // Handle existing images
             if (appData.propertyDetails.images && appData.propertyDetails.images.length > 0) {
               setExistingImages(appData.propertyDetails.images);
             }
           }
 
-          // Populate existing documents if available
           if (appData.documents && appData.documents.length > 0) {
             setExistingDocuments(appData.documents);
           }
 
-          // Fetch checklist and then populate compliance data
           await fetchChecklist();
           
-          // Populate compliance checklist if available (after checklist is loaded)
           if (appData.complianceChecklist) {
             setCompliances(appData.complianceChecklist);
           }
 
-          // Mark completed steps based on existing data
           const completed = new Set<Tab>();
           if (appData.propertyDetails?.propertyName && appData.propertyDetails?.address) {
             completed.add("property");
@@ -226,7 +216,6 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
             completed.add("documents");
           }
           setCompletedSteps(completed);
-
         }
       } catch (error) {
         console.error("Error fetching application data:", error);
@@ -243,10 +232,7 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
     setIsVisible(true);
 
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        drawerRef.current &&
-        !drawerRef.current.contains(event.target as Node)
-      ) {
+      if (drawerRef.current && !drawerRef.current.contains(event.target as Node)) {
         handleClose();
       }
     };
@@ -260,7 +246,6 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
   const validateForm = (): boolean => {
     const newErrors: typeof errors = {};
 
-    // Property tab validation
     if (activeTab === "property") {
       if (!propertyName.trim()) {
         newErrors.propertyName = "Property name is required";
@@ -276,7 +261,6 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
       }
     }
 
-    // Compliances tab validation
     if (activeTab === "compliances") {
       const allUnchecked = Object.values(compliances).every(checked => !checked);
       if (allUnchecked) {
@@ -284,7 +268,6 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
       }
     }
 
-    // Documents tab validation
     if (activeTab === "documents") {
       if (documents.length === 0 && existingDocuments.length === 0) {
         newErrors.documents = "At least one document must be uploaded";
@@ -302,33 +285,46 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
       return;
     }
 
+    if (files.length + uploadedImages.length + existingImages.length < 3) {
+      toast.error("Upload atleast 3 images");
+      return;
+    }
+
     const newImages = [...uploadedImages, ...files].slice(0, 5 - existingImages.length);
     setUploadedImages(newImages);
 
     const newPreviews = newImages.map((file) => URL.createObjectURL(file));
     setPreviewImages(newPreviews);
 
-    // Clear image error when images are uploaded
     if (newImages.length > 0 || existingImages.length > 0) {
       setErrors(prev => ({ ...prev, images: undefined }));
     }
   };
 
   const handleDocumentUpload = (type: FileData['documentType'], file: File) => {
-    // Remove existing document of same type
+    // Check if there's an existing document of this type
+    const existingDoc = existingDocuments.find(doc => doc.documentType === type);
+    
+    // Remove any pending upload for this type
     const filteredDocuments = documents.filter(doc => doc.documentType !== type);
+    
+    // If replacing an existing document, remove it from existingDocuments immediately
+    if (existingDoc) {
+      const updatedExistingDocs = existingDocuments.filter(doc => doc.documentType !== type);
+      setExistingDocuments(updatedExistingDocs);
+    }
     
     const newDocument: FileData = {
       name: file.name,
       size: file.size,
       file: file,
       documentType: type,
-      originalName: file.name
+      originalName: file.name,
+      // Only include documentId if there's an existing document to replace
+      ...(existingDoc?.id ? { documentId: existingDoc.id } : {})
     };
 
     setDocuments([...filteredDocuments, newDocument]);
-    
-    // Clear documents error when a document is uploaded
     setErrors(prev => ({ ...prev, documents: undefined }));
   };
 
@@ -441,6 +437,11 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
         formData.append("files", fileData.file);
         formData.append("documentType", fileData.documentType);
         formData.append("originalNames", fileData.originalName);
+        
+        // Only append documentId if it exists (for updates)
+        if (fileData.documentId) {
+          formData.append("documentIds", fileData.documentId);
+        }
       });
 
       const response = await application.uploadDocuments(formData);
@@ -449,7 +450,6 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
         throw new Error("No response data received from document upload");
       }
 
-      // Simple approach - assume response.data is the array of documents
       const uploadedDocs = Array.isArray(response.data) ? response.data : [];
 
       return uploadedDocs;
@@ -464,109 +464,123 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
   };
 
 const updateCurrentStep = async (): Promise<boolean> => {
-  setIsUpdating(true);
-  const toastId = toast.loading("Updating application...");
+    setIsUpdating(true);
+    const toastId = toast.loading("Updating application...");
 
-  try {
-    const stored = localStorage.getItem("applicationData");
-    const localApplicationData = stored ? JSON.parse(stored) : null;
-    
-    if (!localApplicationData?.id) {
-      throw new Error("No application found. Please create an application first.");
-    }
-
-    let imageUrls: string[] = [...existingImages];
-
-    // Upload images if any new ones are added
-    if (uploadedImages.length > 0) {
-      const newImageUrls = await uploadFiles(uploadedImages);
-      imageUrls = [...imageUrls, ...newImageUrls];
-    }
-
-    // Upload documents separately and update state
-    if (documents.length > 0) {
-      const newDocs = await uploadDocuments(documents);
-      const updatedDocs = [...existingDocuments, ...newDocs];
-      setExistingDocuments(updatedDocs);
+    try {
+      const stored = localStorage.getItem("applicationData");
+      const localApplicationData = stored ? JSON.parse(stored) : null;
       
-      // Update localStorage with new documents
-      const updatedAppData = {
-        ...localApplicationData,
-        documents: updatedDocs
-      };
-      localStorage.setItem("applicationData", JSON.stringify(updatedAppData));
-      
-      setDocuments([]);
-    }
-
-    // Prepare step data WITH compliance checklist and documents in propertyDetails
-    const stepData = {
-      propertyDetails: {
-        propertyName,
-        address: propertyAddress,
-        description,
-        images: imageUrls,
-        propertyType: localApplicationData.propertyDetails?.propertyType || "RESIDENTIAL",
-        ownership: localApplicationData.propertyDetails?.ownership || "OWNED",
-        rent: localApplicationData.propertyDetails?.rent || 18500,
-        bedrooms: localApplicationData.propertyDetails?.bedrooms || 20,
-        bathrooms: localApplicationData.propertyDetails?.bathrooms || 20,
-        currency: localApplicationData.propertyDetails?.currency || "AED",
-        maxGuests: localApplicationData.propertyDetails?.maxGuests || 20,
-        // Include compliance checklist in propertyDetails
-        complianceChecklist: compliances,
-        // Include existing documents in propertyDetails
-        documents: existingDocuments
+      if (!localApplicationData?.id) {
+        throw new Error("No application found. Please create an application first.");
       }
-    };
 
-    const stepNameMap: Record<Tab, string> = {
-      property: "PROPERTY_DETAILS",
-      compliances: "COMPLIANCE_CHECKLIST", 
-      documents: "DOCUMENT_UPLOAD"
-    };
+      let imageUrls: string[] = [...existingImages];
+      const finalDocuments = [...existingDocuments];
 
-    const updatePayload = {
-      step: stepNameMap[activeTab],
-      data: stepData
-    };
-
-    const stepResponse = await application.updateStep(updatePayload);
-
-    if (stepResponse.success) {
-      // Update localStorage with latest step data (including compliance and documents)
-      const updatedAppData = {
-        ...localApplicationData,
-        ...stepData,
-        complianceChecklist: compliances,
-        documents: existingDocuments
-      };
-      localStorage.setItem("applicationData", JSON.stringify(updatedAppData));
-      
-      setCompletedSteps(prev => new Set(prev).add(activeTab));
-      
       if (uploadedImages.length > 0) {
-        setExistingImages(imageUrls);
-        setUploadedImages([]);
-        setPreviewImages([]);
+        const newImageUrls = await uploadFiles(uploadedImages);
+        imageUrls = [...imageUrls, ...newImageUrls];
       }
 
-      toast.success("Step completed successfully!", { id: toastId });
-      return true;
-    } else {
-      throw new Error(stepResponse.message || "Failed to update application");
+      if (documents.length > 0) {
+        const newDocs = await uploadDocuments(documents);
+        
+        // Update existing documents - replace documents with same type or add new ones
+        newDocs.forEach(newDoc => {
+          const existingIndex = finalDocuments.findIndex(doc => doc.documentType === newDoc.documentType);
+          if (existingIndex !== -1) {
+            // Replace existing document - preserve the original document ID
+            finalDocuments[existingIndex] = {
+              ...newDoc,
+              id: finalDocuments[existingIndex].id // Keep the original ID to avoid duplicates
+            };
+          } else {
+            // Add new document
+            finalDocuments.push(newDoc);
+          }
+        });
+        
+        setExistingDocuments(finalDocuments);
+        setDocuments([]);
+      }
+
+      // Format documents for API - include id and url
+      const formattedDocuments = finalDocuments.map(doc => ({
+        id: doc.id,
+        documentType: doc.documentType,
+        fileName: doc.fileName,
+        originalName: doc.originalName,
+        mimeType: doc.mimeType,
+        size: doc.size,
+        url: doc.url
+      }));
+
+      const stepData = {
+        propertyDetails: {
+          propertyName,
+          address: propertyAddress,
+          description,
+          images: imageUrls,
+          propertyType: localApplicationData.propertyDetails?.propertyType || "RESIDENTIAL",
+          ownership: localApplicationData.propertyDetails?.ownership || "OWNED",
+          rent: localApplicationData.propertyDetails?.rent || 18500,
+          bedrooms: localApplicationData.propertyDetails?.bedrooms || 20,
+          bathrooms: localApplicationData.propertyDetails?.bathrooms || 20,
+          currency: localApplicationData.propertyDetails?.currency || "AED",
+          maxGuests: localApplicationData.propertyDetails?.maxGuests || 20,
+          complianceChecklist: compliances,
+          documents: formattedDocuments
+        }
+      };
+
+      const stepNameMap: Record<Tab, string> = {
+        property: "PROPERTY_DETAILS",
+        compliances: "COMPLIANCE_CHECKLIST", 
+        documents: "DOCUMENT_UPLOAD",
+        payment: "PAYMENT"
+      };
+
+      const updatePayload = {
+        step: stepNameMap[activeTab],
+        data: stepData
+      };
+
+      const stepResponse = await application.updateStep(updatePayload);
+
+      if (stepResponse.success) {
+        const updatedAppData = {
+          ...localApplicationData,
+          ...stepData,
+          complianceChecklist: compliances,
+          documents: existingDocuments
+        };
+        localStorage.setItem("applicationData", JSON.stringify(updatedAppData));
+        
+        setCompletedSteps(prev => new Set(prev).add(activeTab));
+        
+        if (uploadedImages.length > 0) {
+          setExistingImages(imageUrls);
+          setUploadedImages([]);
+          setPreviewImages([]);
+        }
+
+        toast.success("Step completed successfully!", { id: toastId });
+        return true;
+      } else {
+        throw new Error(stepResponse.message || "Failed to update application");
+      }
+    } catch (error) {
+      console.error("Update error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to update application",
+        { id: toastId }
+      );
+      return false;
+    } finally {
+      setIsUpdating(false);
     }
-  } catch (error) {
-    console.error("Update error:", error);
-    toast.error(
-      error instanceof Error ? error.message : "Failed to update application",
-      { id: toastId }
-    );
-    return false;
-  } finally {
-    setIsUpdating(false);
-  }
-};
+  };
 
   const submitFinalApplication = async (): Promise<boolean> => {
     setIsSubmitting(true);
@@ -584,11 +598,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
 
       if (response.success) {
         toast.success("Application submitted successfully!", { id: toastId });
-        
-        // Clean up localStorage  
         localStorage.removeItem("applicationData");
-        // localStorage.removeItem("propertyType");
-        
         return true;
       } else {
         throw new Error(response.message || "Failed to submit application");
@@ -606,32 +616,35 @@ const updateCurrentStep = async (): Promise<boolean> => {
   };
 
   const handleNextStep = async () => {
-  if (!validateForm()) {
-    toast.error("Please fix the errors before proceeding");
-    return;
-  }
+    if (!validateForm()) {
+      toast.error("Please fix the errors before proceeding");
+      return;
+    }
 
-  try {
-    const success = await updateCurrentStep();
-    if (success) {
-      const tabs: Tab[] = ["property", "compliances", "documents"];
+    try {
+      if (activeTab !== "payment") {
+        const success = await updateCurrentStep();
+        if (!success) return;
+      }
+
+      const tabs: Tab[] = ["property", "compliances", "documents", "payment"];
       const currentIndex = tabs.indexOf(activeTab);
+      
       if (currentIndex < tabs.length - 1) {
         setActiveTab(tabs[currentIndex + 1]);
       } else {
         const submitSuccess = await submitFinalApplication();
         if (submitSuccess) {
-          handleClose(); // This will trigger the refetch
+          handleClose();
         }
       }
+    } catch (error) {
+      console.error("Step progression error:", error);
     }
-  } catch (error) {
-    console.error("Step progression error:", error);
-  }
-};
+  };
 
   const handlePreviousStep = () => {
-    const tabs: Tab[] = ["property", "compliances", "documents"];
+    const tabs: Tab[] = ["property", "compliances", "documents", "payment"];
     const currentIndex = tabs.indexOf(activeTab);
     if (currentIndex > 0) {
       setActiveTab(tabs[currentIndex - 1]);
@@ -644,13 +657,11 @@ const updateCurrentStep = async (): Promise<boolean> => {
       [checklistName]: !prev[checklistName]
     }));
     
-    // Clear compliance error when any item is checked
     if (errors.compliances) {
       setErrors(prev => ({ ...prev, compliances: undefined }));
     }
   };
 
-  // Clean up object URLs on unmount
   useEffect(() => {
     return () => {
       previewImages.forEach(url => URL.revokeObjectURL(url));
@@ -662,10 +673,8 @@ const updateCurrentStep = async (): Promise<boolean> => {
     };
   }, [previewImages, documents]);
 
-  const isLastStep = activeTab === "documents";
-  // const allStepsCompleted = completedSteps.size === 3;
+  const isLastStep = activeTab === "payment";
 
-  // Document type mappings for display
   const documentTypeConfig = {
     "ID_DOCUMENT": {
       label: "Government-issued ID",
@@ -691,7 +700,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 z-[9000] bg-black/80 flex items-center justify-center">
+      <div className="fixed inset-0 z-[9000] min-h-[100vh] bg-black/80 flex items-center justify-center">
         <div className="text-white">Loading application data...</div>
       </div>
     );
@@ -699,7 +708,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
 
   return (
     <div
-      className={`fixed inset-0 z-[9000] bg-black/80 transition-opacity duration-300 ${
+      className={`fixed inset-0 z-[9000] bg-black/80 min-h-[100vh] transition-opacity duration-300 ${
         isVisible ? "opacity-100" : "opacity-0"
       }`}
     >
@@ -719,7 +728,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
 
           {/* Tabs with completion status */}
           <div className="flex gap-2 mb-6">
-            {(["property", "compliances", "documents"] as Tab[]).map((tab) => (
+            {(["property", "compliances", "documents", "payment"] as Tab[]).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -731,9 +740,10 @@ const updateCurrentStep = async (): Promise<boolean> => {
                     : "bg-gray-800 text-gray-300"
                 }`}
               >
-                {tab === "property" && "Property Details"}
+                {tab === "property" && "Property"}
                 {tab === "compliances" && "Compliances"}
                 {tab === "documents" && "Documents"}
+                {tab === "payment" && "Payment"}
                 {completedSteps.has(tab) && (
                   <Check className="w-3 h-3 absolute -top-1 -right-1 bg-green-500 rounded-full" />
                 )}
@@ -796,25 +806,21 @@ const updateCurrentStep = async (): Promise<boolean> => {
                 className="border-2 cursor-pointer border-dashed border-[#EFFC76] rounded-[10px] p-6"
               >
                 <div className="flex flex-col items-center justify-center text-center">
-                  
-                    <>
-                      <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3">
-                        <Image
-                          src="/images/upload.png"
-                          alt="Upload image"
-                          height={40}
-                          width={40} 
-                        />
-                      </div>
-                      <p className="text-white text-[16px] font-regular mb-2">
-                        Upload Images
-                      </p>
-                      <p className="text-[#FFFFFF99] text-[12px] font-regular mb-4 max-w-[346px] text-center">
-                        Please upload a clear and readable file in PDF, JPG, or PNG
-                        format. The maximum file size allowed is 10MB.
-                      </p>
-                    </>
-                  
+                  <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3">
+                    <Image
+                      src="/images/upload.png"
+                      alt="Upload image"
+                      height={40}
+                      width={40} 
+                    />
+                  </div>
+                  <p className="text-white text-[16px] font-regular mb-2">
+                    Upload Images
+                  </p>
+                  <p className="text-[#FFFFFF99] text-[12px] font-regular mb-4 max-w-[346px] text-center">
+                    Please upload a clear and readable file in PDF, JPG, or PNG
+                    format. The maximum file size allowed is 10MB.
+                  </p>
                   <label className="cursor-pointer">
                     <input
                       ref={inputRef}
@@ -824,7 +830,6 @@ const updateCurrentStep = async (): Promise<boolean> => {
                       className="hidden"
                       onChange={handleImageUpload}
                     />
-
                   </label>
                 </div>
               </div>
@@ -842,47 +847,44 @@ const updateCurrentStep = async (): Promise<boolean> => {
                 />
                 <span>Upload at least 3 images for faster approval.</span>
               </div>
-                  <div className="flex justify-center gap-3">
-                  {/* Show existing images */}
-                  {existingImages.length > 0 && (
-                    <div className="flex gap-2 mb-4 w-full">
-                      {existingImages.map((url, idx) => (
-                        <div
-                          key={idx}
-                          className="relative w-20 h-20 rounded-lg overflow-hidden"
-                        >
-                          <Image
-                            src={url}
-                            alt={`Existing ${idx + 1}`}
-                            fill
-                            className="object-cover" 
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  
-                  {/* Show new preview images */}
-                  {previewImages.length > 0 && (
-                    <div className="flex gap-2 mb-4 w-full">
-                      {previewImages.map((url, idx) => (
-                        <div
-                          key={idx}
-                          className="relative w-20 h-20 rounded-lg overflow-hidden"
-                        >
-                          <Image
-                            src={url}
-                            alt={`Preview ${idx + 1}`}
-                            fill
-                            className="object-cover" 
-                          />
-                        </div>
-                      ))}
-                    </div>
-                    
-                  )}
 
+              <div className="flex justify-center">
+                {existingImages.length > 0 && (
+                  <div className="flex gap-2 mb-4 w-full">
+                    {existingImages.map((url, idx) => (
+                      <div
+                        key={idx}
+                        className="relative w-20 h-20 rounded-lg overflow-hidden"
+                      >
+                        <Image
+                          src={url}
+                          alt={`Existing ${idx + 1}`}
+                          fill
+                          className="object-cover" 
+                        />
+                      </div>
+                    ))}
                   </div>
+                )}
+                
+                {previewImages.length > 0 && (
+                  <div className="flex gap-2 mb-4 w-full">
+                    {previewImages.map((url, idx) => (
+                      <div
+                        key={idx}
+                        className="relative w-20 h-20 rounded-lg overflow-hidden"
+                      >
+                        <Image
+                          src={url}
+                          alt={`Preview ${idx + 1}`}
+                          fill
+                          className="object-cover" 
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
@@ -950,7 +952,6 @@ const updateCurrentStep = async (): Promise<boolean> => {
                 <p className="text-red-500 text-[12px] mb-2">{errors.documents}</p>
               )}
 
-              {/* Render document upload boxes for each type */}
               {Object.entries(documentTypeConfig).map(([type, config]) => {
                 const currentDoc = getDocumentByType(type as FileData['documentType']);
                 const existingDoc = getExistingDocumentByType(type);
@@ -1016,6 +1017,112 @@ const updateCurrentStep = async (): Promise<boolean> => {
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {activeTab === "payment" && (
+            <div className="space-y-6">
+              <h3 className="text-white text-[18px] font-medium">
+                Choose Your Payment Method
+              </h3>
+              <p className="text-[#FFFFFF99] text-[14px] font-regular">
+                Select the most convenient option to securely complete your subscription payment.
+              </p>
+
+              {/* Stripe Payment */}
+              <label
+                className={`flex items-center sm:gap-[38px] justify-between rounded-lg p-4 cursor-pointer ${
+                  selectedMethod === "stripe"
+                    ? "border-[#9ba44f] border bg-[#1c1f14]"
+                    : "bg-transparent bg-gradient-to-b from-[#202020] to-[#101010]"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <Image
+                    src="/images/stripe-logo.svg"
+                    alt="Stripe payment"
+                    width={64}
+                    height={64}
+                  />
+                  <div>
+                    <h4 className="text-white text-[14px] sm:text-[16px] font-regular leading-5">
+                      Stripe Payment
+                    </h4>
+                    <p className="text-white/60 font-regular text-[10px] sm:text-[12px] pt-2 max-w-[215px]">
+                      Secure payment with credit/debit card via Stripe
+                    </p>
+                  </div>
+                </div>
+
+                <input
+                  type="radio"
+                  name="paymentMethod"
+                  value="stripe"
+                  checked={selectedMethod === "stripe"}
+                  onChange={() => setSelectedMethod("stripe")}
+                  className="w-5 h-5 accent-[#EFFC76] cursor-pointer"
+                />
+              </label>
+
+              {/* Stripe Payment Details */}
+              {selectedMethod === "stripe" && (
+                <div className="mt-4">
+                  <div className="bg-gradient-to-b from-[#202020] to-[#101010] border border-[#4a4a4a] rounded-lg p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h4 className="text-white font-semibold text-lg">
+                          Subscription Amount
+                        </h4>
+                        <p className="text-white/60 text-sm mt-1">
+                          One-time certification fee
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-3xl font-bold text-[#EFFC76]">
+                          ${(SUBSCRIPTION_AMOUNT / 100).toFixed(2)}
+                        </p>
+                        <p className="text-white/40 text-xs mt-1">USD</p>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setShowStripeModal(true)}
+                      className="w-full py-4 bg-gradient-to-b from-[#EFFC76] to-[#d4e05c] text-black font-semibold rounded-lg hover:opacity-90 transition-opacity flex items-center justify-center gap-3"
+                    >
+                      <Image
+                        src="/images/stripe-logo.svg"
+                        alt="Stripe"
+                        width={50}
+                        height={20}
+                      />
+                      <span>Pay with Stripe</span>
+                    </button>
+
+                    <div className="flex items-center gap-2 mt-4 justify-center text-xs text-white/40">
+                      <Image
+                        src="/images/lock.png"
+                        alt="secure"
+                        width={12}
+                        height={12}
+                      />
+                      <span>Secure payment powered by Stripe</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Stripe Payment Modal */}
+              <StripePaymentModal
+                isOpen={showStripeModal}
+                onClose={() => setShowStripeModal(false)}
+                onSuccess={() => {
+                  setShowStripeModal(false);
+                  setCompletedSteps(prev => new Set(prev).add("payment"));
+                  toast.success("Payment successful!");
+                }}
+                amount={SUBSCRIPTION_AMOUNT}
+                currency="USD"
+              />
             </div>
           )}
         </div>

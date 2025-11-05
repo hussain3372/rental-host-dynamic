@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import React, { useEffect, useState } from "react";
+import { profile } from "@/app/api/Host/profile"; // Import your profile API
 
 interface NavbarProps {
   isCollapsed: boolean;
@@ -17,27 +18,56 @@ export function Navbar({ isCollapsed }: NavbarProps) {
   const [greeting, setGreeting] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
-  // ✅ Load user info from localStorage safely
-  useEffect(() => {
-    const loadUserData = () => {
+  // ✅ Fetch profile data from API
+  const fetchProfileData = async () => {
+    try {
+      setLoading(true);
+      const res = await profile.fetchProfileData();
+      
+      if (res.data && res.data.data) {
+        const data = res.data.data;
+        
+        // Set state from API response
+        setFirstName(data.firstName || "");
+        setLastName(data.lastName || "");
+        setEmail(data.email || "");
+        setProfileImage(data.profilePicture || "");
+        
+        // Also update localStorage for consistency
+        try {
+          localStorage.setItem("hostFirstname", data.firstName || "");
+          localStorage.setItem("hostLastname", data.lastName || "");
+          localStorage.setItem("hostEmail", data.email || "");
+          localStorage.setItem("hostProfile", data.profilePicture || "");
+        } catch (localStorageError) {
+          console.warn("LocalStorage not available:", localStorageError);
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching profile in navbar:", error);
+      
+      // Fallback to localStorage if API fails
       try {
-        const userFirstname = localStorage.getItem("firstname") || "User";
-        const userLastname = localStorage.getItem("lastname") || "";
-        const userEmail = localStorage.getItem("email") || "";
-        const userProfileImage = localStorage.getItem("profile") || "";
+        const userFirstname = localStorage.getItem("hostFirstname") || "User";
+        const userLastname = localStorage.getItem("hostLastname") || "";
+        const userEmail = localStorage.getItem("hostEmail") || "";
+        const userProfileImage = localStorage.getItem("hostProfile") || "";
 
         setFirstName(userFirstname);
         setLastName(userLastname);
         setEmail(userEmail);
         setProfileImage(userProfileImage);
-        setLoading(false);
-      } catch (error) {
-        console.error("Error loading user data:", error);
-        setLoading(false);
+      } catch (fallbackError) {
+        console.error("Fallback also failed:", fallbackError);
       }
-    };
+    } finally {
+      setLoading(false);
+    }
+  };
 
-    loadUserData();
+  // ✅ Load user info from API on component mount
+  useEffect(() => {
+    fetchProfileData();
   }, []);
 
   // ✅ Set greeting + date
@@ -58,6 +88,37 @@ export function Navbar({ isCollapsed }: NavbarProps) {
     else setGreeting("Good Night");
   }, []);
 
+  // ✅ Listen for profile updates (optional - for real-time updates)
+  useEffect(() => {
+    const handleStorageChange = () => {
+      // If you want the navbar to update when profile changes elsewhere
+      try {
+        const userFirstname = localStorage.getItem("hostFirstname") || "User";
+        const userLastname = localStorage.getItem("hostLastname") || "";
+        const userEmail = localStorage.getItem("hostEmail") || "";
+        const userProfileImage = localStorage.getItem("hostProfile") || "";
+
+        setFirstName(userFirstname);
+        setLastName(userLastname);
+        setEmail(userEmail);
+        setProfileImage(userProfileImage);
+      } catch (error) {
+        console.warn("Error reading from localStorage:", error);
+      }
+    };
+
+    // Listen for custom event or storage changes
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Custom event for profile updates within the same tab
+    window.addEventListener('profileUpdated', handleStorageChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('profileUpdated', handleStorageChange);
+    };
+  }, []);
+
   // ✅ Show loading state
   if (loading) {
     return (
@@ -75,7 +136,7 @@ export function Navbar({ isCollapsed }: NavbarProps) {
             </p>
           </div>
           <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-full bg-[#2A2A2C]" />
+            <div className="h-10 w-10 rounded-full bg-[#2A2A2C] animate-pulse" />
             <div>
               <p className="font-medium text-[14px] leading-[18px]">User</p>
               <p className="text-[14px] leading-[18px] font-normal text-white/60">
@@ -110,7 +171,7 @@ export function Navbar({ isCollapsed }: NavbarProps) {
 
           <Link
             href="/dashboard/profile"
-            className="flex items-center gap-3 cursor-pointer"
+            className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
           >
             <div className="h-10 w-10 rounded-full bg-[#2A2A2C] flex items-center justify-center overflow-hidden">
               {profileImage ? (
@@ -119,7 +180,12 @@ export function Navbar({ isCollapsed }: NavbarProps) {
                   alt="Profile"
                   width={40}
                   height={40}
-                  className="rounded-full h-full"
+                  className="rounded-full object-cover w-full h-full"
+                  onError={(e) => {
+                    // Fallback if image fails to load
+                    const target = e.target as HTMLImageElement;
+                    target.style.display = 'none';
+                  }}
                 />
               ) : (
                 <svg
@@ -144,7 +210,7 @@ export function Navbar({ isCollapsed }: NavbarProps) {
                 {firstName} {lastName}
               </p>
               <p className="text-[14px] leading-[18px] font-normal text-white/60">
-                {email || "example@gmail.com"}
+                {email || "No email provided"}
               </p>
             </div>
           </Link>
@@ -157,14 +223,18 @@ export function Navbar({ isCollapsed }: NavbarProps) {
           <div></div>
           <Link href="/dashboard/profile">
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-[#2A2A2C] flex items-center overflow-hidden">
+              <div className="h-8 w-8 justify-center rounded-full bg-[#2A2A2C] flex items-center overflow-hidden">
                 {profileImage ? (
                   <Image
                     src={profileImage}
                     alt="profile pic"
                     height={32}
                     width={32}
-                    className="rounded-full object-cover h-full"
+                    className="rounded-full object-cover w-full h-full"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                    }}
                   />
                 ) : (
                   <svg
@@ -188,7 +258,7 @@ export function Navbar({ isCollapsed }: NavbarProps) {
                   {firstName} {lastName}
                 </p>
                 <p className="text-[12px] font-normal text-white/60">
-                  {email || "example@gmail.com"}
+                  {email || "No email provided"}
                 </p>
               </div>
             </div>

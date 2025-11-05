@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { Table } from "@/app/shared/tables/Tables";
 import { Modal } from "@/app/shared/Modal";
-import FilterDrawer from "../../../shared/tables/Filter";
+import FilterDrawer from "@/app/shared/tables/Filter";
 import { supportApi } from "@/app/api/super-admin/support";
 import { Ticket as TicketType } from "@/app/api/Admin/support/types";
 

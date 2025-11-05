@@ -3,7 +3,12 @@
 import Image from "next/image";
 import React from "react";
 import toast from "react-hot-toast";
-import { Certification, DocumentItem, ComplianceItem, ApplicationWithExtras } from "@/app/api/Admin/certificate/types";
+import {
+  Certification,
+  DocumentItem,
+  ComplianceItem,
+  ApplicationWithExtras,
+} from "@/app/api/Admin/certificate/types";
 
 interface ChecklistProps {
   certificate: Certification & { application?: ApplicationWithExtras };

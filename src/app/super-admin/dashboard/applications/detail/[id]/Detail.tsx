@@ -27,21 +27,20 @@ export default function ApplicationDetail() {
   const { id } = useParams();
   const thumbnailsContainerRef = useRef<HTMLDivElement>(null);
   const [, setThumbnailsHeight] = useState(0);
-  const [notes, ] = useState<string[]>([]);
+  const [notes] = useState<string[]>([]);
   const [application, setApplication] = useState<Application | null>(null);
   const [propertyTypeName, setPropertyTypeName] = useState<string>("N/A");
   const [isLoading, setIsLoading] = useState(true);
   const [currentStep, setCurrentStep] = useState(0);
-  
+
   // Admin Drawer states
   const [isAdminDrawerOpen, setIsAdminDrawerOpen] = useState(false);
   const [, setOpenConfirm] = useState(false);
 
   const openDrawer = () => {
     setIsAdminDrawerOpen(true);
-  }
+  };
 
- 
   useEffect(() => {
     const fetchApplicationDetail = async () => {
       if (!id) return;
@@ -100,8 +99,6 @@ export default function ApplicationDetail() {
 
     fetchApplicationDetail();
   }, [id]);
-
- 
 
   useEffect(() => {
     const updateHeight = () => {
@@ -179,7 +176,7 @@ export default function ApplicationDetail() {
     {
       id: 1,
       img: "/images/apartment.svg",
-      val: propertyTypeName, 
+      val: propertyTypeName,
       title: "Property Type",
     },
     {
@@ -205,7 +202,7 @@ export default function ApplicationDetail() {
   return (
     <div className="text-white relative">
       {/* Confirmation Modal */}
-      
+
       {/* Admin Drawer Overlay */}
       <div
         className={`fixed inset-0 z-[2000] bg-black/40 transition-opacity duration-300 ${
@@ -220,11 +217,11 @@ export default function ApplicationDetail() {
           isAdminDrawerOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <AdminDrawer 
-          onClose={() => { 
-            setIsAdminDrawerOpen(false); 
-            setOpenConfirm(true); 
-          }} 
+        <AdminDrawer
+          onClose={() => {
+            setIsAdminDrawerOpen(false);
+            setOpenConfirm(true);
+          }}
           applicationId={application.id}
         />
       </div>

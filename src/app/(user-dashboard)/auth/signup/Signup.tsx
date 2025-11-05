@@ -91,7 +91,7 @@ if (status === "authenticated" && session && (session as unknown as GoogleSessio
               });
             }
 
-            toast.success("Successfully logged in with Google!");
+            // toast.success("Successfully logged in with Google!");
             router.push("/dashboard");
           } else {
             toast.error(
@@ -157,7 +157,7 @@ if (status === "authenticated" && session && (session as unknown as GoogleSessio
       setGoogleLoading(true);
       // Redirect to Google OAuth - will come back to this page
       await signIn("google", {
-        callbackUrl: "/auth/signup",
+        callbackUrl: "/dashboard",
         redirect: true,
       });
     } catch (error) {

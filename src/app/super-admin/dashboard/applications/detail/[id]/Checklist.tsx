@@ -1,5 +1,5 @@
-import Image from 'next/image'
-import React, { useState } from 'react'
+import Image from "next/image";
+import React, { useState } from "react";
 import type { Application } from "@/app/api/super-admin/application/types";
 import { application as applicationApi } from "@/app/api/super-admin/application";
 import { toast } from "react-hot-toast";
@@ -8,7 +8,6 @@ interface ChecklistProps {
   notes: string[];
   application: Application;
 }
-
 
 interface DocumentItem {
   id: string;
@@ -19,18 +18,21 @@ interface DocumentItem {
 }
 
 export default function Checklist({ notes, application }: ChecklistProps) {
-const [isApproving, setIsApproving] = useState(false);
-const [isRejecting, setIsRejecting] = useState(false);
+  const [isApproving, setIsApproving] = useState(false);
+  const [isRejecting, setIsRejecting] = useState(false);
   // Convert complianceChecklist object to array format for display
-  const checklist = application.complianceChecklist ? 
-    Object.entries(application.complianceChecklist).map(([name, completed]) => ({
-      id: name, // Use name as ID since we don't have proper IDs
-      name: name,
-      completed: completed
-    })) : [];
+  const checklist = application.complianceChecklist
+    ? Object.entries(application.complianceChecklist).map(
+        ([name, completed]) => ({
+          id: name, // Use name as ID since we don't have proper IDs
+          name: name,
+          completed: completed,
+        })
+      )
+    : [];
 
   const documents: DocumentItem[] = application.documents || [];
-  
+
   // Verification data similar to the first component
 
   const capitalizeStatus = (status: string): string => {
@@ -39,7 +41,6 @@ const [isRejecting, setIsRejecting] = useState(false);
       status.slice(1).toLowerCase().replace(/_/g, " ")
     );
   };
-
 
   const verification = [
     {
@@ -65,9 +66,7 @@ const [isRejecting, setIsRejecting] = useState(false);
     },
     {
       id: "3",
-      value: application.status
-        ? capitalizeStatus(application.status)
-        : "N/A",
+      value: application.status ? capitalizeStatus(application.status) : "N/A",
       title: "Status",
     },
     {
@@ -82,51 +81,58 @@ const [isRejecting, setIsRejecting] = useState(false);
     },
   ];
 
-  
-  const handleDownload = (url: string, documentType: string) => {
+  const handleDownload = async (url: string, documentType: string) => {
     try {
-      // Extract filename from URL or fallback to document type
+      // Fetch the file as a blob to ensure forced download
+      const response = await fetch(url, { mode: "cors" });
+      if (!response.ok) throw new Error("Failed to fetch file");
+
+      const blob = await response.blob();
+
+      // Derive filename from URL or fallback
       const filenameFromUrl = url.split("/").pop()?.split("?")[0];
       const extension =
-        filenameFromUrl?.split(".").pop() || "pdf"; // default fallback
+        filenameFromUrl?.split(".").pop() || blob.type.split("/")[1] || "pdf";
       const filename =
         filenameFromUrl ||
         `${documentType.toLowerCase().replace(/_/g, "-")}.${extension}`;
 
-      // Create a temporary <a> tag for download
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename; // this forces download instead of opening
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.style.display = "none";
+      // Create object URL for the blob
+      const blobUrl = window.URL.createObjectURL(blob);
 
+      // Create a hidden link element
+      const link = document.createElement("a");
+      link.href = blobUrl;
+      link.download = filename; // forces browser download
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
 
-      toast.success(`✅ "${filename}" download started!`);
+      // Cleanup
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+
+      toast.success(`"${filename}" download started!`);
     } catch (error) {
-      console.error("❌ Download failed:", error);
+      console.error("Download failed:", error);
       toast.error("Failed to download file.");
     }
   };
 
   const getDocumentTypeDisplayName = (documentType: string): string => {
     const typeMap: Record<string, string> = {
-      'OTHER': 'Other',
-      'ID': 'Identification',
-      'PROPERTY_DEED': 'Property Deed',
-      'INSURANCE': 'Insurance',
-      'LICENSE': 'License',
-      'PERMIT': 'Permit',
-      'ID_DOCUMENT': "Government-issued ID",
+      OTHER: "Other",
+      ID: "Identification",
+      PROPERTY_DEED: "Property Deed",
+      INSURANCE: "Insurance",
+      LICENSE: "License",
+      PERMIT: "Permit",
+      ID_DOCUMENT: "Government-issued ID",
       // "PROPERTY_DEED": "Property Deed",
-      "SAFETY_PERMIT": "Safety Permit",
-      "INSURANCE_CERTIFICATE": "Insurance Certificate",
+      SAFETY_PERMIT: "Safety Permit",
+      INSURANCE_CERTIFICATE: "Insurance Certificate",
       // "OTHER": "Additional Document",
     };
-    
+
     return typeMap[documentType] || documentType.replace(/_/g, " ");
   };
 
@@ -140,19 +146,24 @@ const [isRejecting, setIsRejecting] = useState(false);
     const url = doc.url;
 
     // Check if it's a PDF
-    if (fileName.endsWith('.pdf') || url.includes('.pdf')) {
+    if (fileName.endsWith(".pdf") || url.includes(".pdf")) {
       return (
         <iframe
           src={url}
-          title={`PDF Preview - ${getDocumentTypeDisplayName(doc.documentType)}`}
+          title={`PDF Preview - ${getDocumentTypeDisplayName(
+            doc.documentType
+          )}`}
           className="w-full h-full rounded-lg"
-          style={{ border: 'none' }}
+          style={{ border: "none" }}
         />
       );
     }
 
     // Check if it's an image
-    if (fileName.match(/\.(jpg|jpeg|png|gif|webp)$/) || url.match(/\.(jpg|jpeg|png|gif|webp)$/)) {
+    if (
+      fileName.match(/\.(jpg|jpeg|png|gif|webp)$/) ||
+      url.match(/\.(jpg|jpeg|png|gif|webp)$/)
+    ) {
       return (
         <Image
           src={url}
@@ -163,7 +174,7 @@ const [isRejecting, setIsRejecting] = useState(false);
           onError={(e) => {
             // Fallback to document icon if image fails to load
             const target = e.currentTarget as HTMLImageElement;
-            target.style.display = 'none';
+            target.style.display = "none";
           }}
         />
       );
@@ -180,54 +191,61 @@ const [isRejecting, setIsRejecting] = useState(false);
           className="opacity-60"
         />
         <p className="text-white text-xs mt-2 text-center px-2 break-all">
-          {doc.fileName.split('/').pop() || 'Document'}
+          {doc.fileName.split("/").pop() || "Document"}
         </p>
       </div>
     );
   };
 
- const handleApproveReject = async (action: 'approve' | 'reject') => {
-  if (!application?.id) return;
+  const handleApproveReject = async (action: "approve" | "reject") => {
+    if (!application?.id) return;
 
-  try {
-    if (action === 'approve') {
-      setIsApproving(true);
-    } else {
-      setIsRejecting(true);
-    }
-    
-    const response = await applicationApi.approveORrejectApplication(application.id, action);
-    
-    if (response.success) {
-      window.location.reload();
-    } else {
-      console.error(`Failed to ${action} application:`, response.message);
-      toast.error(response.message || `Failed to ${action} application`);
-    }
-  } catch (error) {
-  console.error(`Error ${action}ing application:`, error);
-  
-  // Extract error message from the error response
-  const errorMessage = error instanceof Error ? error.message : 
-                      `Failed to ${action} application`;
-  
-  toast.error(errorMessage);
-} finally {
-    if (action === 'approve') {
-      setIsApproving(false);
-    } else {
-      setIsRejecting(false);
-    }
-  }
-};
+    try {
+      if (action === "approve") {
+        setIsApproving(true);
+      } else {
+        setIsRejecting(true);
+      }
 
-  const showActionButtons = application.status === 'SUBMITTED';
+      const response = await applicationApi.approveORrejectApplication(
+        application.id,
+        action
+      );
+
+      if (response.success) {
+        window.location.reload();
+      } else {
+        console.error(`Failed to ${action} application:`, response.message);
+        toast.error(response.message || `Failed to ${action} application`);
+      }
+    } catch (error) {
+      console.error(`Error ${action}ing application:`, error);
+
+      // Extract error message from the error response
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : `Failed to ${action} application`;
+
+      toast.error(errorMessage);
+    } finally {
+      if (action === "approve") {
+        setIsApproving(false);
+      } else {
+        setIsRejecting(false);
+      }
+    }
+  };
+
+  const showActionButtons = application.status === "SUBMITTED";
 
   return (
-    <div className='pb-5 pt-[60px]'>
+    <div className="pb-5 pt-[60px]">
       {notes.length > 0 && (
         <div className="mb-8">
-          <h3 className='font-semibold text-[16px] leading-[20px] tracking-normal pb-3'>Your Notes</h3>
+          <h3 className="font-semibold text-[16px] leading-[20px] tracking-normal pb-3">
+            Your Notes
+          </h3>
           <div className="space-y-3">
             {notes.map((note, index) => (
               <div
@@ -245,14 +263,16 @@ const [isRejecting, setIsRejecting] = useState(false);
         </div>
       )}
 
-      <h3 className='font-semibold text-[16px] leading-[20px] tracking-normal pb-5'>Compliance Checklist</h3>
-      <div className='pt-3 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 w-full'>
+      <h3 className="font-semibold text-[16px] leading-[20px] tracking-normal pb-5">
+        Compliance Checklist
+      </h3>
+      <div className="pt-3 grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6 w-full">
         {checklist.map((item) => (
-          <div 
-            key={item.id} 
+          <div
+            key={item.id}
             className={`py-[15px] px-[12px] text-white bg-gradient-to-b w-full flex items-center from-[#202020] to-[#101010] border border-[#FFFFFF1F] rounded-lg `}
           >
-            <p className='font-regular text-[14px] leading-[18px] tracking-normal'>
+            <p className="font-regular text-[14px] leading-[18px] tracking-normal">
               {item.name}
             </p>
           </div>
@@ -328,20 +348,20 @@ const [isRejecting, setIsRejecting] = useState(false);
 
       {showActionButtons && (
         <div className="pt-15 flex w-full justify-end gap-3">
-          <button 
-  onClick={() => handleApproveReject('reject')}
-  disabled={isRejecting || isApproving}
-  className='hollow-btn font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed'
->
-  {isRejecting ? 'Rejecting...' : 'Reject'}
-</button>
-<button 
-  onClick={() => handleApproveReject('approve')}
-  disabled={isApproving || isRejecting}
-  className='yellow-btn text-[#101010] font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed'
->
-  {isApproving ? 'Approving...' : 'Approve'}
-</button>
+          <button
+            onClick={() => handleApproveReject("reject")}
+            disabled={isRejecting || isApproving}
+            className="hollow-btn font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isRejecting ? "Rejecting..." : "Reject"}
+          </button>
+          <button
+            onClick={() => handleApproveReject("approve")}
+            disabled={isApproving || isRejecting}
+            className="yellow-btn text-[#101010] font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isApproving ? "Approving..." : "Approve"}
+          </button>
         </div>
       )}
     </div>

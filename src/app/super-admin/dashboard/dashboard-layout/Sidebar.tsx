@@ -40,11 +40,48 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
 
   const router = useRouter()
 
-  const handleLogout = ()=>{
-    Cookies.remove('superAdminAccessToken')
-    setIsModalOpen(false)
-    router.push('/super-admin/auth/login')
-  }
+  const handleLogout = async () => {
+      
+
+      // Clear client-side storage
+      localStorage.clear();
+      sessionStorage.clear();
+
+      // Function to delete a specific cookie
+      const deleteCookie = (name: string) => {
+        // Standard deletion
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        // Try with SameSite
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax;`;
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict;`;
+        // Try with domain
+        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=localhost;`;
+      };
+
+      // Delete specific application cookies
+      deleteCookie('superAdminAccessToken');
+      deleteCookie('refreshToken');
+      deleteCookie('next-auth.session-token');
+      deleteCookie('next-auth.csrf-token');
+      deleteCookie('next-auth.callback-url');
+
+      // Create a logout URL that clears Google session and redirects back
+      const logoutUrl = 'https://accounts.google.com/Logout';
+      const returnUrl = `${window.location.origin}/super-admin/auth/login`;
+      
+      // Open Google logout in a hidden iframe to clear Google cookies
+      const iframe = document.createElement('iframe');
+      iframe.style.display = 'none';
+      iframe.src = logoutUrl;
+      document.body.appendChild(iframe);
+
+      // Wait a moment for Google logout, then redirect
+      setTimeout(() => {
+        document.body.removeChild(iframe);
+        window.location.href = returnUrl;
+      }, 1000);
+      router.push('/super-admin/super-admin/auth/login')
+    };
 
 
   const { notificationCount } = useNotificationContext();

@@ -296,6 +296,10 @@ export default function Finances() {
     setSelectedRows(newSelected);
   };
 
+  const tableControls = {
+    hover : true
+  }
+
   const dropdownItems = [
     {
       label: "View Receipt",
@@ -332,6 +336,7 @@ export default function Finances() {
         <Table
           data={displayData}
           title="Financial Transactions"
+          control={tableControls}
           setHeight={true}
           showDeleteButton={true}
           showPagination={true}

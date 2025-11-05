@@ -214,6 +214,10 @@ export default function Detail() {
     return `${year}-${month}-${day}`;
   };
 
+  const tableControls = {
+    hover:true
+  }
+
   // Fetch user data
   useEffect(() => {
     const fetchData = async () => {
@@ -953,6 +957,7 @@ export default function Detail() {
         <Table
           data={displayPropertyData}
           title="Listed Properties"
+          control={tableControls}
           showDeleteButton={true}
           onDeleteSingle={(row, index) => {
             const originalRow = allPropertyData[index];
@@ -989,6 +994,7 @@ export default function Detail() {
           data={displayBillingData}
           title="Billing History"
           showDeleteButton={false}
+          control={tableControls}
           onDeleteSingle={(row, index) => {
             const originalRow = allBillingData[index];
             openDeleteSingleModal(row, originalRow.id, "billing");

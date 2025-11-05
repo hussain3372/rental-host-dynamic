@@ -185,7 +185,7 @@ export default function Applications() {
         return;
       }
 
-      setIsLoading(true);
+      // setIsLoading(true);
 
       const queryParams: ApiParams = {
         page: currentPage,
@@ -265,12 +265,14 @@ export default function Applications() {
   }, [fetchApplications]);
 
   const displayData = useMemo(() => {
-    return allCertificationData.map(({ id, ...rest }) => {
-      console.log("application  ID:", id);
-
-      return rest;
-    });
-  }, [allCertificationData]);
+  return allCertificationData.map(({ id, ...rest }) => {
+    return {
+      ...rest,
+      // Include id as a hidden field or data attribute
+      id: id, // This will be available in the row object
+    };
+  });
+}, [allCertificationData]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -392,15 +394,16 @@ export default function Applications() {
             data={displayData}
             title="Applications"
             showDeleteButton={false}
+             control={{
+    hover: true,
+  }}
             showPagination={true}
             clickable={true}
-            onRowClick={(row: Record<string, string>, index: number) => {
-              const globalIndex = (currentPage - 1) * itemsPerPage + index;
-              const originalRow = allCertificationData[globalIndex];
-              if (originalRow) {
-                window.location.href = `/dashboard/application/detail/${originalRow.id}`;
-              }
-            }}
+           onRowClick={(row: Record<string, string>) => {
+  if (row.id) {
+    window.location.href = `/dashboard/application/detail/${row.id}`;
+  }
+}}
             dropdownItems={dropdownItems}
             searchTerm={searchTerm}
             onSearchChange={handleSearch}
@@ -410,6 +413,7 @@ export default function Applications() {
             totalItems={totalItems}
             showFilter={true}
             onFilterToggle={setIsFilterOpen}
+            
             disableClientSidePagination={true}
           />
         </form>

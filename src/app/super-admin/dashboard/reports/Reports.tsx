@@ -49,7 +49,7 @@ export default function Reports() {
     expired: 0,
     revoked: 0,
   });
-  const itemsPerPage = 6;
+  const itemsPerPage = 10;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -463,28 +463,10 @@ export default function Reports() {
     ]
   );
 
-  const tableControl = useMemo(
-    () => ({
+  const tableControl = {
       hover: true,
-      striped: false,
-      bordered: false,
-      shadow: false,
-      compact: false,
-      headerBgColor: "#252628",
-      headerTextColor: "white",
-      rowBgColor: "black",
-      rowTextColor: "#e5e7eb",
-      hoverBgColor: "black",
-      hoverTextColor: "#ffffff",
-      fontSize: 13,
-      textAlign: "left" as const,
-      rowBorder: false,
-      headerBorder: true,
-      borderColor: "#374151",
-      highlightRowOnHover: true,
-    }),
-    []
-  );
+      
+    }
 
   return (
     <>

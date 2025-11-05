@@ -55,6 +55,10 @@ export default function Certificates() {
   const [totalItems, setTotalItems] = useState(0);
   const [totalPages, setTotalPages] = useState(0);
 
+  const tableControls = {
+    hover : true
+  }
+
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Fetch certificates from API with all filters
   const fetchCertificates = async () => {
@@ -459,6 +463,7 @@ export default function Certificates() {
       <div className="flex flex-col justify-between">
         <Table
           data={displayData}
+          control={tableControls}
           title="Certificates"
           showDeleteButton={true}
           onDeleteSingle={(row, index) => {

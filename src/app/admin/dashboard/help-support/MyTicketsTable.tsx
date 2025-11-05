@@ -2,7 +2,7 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { Table } from "@/app/shared/tables/Tables";
 import { Modal } from "@/app/shared/Modal";
-import FilterDrawer from "../../../shared/tables/Filter";
+import FilterDrawer from "@/app/shared/tables/Filter";
 import { supportApi } from "@/app/api/Admin/support";
 import { Ticket } from "@/app/api/Admin/support/types";
 
@@ -10,7 +10,7 @@ interface CertificationData {
   id: number;
   "Ticket Id": string;
   "Issue Type": string;
-  Subject: string;
+  Subject: string;  
   "Created On": string;
   Status: string;
   "Host Name"?: string;
@@ -332,22 +332,6 @@ export default function MyTicketsTable({
   // Table control
   const tableControl = {
     hover: true,
-    striped: false,
-    bordered: false,
-    shadow: false,
-    compact: false,
-    headerBgColor: "#252628",
-    headerTextColor: "white",
-    rowBgColor: "black",
-    rowTextColor: "#e5e7eb",
-    hoverBgColor: "black",
-    hoverTextColor: "#ffffff",
-    fontSize: 13,
-    textAlign: "left" as const,
-    rowBorder: false,
-    headerBorder: true,
-    borderColor: "#374151",
-    highlightRowOnHover: true,
   };
 
   // Reset pagination when filters change
