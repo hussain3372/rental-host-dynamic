@@ -67,8 +67,8 @@ export const setting = {
     status?: string;
     skip?: number;
     take?: number;
+    search?: string; // ✅ new param
   }): Promise<ApiResponse<PaymentResponse>> => {
-    // Build query string from parameters
     const queryParams = new URLSearchParams();
 
     if (params.status) queryParams.append("status", params.status);
@@ -76,9 +76,10 @@ export const setting = {
       queryParams.append("skip", params.skip.toString());
     if (params.take !== undefined)
       queryParams.append("take", params.take.toString());
+    if (params.search) queryParams.append("search", params.search.trim()); // ✅ include search term
 
     const queryString = queryParams.toString();
-    const url = `/payments/my-payments${queryString ? `?${queryString}` : ""}`;
+    const url = `/payments/admin/all${queryString ? `?${queryString}` : ""}`;
 
     console.log("Making API call to:", url);
 

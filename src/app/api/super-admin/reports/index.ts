@@ -9,7 +9,7 @@ import {
   DeleteReport
 } from "./types";
 
-const token = Cookies.get("adminAccessToken");
+const token = Cookies.get("superAdminAccessToken");
 
 export const reports = {
   getReports: async (params?: {

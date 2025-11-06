@@ -29,7 +29,7 @@ export const payment = {
       queryParams.append("take", params.take.toString());
 
     const queryString = queryParams.toString();
-    const url = `/payments/my-payments${queryString ? `?${queryString}` : ""}`;
+    const url = `/payments/admin/all${queryString ? `?${queryString}` : ""}`;
 
     console.log("Making API call to:", url);
 

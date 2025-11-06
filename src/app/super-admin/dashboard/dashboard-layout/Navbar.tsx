@@ -245,7 +245,6 @@ export function Navbar({ isCollapsed }: NavbarProps) {
                   className="rounded-full object-cover w-full h-full"
                   onError={() => {
                     setProfileImage(null);
-                    toast.error("Failed to load profile image");
                   }}
                 />
               ) : (
@@ -294,7 +293,6 @@ export function Navbar({ isCollapsed }: NavbarProps) {
                     className="rounded-full object-cover w-full h-full"
                     onError={() => {
                       setProfileImage(null);
-                      toast.error("Failed to load profile image");
                     }}
                   />
                 ) : (

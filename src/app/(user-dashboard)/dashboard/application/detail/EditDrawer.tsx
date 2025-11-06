@@ -27,11 +27,11 @@ interface FileData {
   file: File;
   documentType: "ID_DOCUMENT" | "SAFETY_PERMIT" | "INSURANCE_CERTIFICATE" | "PROPERTY_DEED";
   originalName: string;
-  documentId?: string; // Add document ID for updates
+  documentId?: string;
 }
 
 interface UploadedDocument {
-  id?: string; // Add ID field
+  id?: string;
   documentType: string;
   fileName: string;
   originalName: string;
@@ -40,8 +40,17 @@ interface UploadedDocument {
   url?: string;
 }
 
+interface Payment {
+  id: string;
+  amount: number;
+  status: "PENDING" | "COMPLETED" | "FAILED";
+  createdAt: string;
+}
+
 interface ApplicationData {
   id: string;
+  status: "DRAFT" | "SUBMITTED" | "APPROVED" | "REJECTED";
+  currentStep: string;
   propertyDetails?: {
     propertyName?: string;
     address?: string;
@@ -59,6 +68,7 @@ interface ApplicationData {
     [key: string]: boolean;
   };
   documents?: UploadedDocument[];
+  payments?: Payment[];
 }
 
 type HelpSupportDrawerProps = {
@@ -74,6 +84,7 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [checklistItems, setChecklistItems] = useState<ChecklistItem[]>([]);
   const [loadingChecklist, setLoadingChecklist] = useState(false);
+  const [applicationData, setApplicationData] = useState<ApplicationData | null>(null);
   const drawerRef = useRef<HTMLDivElement>(null);
 
   // Property Details State
@@ -94,7 +105,7 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
   // Payment State
   const [selectedMethod, setSelectedMethod] = useState("stripe");
   const [showStripeModal, setShowStripeModal] = useState(false);
-  const SUBSCRIPTION_AMOUNT = 9900; // $99.00
+  const SUBSCRIPTION_AMOUNT = 9900;
 
   // Track completed steps
   const [completedSteps, setCompletedSteps] = useState<Set<Tab>>(new Set());
@@ -115,6 +126,16 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
   const safetyPermitsRef = useRef<HTMLInputElement>(null);
   const insuranceRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Check if payment is completed
+  const isPaymentCompleted = applicationData?.payments?.some(
+    payment => payment.status === "COMPLETED"
+  ) || false;
+
+  // Filter tabs based on payment status
+  const availableTabs: Tab[] = isPaymentCompleted 
+    ? ["property", "compliances", "documents"] 
+    : ["property", "compliances", "documents", "payment"];
 
   const handleClose = useCallback(() => {
     setIsVisible(false);
@@ -184,6 +205,7 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
         
         if (response.success && response.data) {
           const appData = ((response.data as { application?: ApplicationData }).application ?? response.data) as ApplicationData;
+          setApplicationData(appData);
 
           if (appData.propertyDetails) {
             setPropertyName(appData.propertyDetails.propertyName || "");
@@ -214,6 +236,10 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
           }
           if (appData.documents && appData.documents.length > 0) {
             completed.add("documents");
+          }
+          // Add payment to completed steps if payment is completed
+          if (appData.payments?.some(payment => payment.status === "COMPLETED")) {
+            completed.add("payment");
           }
           setCompletedSteps(completed);
         }
@@ -279,6 +305,12 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Don't allow uploads if there are existing images
+    if (existingImages.length > 0) {
+      // toast.error("Images cannot be modified once uploaded");
+      return;
+    }
+
     const files = Array.from(e.target.files || []);
     if (files.length + uploadedImages.length + existingImages.length > 5) {
       toast.error("Maximum 5 images allowed");
@@ -286,7 +318,7 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
     }
 
     if (files.length + uploadedImages.length + existingImages.length < 3) {
-      toast.error("Upload atleast 3 images");
+      toast.error("Upload at least 3 images");
       return;
     }
 
@@ -305,14 +337,14 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
     // Check if there's an existing document of this type
     const existingDoc = existingDocuments.find(doc => doc.documentType === type);
     
+    // Don't allow uploads if there's an existing document
+    if (existingDoc) {
+      toast.error(`${documentTypeConfig[type].label} cannot be modified once uploaded`);
+      return;
+    }
+    
     // Remove any pending upload for this type
     const filteredDocuments = documents.filter(doc => doc.documentType !== type);
-    
-    // If replacing an existing document, remove it from existingDocuments immediately
-    if (existingDoc) {
-      const updatedExistingDocs = existingDocuments.filter(doc => doc.documentType !== type);
-      setExistingDocuments(updatedExistingDocs);
-    }
     
     const newDocument: FileData = {
       name: file.name,
@@ -320,8 +352,6 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
       file: file,
       documentType: type,
       originalName: file.name,
-      // Only include documentId if there's an existing document to replace
-      ...(existingDoc?.id ? { documentId: existingDoc.id } : {})
     };
 
     setDocuments([...filteredDocuments, newDocument]);
@@ -337,6 +367,13 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
     };
 
   const handleDocumentBoxClick = (type: FileData['documentType']) => {
+    // Don't allow clicks if there's an existing document
+    const existingDoc = existingDocuments.find(doc => doc.documentType === type);
+    if (existingDoc) {
+      toast.error(`${documentTypeConfig[type].label} cannot be modified once uploaded`);
+      return;
+    }
+
     const refs = {
       "ID_DOCUMENT": governmentIdRef,
       "PROPERTY_DEED": ownershipProofRef,
@@ -355,6 +392,11 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
   };
 
   const handleUpload = () => {
+    // Don't allow uploads if there are existing images
+    if (existingImages.length > 0) {
+      toast.error("Images cannot be modified once uploaded");
+      return;
+    }
     inputRef.current?.click();
   };
 
@@ -437,11 +479,6 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
         formData.append("files", fileData.file);
         formData.append("documentType", fileData.documentType);
         formData.append("originalNames", fileData.originalName);
-        
-        // Only append documentId if it exists (for updates)
-        if (fileData.documentId) {
-          formData.append("documentIds", fileData.documentId);
-        }
       });
 
       const response = await application.uploadDocuments(formData);
@@ -463,7 +500,7 @@ export default function TicketDrawer({ onClose, applicationId }: HelpSupportDraw
     }
   };
 
-const updateCurrentStep = async (): Promise<boolean> => {
+  const updateCurrentStep = async (): Promise<boolean> => {
     setIsUpdating(true);
     const toastId = toast.loading("Updating application...");
 
@@ -471,41 +508,33 @@ const updateCurrentStep = async (): Promise<boolean> => {
       const stored = localStorage.getItem("applicationData");
       const localApplicationData = stored ? JSON.parse(stored) : null;
       
-      if (!localApplicationData?.id) {
-        throw new Error("No application found. Please create an application first.");
-      }
+      // if (!localApplicationData?.id) {
+      //   throw new Error("No application found. Please create an application first.");
+      // }
 
       let imageUrls: string[] = [...existingImages];
       const finalDocuments = [...existingDocuments];
 
-      if (uploadedImages.length > 0) {
+      // Only upload new images if there are no existing ones
+      if (uploadedImages.length > 0 && existingImages.length === 0) {
         const newImageUrls = await uploadFiles(uploadedImages);
         imageUrls = [...imageUrls, ...newImageUrls];
       }
 
+      // Only upload new documents
       if (documents.length > 0) {
         const newDocs = await uploadDocuments(documents);
         
-        // Update existing documents - replace documents with same type or add new ones
+        // Add new documents to final documents
         newDocs.forEach(newDoc => {
-          const existingIndex = finalDocuments.findIndex(doc => doc.documentType === newDoc.documentType);
-          if (existingIndex !== -1) {
-            // Replace existing document - preserve the original document ID
-            finalDocuments[existingIndex] = {
-              ...newDoc,
-              id: finalDocuments[existingIndex].id // Keep the original ID to avoid duplicates
-            };
-          } else {
-            // Add new document
-            finalDocuments.push(newDoc);
-          }
+          finalDocuments.push(newDoc);
         });
         
         setExistingDocuments(finalDocuments);
         setDocuments([]);
       }
 
-      // Format documents for API - include id and url
+      // Format documents for API
       const formattedDocuments = finalDocuments.map(doc => ({
         id: doc.id,
         documentType: doc.documentType,
@@ -559,7 +588,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
         
         setCompletedSteps(prev => new Set(prev).add(activeTab));
         
-        if (uploadedImages.length > 0) {
+        if (uploadedImages.length > 0 && existingImages.length === 0) {
           setExistingImages(imageUrls);
           setUploadedImages([]);
           setPreviewImages([]);
@@ -627,11 +656,10 @@ const updateCurrentStep = async (): Promise<boolean> => {
         if (!success) return;
       }
 
-      const tabs: Tab[] = ["property", "compliances", "documents", "payment"];
-      const currentIndex = tabs.indexOf(activeTab);
+      const currentIndex = availableTabs.indexOf(activeTab);
       
-      if (currentIndex < tabs.length - 1) {
-        setActiveTab(tabs[currentIndex + 1]);
+      if (currentIndex < availableTabs.length - 1) {
+        setActiveTab(availableTabs[currentIndex + 1]);
       } else {
         const submitSuccess = await submitFinalApplication();
         if (submitSuccess) {
@@ -644,10 +672,9 @@ const updateCurrentStep = async (): Promise<boolean> => {
   };
 
   const handlePreviousStep = () => {
-    const tabs: Tab[] = ["property", "compliances", "documents", "payment"];
-    const currentIndex = tabs.indexOf(activeTab);
+    const currentIndex = availableTabs.indexOf(activeTab);
     if (currentIndex > 0) {
-      setActiveTab(tabs[currentIndex - 1]);
+      setActiveTab(availableTabs[currentIndex - 1]);
     }
   };
 
@@ -673,7 +700,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
     };
   }, [previewImages, documents]);
 
-  const isLastStep = activeTab === "payment";
+  const isLastStep = activeTab === (isPaymentCompleted ? "documents" : "payment");
 
   const documentTypeConfig = {
     "ID_DOCUMENT": {
@@ -728,7 +755,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
 
           {/* Tabs with completion status */}
           <div className="flex gap-2 mb-6">
-            {(["property", "compliances", "documents", "payment"] as Tab[]).map((tab) => (
+            {availableTabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -801,36 +828,45 @@ const updateCurrentStep = async (): Promise<boolean> => {
                 )}
               </div>
 
+              {/* Image Upload Section - Disabled if images exist */}
               <div
                 onClick={handleUpload}
-                className="border-2 cursor-pointer border-dashed border-[#EFFC76] rounded-[10px] p-6"
+                className={`border-2 rounded-[10px] p-6 ${
+                  existingImages.length > 0 
+                    ? "border-green-500 cursor-not-allowed bg-green-500/10" 
+                    : "border-dashed border-[#EFFC76] cursor-pointer"
+                }`}
               >
                 <div className="flex flex-col items-center justify-center text-center">
                   <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3">
                     <Image
-                      src="/images/upload.png"
-                      alt="Upload image"
+                      src={"/images/upload.png"}
+                      alt={existingImages.length > 0 ? "Upload complete" : "Upload image"}
                       height={40}
                       width={40} 
                     />
                   </div>
                   <p className="text-white text-[16px] font-regular mb-2">
-                    Upload Images
+                    {existingImages.length > 0 ? "Images Uploaded" : "Upload Images"}
                   </p>
                   <p className="text-[#FFFFFF99] text-[12px] font-regular mb-4 max-w-[346px] text-center">
-                    Please upload a clear and readable file in PDF, JPG, or PNG
-                    format. The maximum file size allowed is 10MB.
+                    {existingImages.length > 0 
+                      ? "Images have been successfully uploaded and cannot be modified."
+                      : "Please upload a clear and readable file in PDF, JPG, or PNG format. The maximum file size allowed is 10MB."
+                    }
                   </p>
-                  <label className="cursor-pointer">
-                    <input
-                      ref={inputRef}
-                      type="file"
-                      multiple
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleImageUpload}
-                    />
-                  </label>
+                  {existingImages.length === 0 && (
+                    <label className="cursor-pointer">
+                      <input
+                        ref={inputRef}
+                        type="file"
+                        multiple
+                        accept="image/*"
+                        className="hidden"
+                        onChange={handleImageUpload}
+                      />
+                    </label>
+                  )}
                 </div>
               </div>
 
@@ -957,12 +993,17 @@ const updateCurrentStep = async (): Promise<boolean> => {
                 const existingDoc = getExistingDocumentByType(type);
                 const hasDocument = currentDoc || existingDoc;
                 const previewUrl = currentDoc ? URL.createObjectURL(currentDoc.file) : existingDoc?.url;
+                const isLocked = !!existingDoc;
 
                 return (
                   <div
                     key={type}
-                    onClick={() => handleDocumentBoxClick(type as FileData['documentType'])}
-                    className="border-2 cursor-pointer border-dashed border-[#EFFC76] rounded-[10px] p-0 overflow-hidden"
+                    onClick={() => !isLocked && handleDocumentBoxClick(type as FileData['documentType'])}
+                    className={`border-2 rounded-[10px] p-0 overflow-hidden ${
+                      isLocked 
+                        ? "border-green-500 cursor-not-allowed bg-green-500/10" 
+                        : "border-dashed border-[#EFFC76] cursor-pointer"
+                    }`}
                     style={{ height: '200px' }}
                   >
                     <input
@@ -971,6 +1012,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
                       className="hidden"
                       onChange={handleDocumentInputChange(type as FileData['documentType'])}
                       accept=".pdf,.jpg,.jpeg,.png"
+                      disabled={isLocked}
                     />
                     
                     {hasDocument && previewUrl ? (
@@ -989,7 +1031,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
                             {currentDoc?.name || existingDoc?.originalName}
                           </p>
                           <p className="text-[#FFFFFF99] text-[9px] text-center mt-1">
-                            Click to change file
+                            {isLocked ? "Document cannot be modified" : "Click to change file"}
                           </p>
                         </div>
                       </div>
@@ -997,8 +1039,8 @@ const updateCurrentStep = async (): Promise<boolean> => {
                       <div className="flex flex-col items-center justify-center text-center h-full p-6">
                         <div className="w-12 h-12 rounded-full flex items-center justify-center mb-3">
                           <Image
-                            src="/images/upload.png"
-                            alt="Upload document"
+                            src={isLocked ? "/images/check-circle.svg" : "/images/upload.png"}
+                            alt={isLocked ? "Document uploaded" : "Upload document"}
                             height={40}
                             width={40}
                           />
@@ -1007,11 +1049,16 @@ const updateCurrentStep = async (): Promise<boolean> => {
                           {config.label}
                         </p>
                         <p className="text-[#FFFFFF99] text-[12px] font-regular mb-4 max-w-[346px] text-center">
-                          {config.description}
+                          {isLocked 
+                            ? "Document has been successfully uploaded and cannot be modified."
+                            : config.description
+                          }
                         </p>
-                        <span className="text-[#EFFC76] text-[11px] font-medium">
-                          Upload
-                        </span>
+                        {!isLocked && (
+                          <span className="text-[#EFFC76] text-[11px] font-medium">
+                            Upload
+                          </span>
+                        )}
                       </div>
                     )}
                   </div>
@@ -1020,7 +1067,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
             </div>
           )}
 
-          {activeTab === "payment" && (
+          {activeTab === "payment" && !isPaymentCompleted && (
             <div className="space-y-6">
               <h3 className="text-white text-[18px] font-medium">
                 Choose Your Payment Method
@@ -1118,6 +1165,15 @@ const updateCurrentStep = async (): Promise<boolean> => {
                 onSuccess={() => {
                   setShowStripeModal(false);
                   setCompletedSteps(prev => new Set(prev).add("payment"));
+                  // Refresh application data to get updated payment status
+                  if (applicationId) {
+                    application.getApplicationById(applicationId).then(response => {
+                      if (response.success && response.data) {
+                        const appData = ((response.data as { application?: ApplicationData }).application ?? response.data) as ApplicationData;
+                        setApplicationData(appData);
+                      }
+                    });
+                  }
                   toast.success("Payment successful!");
                 }}
                 amount={SUBSCRIPTION_AMOUNT}
@@ -1129,7 +1185,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
 
         {/* Navigation buttons */}
         <div className="mt-6 flex gap-3">
-          {activeTab !== "property" && (
+          {activeTab !== availableTabs[0] && (
             <button
               onClick={handlePreviousStep}
               disabled={isUpdating || isSubmitting}
@@ -1144,7 +1200,7 @@ const updateCurrentStep = async (): Promise<boolean> => {
             onClick={handleNextStep}
             disabled={isUpdating || isSubmitting}
             className={`flex-1 py-3 bg-[#EFFC76] text-[#121315] rounded-lg font-semibold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-              activeTab === "property" ? "flex-1" : "flex-1"
+              activeTab === availableTabs[0] ? "flex-1" : "flex-1"
             }`}
           >
             {isUpdating ? "Updating..." : isSubmitting ? "Submitting..." : isLastStep ? "Submit Application" : "Next Step"}

@@ -4,7 +4,6 @@ import Image from "next/image";
 import { LogoutModal } from "./LogoutModal";
 import { useRouter } from "next/navigation";
 import EditProfileDrawer from "./EditProfileDrawer";
-import Cookies from "js-cookie";
 import { profile } from "@/app/api/Host/profile";
 import toast from "react-hot-toast";
 
@@ -115,18 +114,18 @@ export default function ProfilePage() {
       deleteCookie('next-auth.callback-url');
 
       // Create a logout URL that clears Google session and redirects back
-      const logoutUrl = 'https://accounts.google.com/Logout';
+      // const logoutUrl = 'https://accounts.google.com/Logout';
       const returnUrl = `${window.location.origin}/auth/login`;
       
       // Open Google logout in a hidden iframe to clear Google cookies
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = logoutUrl;
-      document.body.appendChild(iframe);
+      // const iframe = document.createElement('iframe');
+      // iframe.style.display = 'none';
+      // iframe.src = logoutUrl;
+      // document.body.appendChild(iframe);
 
       // Wait a moment for Google logout, then redirect
       setTimeout(() => {
-        document.body.removeChild(iframe);
+        // document.body.removeChild(iframe);
         window.location.href = returnUrl;
       }, 1000);
       router.push('/auth/login')
@@ -256,7 +255,6 @@ export default function ProfilePage() {
                 className="object-cover"
                 onError={() => {
                   setProfileImage(null);
-                  toast.error("Failed to load profile image");
                 }}
               />
             ) : (

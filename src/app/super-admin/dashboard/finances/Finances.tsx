@@ -6,7 +6,7 @@ import FilterDrawer from "@/app/shared/tables/Filter";
 import ReceiptDrawer from "./ReceiptDrawer";
 import RefundDrawer from "./RefundDrawer";
 import { toast } from "react-hot-toast";
-import { setting } from "@/app/api/Host/setting";
+import { setting } from "@/app/api/super-admin/setting";
 
 export interface PaymentResponse {
   payments: {
@@ -106,12 +106,11 @@ export default function Finances() {
   const fetchBillingData = async (filters: ApiFilters) => {
     try {
       setLoading(true);
-      
-      console.log('API Call with filters:', filters);
+      console.log("API Call with filters:", filters);
 
-      const response = (await setting.getBillingWithParams(filters)) as { 
-        success: boolean; 
-        data: PaymentResponse 
+      const response = (await setting.getBillingWithParams(filters)) as {
+        success: boolean;
+        data: PaymentResponse;
       };
 
       if (response.success && response.data && response.data.payments) {
@@ -143,19 +142,19 @@ export default function Finances() {
   useEffect(() => {
     const filters: ApiFilters = {
       skip: (currentPage - 1) * itemsPerPage,
-      take: itemsPerPage
+      take: itemsPerPage,
     };
-    
+
     // Add status filter if it exists
-    if (financeFilters.status && typeof financeFilters.status === 'string') {
+    if (financeFilters.status && typeof financeFilters.status === "string") {
       filters.status = financeFilters.status;
     }
-    
+
     // Add search term if it exists and is valid (3+ characters)
     if (searchTerm && searchTerm.length >= 3) {
       filters.search = searchTerm;
     }
-    
+
     void fetchBillingData(filters);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, financeFilters.status]);
@@ -175,22 +174,22 @@ export default function Finances() {
     // Set timeout for debounced search
     searchTimeoutRef.current = setTimeout(() => {
       setCurrentPage(1); // Reset to first page when searching
-      
+
       const filters: ApiFilters = {
         skip: 0,
-        take: itemsPerPage
+        take: itemsPerPage,
       };
-      
+
       // Add status filter if it exists
-      if (financeFilters.status && typeof financeFilters.status === 'string') {
+      if (financeFilters.status && typeof financeFilters.status === "string") {
         filters.status = financeFilters.status;
       }
-      
+
       // Add search term if it exists
       if (searchTerm && searchTerm.length >= 3) {
         filters.search = searchTerm;
       }
-      
+
       void fetchBillingData(filters);
     }, 500); // 500ms debounce
 
@@ -217,23 +216,23 @@ export default function Finances() {
     try {
       // TODO: Replace with actual API call to delete transaction
       // await setting.deleteTransaction(id);
-      
+
       // For now, just refetch the data
       const filters: ApiFilters = {
         skip: (currentPage - 1) * itemsPerPage,
-        take: itemsPerPage
+        take: itemsPerPage,
       };
-      
-      if (financeFilters.status && typeof financeFilters.status === 'string') {
+
+      if (financeFilters.status && typeof financeFilters.status === "string") {
         filters.status = financeFilters.status;
       }
-      
+
       if (searchTerm && searchTerm.length >= 3) {
         filters.search = searchTerm;
       }
-      
+
       await fetchBillingData(filters);
-      
+
       setIsModalOpen(false);
       setSingleRowToDelete(null);
       toast.success("Transaction deleted successfully");
@@ -297,8 +296,8 @@ export default function Finances() {
   };
 
   const tableControls = {
-    hover : true
-  }
+    hover: true,
+  };
 
   const dropdownItems = [
     {

@@ -1,11 +1,12 @@
+
 "use client";
 import React, { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { certificateApi } from "@/app/api/Admin/certificate";
-import { Certification } from "@/app/api/Admin/certificate/types";
 import Detail from "./Detail";
 import Verification from "./Verification";
 import Checklist from "./CheckList";
+import { Certification } from "@/app/api/super-admin/certificates/types";
+import { certificateApi } from "@/app/api/super-admin/certificates";
 
 export default function CertificateDetailPage() {
   const { id } = useParams();

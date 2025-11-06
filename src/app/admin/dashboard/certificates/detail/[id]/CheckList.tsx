@@ -117,7 +117,7 @@ export default function Checklist({ certificate }: ChecklistProps) {
 
   const documents: DocumentItem[] = certificate.application?.documents || [];
 
-  // ✅ Download handler — optional, only triggers on button click
+  // Download handler — optional, only triggers on button click
   const handleDownload = async (url: string | undefined, documentType: string) => {
     if (!url) {
       toast.error("No file available to download.");
@@ -129,6 +129,7 @@ export default function Checklist({ certificate }: ChecklistProps) {
       if (!response.ok) throw new Error("Failed to fetch file");
 
       const blob = await response.blob();
+
       const filenameFromUrl = url.split("/").pop()?.split("?")[0];
       const extension =
         filenameFromUrl?.split(".").pop() || blob.type.split("/")[1] || "pdf";
@@ -138,6 +139,7 @@ export default function Checklist({ certificate }: ChecklistProps) {
 
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
+
       link.href = blobUrl;
       link.download = filename;
       document.body.appendChild(link);
@@ -145,9 +147,9 @@ export default function Checklist({ certificate }: ChecklistProps) {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
 
-      toast.success(`✅ "${filename}" download started!`);
+      toast.success(`"${filename}" download started!`);
     } catch (error) {
-      console.error("❌ Download failed:", error);
+      console.error("Download failed:", error);
       toast.error("Failed to download file.");
     }
   };

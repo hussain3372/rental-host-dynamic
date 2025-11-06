@@ -24,18 +24,7 @@ const AddPropertyDrawer: React.FC<DrawerProps> = ({
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [rules, setRules] = useState<Rule[]>([
-    {
-      id: "1",
-      name: "Fire safety equipment (extinguishers, alarms, exit plan)",
-      isNew: true,
-    },
-    { id: "2", name: "Waste disposal system compliance", isNew: true },
-    { id: "3", name: "Maintenance/inspection report", isNew: true },
-    {
-      id: "4",
-      name: "Utility bills (electricity/water matching address)",
-      isNew: true,
-    },
+   
   ]);
 
   const [isMounted, setIsMounted] = useState(false);

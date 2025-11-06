@@ -8,8 +8,8 @@ import HelpSupportDrawer from "./HelpSupportDrawer";
 import TicketDetailDrawer from "./TicketDetailDrawer";
 import { Modal } from "@/app/shared/Modal";
 import AddAnnouncementsDrawer from "./NewAnnouncement";
-import { supportApi } from "@/app/api/Admin/support";
-import { Ticket as ApiTicket } from "@/app/api/Admin/support/types"; 
+import { Ticket as ApiTicket } from "@/app/api/Admin/support/types";
+import { supportApi } from "@/app/api/super-admin/support";
 interface CertificationData {
   id: number;
   "Ticket Id": string;
@@ -48,39 +48,42 @@ export default function HelpSupport() {
     console.log("🟡 Fetching ticket details for:", ticket["Ticket Id"]);
     setLoadingTicket(true);
     setIsDetailDrawerOpen(true);
-    
+
     try {
       const response = await supportApi.getTicketById(ticket["Ticket Id"]);
       console.log("🔵 Full API Response:", response);
-      
+
       // ✅ FIXED: Debug the response structure with proper typing
       console.log("🔵 Response.data:", response.data);
       console.log("🔵 Response.data type:", typeof response.data);
-      
+
       let ticketData: ApiTicket | null = null;
-      
+
       // If response.data is the nested structure {success, message, data}
-      if (response.data && typeof response.data === 'object') {
+      if (response.data && typeof response.data === "object") {
         const apiData = response.data as ApiResponse | ApiTicket;
-        
+
         // Check if it has the nested structure (ApiResponse)
-        if ('success' in apiData && apiData.success && apiData.data) {
+        if ("success" in apiData && apiData.success && apiData.data) {
           ticketData = apiData.data;
           console.log("✅ Found nested structure, ticket data:", ticketData);
-        } 
+        }
         // If response.data is directly the ticket (ApiTicket)
-        else if ('id' in apiData) {
+        else if ("id" in apiData) {
           ticketData = apiData as ApiTicket;
           console.log("✅ Found direct ticket structure:", ticketData);
         }
       }
-      
+
       if (ticketData) {
         setSelectedTicket(ticketData);
         console.log("✅ Ticket data set:", ticketData.id);
       } else {
         console.error("🔴 Could not find ticket data in response");
-        console.error("🔴 Response structure:", JSON.stringify(response.data, null, 2));
+        console.error(
+          "🔴 Response structure:",
+          JSON.stringify(response.data, null, 2)
+        );
       }
     } catch (error) {
       console.error("🔴 Failed to fetch ticket details:", error);

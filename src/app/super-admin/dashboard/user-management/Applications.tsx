@@ -45,6 +45,18 @@ interface UpdateData {
   // add other fields you expect
 }
 
+// PAGINATION INTERFACE (From Inspiration)
+interface PaginationData {
+  total: number;
+  pageSize: number;
+  currentPage: number;
+  totalPages: number;
+  nextPage: number | null;
+  prevPage: number | null;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
 // Normalize status for display (convert API status to display format)
 const normalizeStatus = (status: string): string => {
   const statusMap: Record<string, string> = {
@@ -69,7 +81,11 @@ export default function Applications() {
   const [viewMode, setViewMode] = useState<ViewMode>("hosts");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // PAGINATION STATE (From Inspiration)
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10); // Changed from dynamic to fixed like inspiration
+  
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [singleRowToDelete, setSingleRowToDelete] = useState<{ row: TableRowData; id: number } | null>(null);
@@ -87,11 +103,17 @@ export default function Applications() {
   // API data state for both hosts and admins
   const [hostsData, setHostsData] = useState<UserData[]>([]);
   const [adminsData, setAdminsData] = useState<UserData[]>([]);
-  const [pagination, setPagination] = useState({
+  
+  // PAGINATION STATE (From Inspiration)
+  const [paginationData, setPaginationData] = useState<PaginationData>({
     total: 0,
-    page: 1,
-    limit: 10,
-    totalPages: 1
+    pageSize: 10,
+    currentPage: 1,
+    totalPages: 1,
+    nextPage: null,
+    prevPage: null,
+    hasNextPage: false,
+    hasPrevPage: false,
   });
 
   const tableControls = {
@@ -118,40 +140,120 @@ export default function Applications() {
     status: "", 
   });
 
-  // Fetch data based on view mode
-  const fetchData = useCallback(async (params?: GetUsersParams) => {
-    setIsLoading(true);
-    try {
-      let response;
-      
+  // HAS ACTIVE FILTERS LOGIC (From Inspiration)
+  // HAS ACTIVE FILTERS LOGIC (From Inspiration) - FIXED
+const hasActiveFilters = useMemo(() => {
+  const currentFilters = viewMode === "hosts" ? appliedCertificationFilters : appliedAdminFilters;
+  return (
+    searchTerm.trim() !== "" ||
+    currentFilters.status.trim() !== "" ||
+    (viewMode === "hosts" )
+  );
+}, [searchTerm, appliedCertificationFilters, appliedAdminFilters, viewMode]);
+
+
+  // Fetch data based on view mode (UPDATED with pagination logic from inspiration)
+  // Fetch data based on view mode (FIXED)
+// Fetch data based on view mode (FIXED - handle empty data properly)
+const fetchData = useCallback(async (params?: GetUsersParams) => {
+  setIsLoading(true);
+  try {
+    let response;
+    
+    const queryParams: GetUsersParams = {
+      page: currentPage,
+      limit: itemsPerPage
+    };
+
+    // SEARCH LOGIC
+    if (searchTerm.trim() && searchTerm.trim().length >= 3) {
+      queryParams.search = searchTerm.trim();
+    }
+
+    // Add filter params
+    if (viewMode === "hosts") {
+      if (appliedCertificationFilters.status) {
+        queryParams.status = getApiStatus(appliedCertificationFilters.status);
+      }
+      if (appliedCertificationFilters["Listed Properties"]) {
+        const [min, max] = appliedCertificationFilters["Listed Properties"].split("-").map(Number);
+        if (!isNaN(min)) queryParams.minListedProperties = min;
+        if (!isNaN(max)) queryParams.maxListedProperties = max;
+      }
+    } else {
+      if (appliedAdminFilters.status) {
+        queryParams.status = getApiStatus(appliedAdminFilters.status);
+      }
+    }
+
+    // Add existing params
+    if (params) {
+      Object.assign(queryParams, params);
+    }
+    
+    if (viewMode === "hosts") {
+      response = await managementApi.getUsers(queryParams);
+    } else {
+      response = await managementApi.getAdmins(queryParams);
+    }
+    
+    if (response.data) {
+      // Set data based on view mode
       if (viewMode === "hosts") {
-        response = await managementApi.getUsers({
-          ...params,
-          page: currentPage,
-          limit: 10
+        setHostsData(response.data.data || []);
+      } else {
+        setAdminsData(response.data.data || []);
+      }
+      
+      // SET PAGINATION DATA - ensure we handle empty data properly
+      if (response.data.pagination) {
+        setPaginationData({
+          total: response.data.pagination.total || 0,
+          pageSize: response.data.pagination.limit || itemsPerPage,
+          currentPage: response.data.pagination.page || 1,
+          totalPages: response.data.pagination.totalPages || 1,
+          nextPage: response.data.pagination.page < response.data.pagination.totalPages ? response.data.pagination.page + 1 : null,
+          prevPage: response.data.pagination.page > 1 ? response.data.pagination.page - 1 : null,
+          hasNextPage: response.data.pagination.page < response.data.pagination.totalPages,
+          hasPrevPage: response.data.pagination.page > 1,
         });
       } else {
-        response = await managementApi.getAdmins({
-          ...params,
-          page: currentPage,
-          limit: 10
+        // If no pagination data, set defaults for empty state
+        setPaginationData({
+          total: 0,
+          pageSize: itemsPerPage,
+          currentPage: 1,
+          totalPages: 1,
+          nextPage: null,
+          prevPage: null,
+          hasNextPage: false,
+          hasPrevPage: false,
         });
       }
-      
-      if (response.data) {
-        if (viewMode === "hosts") {
-          setHostsData(response.data.data);
-        } else {
-          setAdminsData(response.data.data);
-        }
-        setPagination(response.data.pagination);
-      }
-    } catch (error) {
-      console.error(`Error fetching ${viewMode}:`, error);
-    } finally {
-      setIsLoading(false);
     }
-  }, [viewMode, currentPage]);
+  } catch (error) {
+    console.error(`Error fetching ${viewMode}:`, error);
+    // SET EMPTY PAGINATION ON ERROR
+    setPaginationData({
+      total: 0,
+      pageSize: itemsPerPage,
+      currentPage: 1,
+      totalPages: 1,
+      nextPage: null,
+      prevPage: null,
+      hasNextPage: false,
+      hasPrevPage: false,
+    });
+    // Also clear the data
+    if (viewMode === "hosts") {
+      setHostsData([]);
+    } else {
+      setAdminsData([]);
+    }
+  } finally {
+    setIsLoading(false);
+  }
+}, [viewMode, currentPage, itemsPerPage, searchTerm, appliedCertificationFilters, appliedAdminFilters]);
 
   // Delete user/admin API call
   const deleteItem = async (itemId: number) => {
@@ -233,46 +335,22 @@ export default function Applications() {
     }
   }, [viewMode]);
 
-  // Handle search and applied filter changes
-  useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      // Don't fetch any data if search term has 1-3 characters
-      if (searchTerm && searchTerm.length <= 3) {
-        return;
-      }
-      
-      const params: GetUsersParams = {};
-      
-      if (searchTerm && searchTerm.length > 3) {
-        params.search = searchTerm;
-      }
-      
-      if (viewMode === "hosts") {
-        // Apply all certification filters cumulatively
-        if (appliedCertificationFilters.status) {
-          params.status = getApiStatus(appliedCertificationFilters.status);
-        }
-        
-        // Convert Listed Properties filter to min/max
-        if (appliedCertificationFilters["Listed Properties"]) {
-          const [min, max] = appliedCertificationFilters["Listed Properties"].split("-").map(Number);
-          if (!isNaN(min)) params.minListedProperties = min;
-          if (!isNaN(max)) params.maxListedProperties = max;
-        }
-      } else {
-        // Apply all admin filters cumulatively
-        if (appliedAdminFilters.status) {
-          params.status = getApiStatus(appliedAdminFilters.status);
-        }
-      }
-      
-      fetchData(params);
-    }, 500); // Debounce search
+  // Handle search and applied filter changes (UPDATED with pagination logic)
+  // Handle search and applied filter changes (FIXED)
+// Single useEffect for all data fetching
+useEffect(() => {
+  const timeoutId = setTimeout(() => {
+    // Don't fetch any data if search term has 1-3 characters
+    if (searchTerm && searchTerm.length <= 3) {
+      return;
+    }
+    fetchData();
+  }, 500); // Debounce search
 
-    return () => clearTimeout(timeoutId);
-  }, [searchTerm, appliedCertificationFilters, appliedAdminFilters, viewMode, currentPage, fetchData]);
+  return () => clearTimeout(timeoutId);
+}, [searchTerm, appliedCertificationFilters, appliedAdminFilters, viewMode, currentPage, fetchData]);
 
-  // Reset to page 1 when filters change
+  // RESET TO PAGE 1 WHEN FILTERS CHANGE (From Inspiration)
   useEffect(() => {
     setCurrentPage(1);
   }, [searchTerm, appliedCertificationFilters, appliedAdminFilters, viewMode]);
@@ -282,6 +360,11 @@ export default function Applications() {
     fetchData();
     setSelectedRows(new Set());
   }, [viewMode, fetchData]);
+
+  // HANDLE PAGE CHANGE FUNCTION (From Inspiration)
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
 
   const handleAddAdminNote = () => {
     setIsAddAdminDrawerOpen(true);
@@ -366,6 +449,7 @@ export default function Applications() {
     } else {
       setAppliedAdminFilters(prev => ({...prev, ...tempAdminFilters}));
     }
+    setCurrentPage(1); // Reset to page 1 when filters are applied (From Inspiration)
     setIsFilterOpen(false);
   };
 
@@ -566,14 +650,15 @@ export default function Applications() {
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
               currentPage={currentPage}
-              onPageChange={setCurrentPage}
-              itemsPerPage={pagination.limit}
-              totalItems={pagination.total}
+              onPageChange={handlePageChange} // Updated to use handlePageChange
+              itemsPerPage={paginationData.pageSize}
+              totalItems={paginationData.total}
               showFilter={true}
               onFilterToggle={setIsFilterOpen}
               onDeleteAll={handleDeleteSelected}
               isDeleteAllDisabled={selectedRows.size === 0}
               isLoading={isLoading}
+              disableClientSidePagination={true} // Added from inspiration
             />
           </div>
         </TabPanel>
@@ -586,8 +671,7 @@ export default function Applications() {
               showDeleteButton={true}
               onDeleteSingle={openDeleteSingleModal}
               showPagination={true}
-                            control={tableControls}
-
+              control={tableControls}
               clickable={true}
               selectedRows={selectedRows}
               setSelectedRows={setSelectedRows}
@@ -600,14 +684,15 @@ export default function Applications() {
               searchTerm={searchTerm}
               onSearchChange={setSearchTerm}
               currentPage={currentPage}
-              onPageChange={setCurrentPage}
-              itemsPerPage={pagination.limit}
-              totalItems={pagination.total}
+              onPageChange={handlePageChange} // Updated to use handlePageChange
+              itemsPerPage={paginationData.pageSize}
+              totalItems={paginationData.total}
               showFilter={true}
               onFilterToggle={setIsFilterOpen}
               onDeleteAll={handleDeleteSelected}
               isDeleteAllDisabled={selectedRows.size === 0}
               isLoading={isLoading}
+              disableClientSidePagination={true} // Added from inspiration
             />
           </div>
         </TabPanel>

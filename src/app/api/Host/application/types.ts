@@ -282,3 +282,36 @@ export interface CreatePaymentPayload {
   currency: string;
   description?: string;
 }
+// Add these to your existing types
+interface PaymentDetails {
+  paymentId: string;
+  amount: number;
+  currency: string;
+  status: string;
+  paymentMethod: string;
+  paidAt?: string;
+  clientSecret?: string;
+}
+
+export interface Data {
+  id: string;
+  propertyDetails?: {
+    propertyName?: string;
+    address?: string;
+    ownership?: string;
+    propertyType?: string;
+    description?: string;
+    images?: string[];
+    rent?: number;
+    bedrooms?: number;
+    bathrooms?: number;
+    currency?: string;
+    maxGuests?: number;
+  };
+  complianceChecklist?: {
+    [key: string]: boolean;
+  };
+  documents?: UploadedDocument[];
+  payments?: PaymentDetails[];
+  currentStep?: string;
+}

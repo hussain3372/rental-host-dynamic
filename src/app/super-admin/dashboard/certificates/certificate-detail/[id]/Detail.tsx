@@ -2,9 +2,9 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
-import { Certification } from "@/app/api/Admin/certificate/types";
 import Dropdown from "@/app/shared/Dropdown";
-import { certificateApi } from "@/app/api/Admin/certificate";
+import { Certification } from "@/app/api/super-admin/certificates/types";
+import { certificateApi } from "@/app/api/super-admin/certificates";
 
 interface DetailProps {
   certificate: Certification;
@@ -73,7 +73,6 @@ export default function Detail({
 
     try {
       // 👇 Map "renew" → "active" for backend
-      // 👇 Call correct endpoint based on action
       const endpointAction = action === "renew" ? "renew" : action;
 
       const response = await certificateApi.updateCertificateStatus(
@@ -196,7 +195,7 @@ export default function Detail({
         <ol className="inline-flex items-center space-x-1 md:space-x-2 rtl:space-x-reverse">
           <li className="inline-flex items-center">
             <Link
-              href="/super-admin/dashboard/certificates"
+              href="/admin/dashboard/certificates"
               className="text-[16px] font-regular leading-5 text-white/60 hover:text-[#EFFC76] md:ms-2"
             >
               Certificates

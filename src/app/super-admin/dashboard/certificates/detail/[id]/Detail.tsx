@@ -1,394 +1,369 @@
 "use client";
-import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
-import Image from "next/image";
-import Dropdown from "@/app/shared/Dropdown";
-import { Certification } from "@/app/api/super-admin/certificates/types";
-import { certificateApi } from "@/app/api/super-admin/certificates";
+import React, { useMemo, useState, useEffect } from "react";
+import { Table } from "@/app/admin/tables-essentials/Tables";
+import { Modal } from "@/app/shared/Modal";
+import FilterDrawer from "@/app/shared/tables/Filter";
+import { useRouter } from "next/navigation";
 
-interface DetailProps {
-  certificate: Certification;
+interface Certificate {
+  id: string;
+  certificateNumber: string;
+  host: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  status: "ACTIVE" | "REVOKED" | "EXPIRED";
+  issuedAt: string;
+  expiresAt: string;
+  validity: string;
 }
 
-type CertificateStatus = "ACTIVE" | "REVOKED" | "EXPIRED" | "expire";
-export type StatusAction = "expire" | "revoke" | "active" | "renew";
+interface DetailProps {
+  certificates: Certificate[];
+  templateId: string;
+}
 
-export default function Detail({
-  certificate: initialCertificate,
-}: DetailProps) {
-  const [certificate, setCertificate] =
-    useState<Certification>(initialCertificate);
-  const [currentStep, setCurrentStep] = useState(0);
-  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+interface CertificationData {
+  id: string;
+  "Host Name": string;
+  "Property Name": string;
+  "Issue Date": string;
+  "Expiry Date": string;
+  Status: "Active" | "revoked" | "Expired";
+}
 
-  // Get display status
-  const getDisplayStatus = (status: CertificateStatus): string => {
-    const statusMap: Record<CertificateStatus, string> = {
-      ACTIVE: "Active",
-      REVOKED: "Revoked",
-      EXPIRED: "Expired",
-      expire: "Expired", // Changed from "expire" to "Expired"
-    };
-    return statusMap[status] || status;
-  };
+export default function Detail({ certificates }: DetailProps) {
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 6;
 
-  const [selectedStatus, setSelectedStatus] = useState(
-    getDisplayStatus(certificate.status as CertificateStatus)
-  );
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [singleRowToDelete, setSingleRowToDelete] = useState<{
+    row: Record<string, string>;
+    id: string;
+  } | null>(null);
+  const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
 
-  // Close dropdown when clicking outside
+  const [showOwnershipDropdown, setShowOwnershipDropdown] = useState(false);
+  const [showPropertyDropdown, setShowPropertyDropdown] = useState(false);
+  const [showStatusDropdown, setShowStatusDropdown] = useState(false);
+  const [issueDate, setIssueDate] = useState<Date | null>(null);
+  const [expiryDate, setExpiryDate] = useState<Date | null>(null);
+
+  const [certificationFilters, setCertificationFilters] = useState({
+    issueDate: "",
+    expiryDate: "",
+  });
+
+  // Transform API data to table format
+  const [allCertificationData, setAllCertificationData] = useState<
+    CertificationData[]
+  >([]);
+
   useEffect(() => {
-    const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
-        setIsDropdownOpen(false);
-      }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-    };
-  }, []);
-
-  const images = certificate.application.propertyDetails.images || [];
-  const totalSteps = images.length;
-
-  const nextStep = () =>
-    setCurrentStep((prev) => Math.min(prev + 1, totalSteps - 1));
-  const prevStep = () => setCurrentStep((prev) => Math.max(prev - 1, 0));
-
-  const handleStatusChange = async (
-    action: StatusAction,
-    displayLabel: string
-  ) => {
-    setIsUpdating(true);
-    setError(null);
-    setIsDropdownOpen(false);
-
-    try {
-      // 👇 Map "renew" → "active" for backend
-      const endpointAction = action === "renew" ? "renew" : action;
-
-      const response = await certificateApi.updateCertificateStatus(
-        certificate.id,
-        endpointAction as "revoke" | "active" | "expire"
-      );
-
-      // Update only the status from response, keep all other data
-      if (response.data) {
-        setCertificate((prevCertificate) => ({
-          ...prevCertificate,
-          status:
-            response.data.status ||
-            (action === "renew"
-              ? "RENEW"
-              : action === "revoke"
-              ? "REVOKED"
-              : action === "expire"
-              ? "EXPIRED"
-              : prevCertificate.status),
-        }));
-        setSelectedStatus(displayLabel);
-      }
-    } catch (err) {
-      console.error("Error updating certificate status:", err);
-      setError("Failed to update certificate status");
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  // Get available status options based on current status
-  const getStatusOptions = () => {
-    const currentStatus = certificate.status as CertificateStatus;
-
-    switch (currentStatus) {
-      case "ACTIVE":
-        return [
-          {
-            label: "Revoke",
-            onClick: () => handleStatusChange("revoke", "Revoked"),
-          },
-          {
-            label: "Mark Expired",
-            onClick: () => handleStatusChange("expire", "Expired"),
-          }, // Changed label
-        ];
-
-      case "REVOKED":
-        return []; // No options for revoked status
-
-      case "EXPIRED":
-        return [
-          {
-            label: "Active",
-            onClick: () => handleStatusChange("renew", "Active"),
-          },
-        ];
-
-      case "expire":
-        return [
-          {
-            label: "Revoke",
-            onClick: () => handleStatusChange("revoke", "Revoked"),
-          },
-          {
-            label: "Renew",
-            onClick: () => handleStatusChange("renew", "Renew"),
-          },
-        ];
-
-      default:
-        return [{ label: selectedStatus, onClick: () => {} }];
-    }
-  };
-
-  const statusOptions = getStatusOptions();
-
-  // Check if dropdown should be disabled
-  const isDropdownDisabled =
-    certificate.status === "REVOKED" || statusOptions.length === 0;
-
-  const Credentials = [
-    {
-      id: 1,
-      img: "/images/apartment.svg",
-      val: certificate.application.propertyDetails.propertyType,
-      title: "Property Type",
-    },
-    {
-      id: 2,
-      img: "/images/manager.svg",
-      val: certificate.application.propertyDetails.ownership,
-      title: "Ownership",
-    },
-    {
-      id: 3,
-      img: "/images/date.svg",
-      val: new Date(certificate.issuedAt).toLocaleDateString("en-US", {
+    const transformedData: CertificationData[] = certificates.map((cert) => ({
+      id: cert.id,
+      "Host Name": cert.host.name,
+      "Property Name": cert.certificateNumber,
+      "Issue Date": new Date(cert.issuedAt).toLocaleDateString("en-US", {
         month: "short",
         day: "numeric",
         year: "numeric",
       }),
-      title: "Issued On",
+      "Expiry Date": new Date(cert.expiresAt).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      }),
+      Status:
+        cert.status === "ACTIVE"
+          ? "Active"
+          : cert.status === "REVOKED"
+          ? "revoked"
+          : "Expired",
+    }));
+    setAllCertificationData(transformedData);
+  }, [certificates]);
+
+  const filteredCertificationData = useMemo(() => {
+    let filtered = allCertificationData;
+
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (item) =>
+          item["Property Name"]
+            .toLowerCase()
+            .includes(searchTerm.toLowerCase()) ||
+          item["Host Name"].toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item["Issue Date"].toLowerCase().includes(searchTerm.toLowerCase()) ||
+          item["Expiry Date"].toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    // Apply Issue Date filter
+    if (certificationFilters.issueDate) {
+      filtered = filtered.filter(
+        (item) => item["Issue Date"] === certificationFilters.issueDate
+      );
+    }
+
+    // Apply Expiry Date filter
+    if (certificationFilters.expiryDate) {
+      filtered = filtered.filter(
+        (item) => item["Expiry Date"] === certificationFilters.expiryDate
+      );
+    }
+
+    return filtered;
+  }, [searchTerm, certificationFilters, allCertificationData]);
+
+  const handleSelectAll = (checked: boolean) => {
+    const newSelected = new Set<string>();
+    if (checked) {
+      filteredCertificationData.forEach((item) => newSelected.add(item.id));
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const handleSelectRow = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedRows);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const isAllDisplayedSelected = useMemo(() => {
+    return (
+      filteredCertificationData.length > 0 &&
+      filteredCertificationData.every((item) => selectedRows.has(item.id))
+    );
+  }, [filteredCertificationData, selectedRows]);
+
+  const isSomeDisplayedSelected = useMemo(() => {
+    return (
+      filteredCertificationData.some((item) => selectedRows.has(item.id)) &&
+      !isAllDisplayedSelected
+    );
+  }, [filteredCertificationData, selectedRows, isAllDisplayedSelected]);
+
+  const handleDeleteApplications = (selectedRowIds: Set<string>) => {
+    const updatedData = allCertificationData.filter(
+      (item) => !selectedRowIds.has(item.id)
+    );
+    setAllCertificationData(updatedData);
+    setIsModalOpen(false);
+    setSelectedRows(new Set());
+  };
+
+  const handleDeleteSingleApplication = (
+    row: Record<string, string>,
+    id: string
+  ) => {
+    const updatedData = allCertificationData.filter((item) => item.id !== id);
+    setAllCertificationData(updatedData);
+    setIsModalOpen(false);
+    setSingleRowToDelete(null);
+
+    const remainingDataCount = updatedData.length;
+    const maxPageAfterDeletion = Math.ceil(remainingDataCount / itemsPerPage);
+
+    if (currentPage > maxPageAfterDeletion) {
+      setCurrentPage(Math.max(1, maxPageAfterDeletion));
+    }
+  };
+
+  const openDeleteSingleModal = (row: Record<string, string>, id: string) => {
+    setSingleRowToDelete({ row, id });
+    setModalType("single");
+    setIsModalOpen(true);
+  };
+
+  const handleDeleteSelected = () => {
+    if (selectedRows.size > 0) {
+      setModalType("multiple");
+      setIsModalOpen(true);
+    }
+  };
+
+  const handleModalConfirm = () => {
+    if (modalType === "multiple" && selectedRows.size > 0) {
+      handleDeleteApplications(selectedRows);
+    } else if (modalType === "single" && singleRowToDelete) {
+      handleDeleteSingleApplication(
+        singleRowToDelete.row,
+        singleRowToDelete.id
+      );
+    }
+  };
+
+  const displayData = useMemo(() => {
+    return filteredCertificationData.map(({ id, ...rest }) => rest);
+  }, [filteredCertificationData]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+    setSelectedRows(new Set());
+  }, [searchTerm, certificationFilters]);
+
+  const handleResetFilter = () => {
+    setCertificationFilters({
+      issueDate: "",
+      expiryDate: "",
+    });
+    setSearchTerm("");
+    setIssueDate(null);
+    setExpiryDate(null);
+  };
+
+  const handleApplyFilter = () => {
+    const newFilters = { ...certificationFilters };
+
+    if (issueDate) {
+      newFilters.issueDate = issueDate.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+
+    if (expiryDate) {
+      newFilters.expiryDate = expiryDate.toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+
+    setCertificationFilters(newFilters);
+    setIsFilterOpen(false);
+  };
+
+  const router = useRouter();
+
+  const dropdownItems = [
+     {
+      label: "View Details",
+      onClick: (row: Record<string, string>, index: number) => {
+        const globalIndex = (currentPage - 1) * itemsPerPage + index;
+        const originalRow = filteredCertificationData[globalIndex];
+        router.push(
+          `/super-admin/dashboard/certificates/certificate-detail/${originalRow.id}`
+        );
+      },
     },
     {
-      id: 4,
-      img: "/images/pending.svg",
-      val: getDisplayStatus(certificate.status as CertificateStatus),
-      title: "Status",
+      label: "Delete Application",
+      onClick: (row: Record<string, string>, index: number) => {
+        const globalIndex = (currentPage - 1) * itemsPerPage + index;
+        const originalRow = filteredCertificationData[globalIndex];
+        openDeleteSingleModal(row, originalRow.id);
+      },
     },
   ];
 
   return (
-    <div className="">
-      <nav
-        className="flex py-3 mb-5 text-gray-200 rounded-lg bg-transparent"
-        aria-label="Breadcrumb"
-      >
-        <ol className="inline-flex items-center space-x-1 md:space-x-2 rtl:space-x-reverse">
-          <li className="inline-flex items-center">
-            <Link
-              href="/admin/dashboard/certificates"
-              className="text-[16px] font-regular leading-5 text-white/60 hover:text-[#EFFC76] md:ms-2"
-            >
-              Certificates
-            </Link>
-          </li>
-
-          <li aria-current="page">
-            <div className="flex items-center">
-              <svg
-                className="rtl:rotate-180 w-3 h-3 mx-1 text-gray-400"
-                aria-hidden="true"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 6 10"
-              >
-                <path
-                  stroke="currentColor"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth="2"
-                  d="m1 9 4-4-4-4"
-                />
-              </svg>
-              <p className="text-[16px] leading-5 font-regular text-white">
-                {certificate.certificateNumber}
-              </p>
-            </div>
-          </li>
-        </ol>
-      </nav>
-
-      {/* Error Message */}
-      {error && (
-        <div className="mb-4 p-4 bg-red-500/20 border border-red-500 rounded-lg text-red-300">
-          {error}
-        </div>
+    <>
+      {isModalOpen && (
+        <Modal
+          isOpen={isModalOpen}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedRows(new Set());
+            setSingleRowToDelete(null);
+          }}
+          onConfirm={handleModalConfirm}
+          title="Confirm Application Deletion"
+          description="Deleting this application means it will no longer appear in your requests."
+          image="/images/delete-modal.png"
+          confirmText="Delete"
+        />
       )}
 
-      {/* Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:gap-0 justify-between">
-        <div>
-          <h1 className="text-[24px] font-medium leading-[28px] text-white">
-            {certificate.application.propertyDetails.propertyName}
-          </h1>
-          <p className="text-white/60 text-[16px] pt-[8px] leading-5 font-regular">
-            {certificate.application.propertyDetails.address}
-          </p>
-        </div>
-
-        {/* Status Dropdown */}
-        <div className="relative" ref={dropdownRef}>
-          <button
-            onClick={() =>
-              !isUpdating &&
-              !isDropdownDisabled &&
-              setIsDropdownOpen(!isDropdownOpen)
-            }
-            disabled={isUpdating || isDropdownDisabled}
-            className={`bg-[#2D2D2D] py-3 px-4 min-w-[121px] rounded-full font-regular text-[18px] ${
-              isUpdating || isDropdownDisabled
-                ? "opacity-50 cursor-not-allowed"
-                : "cursor-pointer"
-            } focus:outline-0 flex justify-between items-center gap-2`}
-          >
-            {isUpdating ? "Updating..." : selectedStatus}
-            {!isUpdating && !isDropdownDisabled && (
-              <Image
-                src="/images/dropdown.svg"
-                alt="Dropdown"
-                height={16}
-                width={16}
-              />
-            )}
-          </button>
-
-          {isDropdownOpen && !isUpdating && !isDropdownDisabled && (
-            <div className="absolute top-full mt-2 right-0 sm:right-0 z-10 min-w-[150px]">
-              <Dropdown items={statusOptions} />
-            </div>
-          )}
-        </div>
+      <div className="flex flex-col !h-full justify-between">
+        <Table
+          data={displayData}
+          title="Properties Verified Under This Certificate"
+          setHeight={false}
+          showDeleteButton={true}
+          onDeleteSingle={(row, index) => {
+            const globalIndex = (currentPage - 1) * itemsPerPage + index;
+            const originalRow = filteredCertificationData[globalIndex];
+            openDeleteSingleModal(row, originalRow.id);
+          }}
+          showPagination={false}
+          clickable={true}
+          selectedRows={selectedRows}
+          setSelectedRows={setSelectedRows}
+          onSelectAll={handleSelectAll}
+          onSelectRow={handleSelectRow}
+          isAllSelected={isAllDisplayedSelected}
+          isSomeSelected={isSomeDisplayedSelected}
+          rowIds={filteredCertificationData.map((item) => item.id)}
+          dropdownItems={dropdownItems}
+          searchTerm={searchTerm}
+          onSearchChange={setSearchTerm}
+          totalItems={filteredCertificationData.length}
+          showFilter={true}
+          onFilterToggle={setIsFilterOpen}
+          onDeleteAll={handleDeleteSelected}
+          isDeleteAllDisabled={
+            selectedRows.size === 0 || selectedRows.size < displayData.length
+          }
+        />
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-5 flex-wrap lg:flex-nowrap justify-between">
-        {Credentials.map((item) => (
-          <div key={item.id} className="gap-3">
-            <div className="flex items-center bg-[#121315] rounded-xl gap-4 p-5">
-              <Image src={item.img} alt={item.title} width={48} height={48} />
-              <div>
-                <h2 className="font-medium text-[18px] leading-[22px] text-white">
-                  {item.val}
-                </h2>
-                <p className="text-white/80 font-regular text-[14px] leading-[18px] pt-2">
-                  {item.title}
-                </p>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Image Slider */}
-      {images.length > 0 && (
-        <>
-          <div className="mt-8 sm:mt-[38px] flex flex-col sm:flex-row gap-4">
-            {/* Left Large Image */}
-            <div className="flex-1 h-[500px] overflow-hidden bg-gray-800 rounded-xl">
-              <Image
-                src={images[currentStep]}
-                alt={`Property view ${currentStep + 1}`}
-                width={1200}
-                height={500}
-                className="w-full h-full object-cover"
-              />
-            </div>
-
-            {/* Right Thumbnails - Show only 3 images */}
-            <div className="sm:w-[175px] flex sm:flex-col gap-2 h-[70px] sm:h-[500px]">
-              {images.map((img, index) => (
-                <button
-                  key={index}
-                  onClick={() => setCurrentStep(index)}
-                  className={`relative flex-1 rounded-lg overflow-hidden transition-all ${
-                    currentStep === index ? "ring-2 ring-[#EFFC76]" : ""
-                  }`}
-                >
-                  <Image
-                    src={img}
-                    alt={`Thumbnail ${index + 1}`}
-                    fill
-                    className="sm:w-full sm:h-full h-[50px] object-cover"
-                  />
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Progress Navigation */}
-          <div className="mt-8 pb-[40px] sm:pb-[60px]">
-            <div className="flex items-center gap-[20px] sm:gap-[40px] w-full">
-              <button
-                onClick={prevStep}
-                disabled={currentStep === 0}
-                className="w-10 h-10 rounded border border-gray-600 flex items-center justify-center hover:border-[#EFFC76] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Image
-                  src="/images/left.png"
-                  alt="Previous"
-                  width={11}
-                  height={13}
-                />
-              </button>
-
-              <div className="flex-1 flex items-center gap-[20px] sm:gap-[40px]">
-                <div className="text-white opacity-60 text-lg font-medium">
-                  {String(currentStep + 1).padStart(2, "0")}
-                </div>
-                <div className="flex-1 relative h-[2px] bg-gray-600 rounded-full">
-                  <div
-                    className="absolute top-0 left-0 h-full bg-[#EFFC76] transition-all duration-500 rounded-full"
-                    style={{
-                      width: `${((currentStep + 1) / totalSteps) * 100}%`,
-                    }}
-                  ></div>
-                </div>
-                <div className="text-white opacity-60 text-lg font-medium">
-                  {String(totalSteps).padStart(2, "0")}
-                </div>
-              </div>
-
-              <button
-                onClick={nextStep}
-                disabled={currentStep === totalSteps - 1}
-                className="w-10 h-10 rounded border border-gray-600 flex items-center justify-center hover:border-[#EFFC76] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <Image
-                  src="/images/right.png"
-                  alt="Next"
-                  width={11}
-                  height={13}
-                />
-              </button>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Property Description */}
-      {certificate.application.propertyDetails.description && (
-        <p className="text-[#FFFFFFCC] text-[18px] font-regular leading-[22px]">
-          {certificate.application.propertyDetails.description}
-        </p>
-      )}
-    </div>
+      <FilterDrawer
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        title="Apply Filter"
+        description="Refine listings to find the right property faster."
+        resetLabel="Reset"
+        onReset={handleResetFilter}
+        buttonLabel="Apply Filter"
+        onApply={handleApplyFilter}
+        filterValues={{
+          "issue Date": issueDate,
+          "Expiry Date": expiryDate,
+        }}
+        onFilterChange={(newValues) => {
+          if (newValues["issue Date"] !== undefined) {
+            setIssueDate(newValues["issue Date"] as Date | null);
+          }
+          if (newValues["Expiry Date"] !== undefined) {
+            setExpiryDate(newValues["Expiry Date"] as Date | null);
+          }
+        }}
+        dropdownStates={{
+          ownership: showOwnershipDropdown,
+          property: showPropertyDropdown,
+          status: showStatusDropdown,
+        }}
+        onDropdownToggle={(key, value) => {
+          if (key === "ownership") setShowOwnershipDropdown(value);
+          if (key === "property") setShowPropertyDropdown(value);
+          if (key === "status") setShowStatusDropdown(value);
+        }}
+        fields={[
+          {
+            label: "Issue Date",
+            key: "issue Date",
+            type: "date",
+            placeholder: "Select date",
+          },
+          {
+            label: "Expiry Date",
+            key: "Expiry Date",
+            type: "date",
+            placeholder: "Select date",
+          },
+        ]}
+      />
+    </>
   );
 }

@@ -117,15 +117,18 @@ export default function Checklist({ application }: ChecklistProps) {
     );
   };
 
-  const handleDownload = async (url: string, documentType: string) => {
+const handleDownload = async (url: string | undefined, documentType: string) => {
+    if (!url) {
+      toast.error("No file available to download.");
+      return;
+    }
+
     try {
-      // Fetch the file as a blob to ensure forced download
       const response = await fetch(url, { mode: "cors" });
       if (!response.ok) throw new Error("Failed to fetch file");
 
       const blob = await response.blob();
 
-      // Derive filename from URL or fallback
       const filenameFromUrl = url.split("/").pop()?.split("?")[0];
       const extension =
         filenameFromUrl?.split(".").pop() || blob.type.split("/")[1] || "pdf";
@@ -133,17 +136,13 @@ export default function Checklist({ application }: ChecklistProps) {
         filenameFromUrl ||
         `${documentType.toLowerCase().replace(/_/g, "-")}.${extension}`;
 
-      // Create object URL for the blob
       const blobUrl = window.URL.createObjectURL(blob);
-
-      // Create a hidden link element
       const link = document.createElement("a");
+
       link.href = blobUrl;
-      link.download = filename; // forces browser download
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
-
-      // Cleanup
       document.body.removeChild(link);
       window.URL.revokeObjectURL(blobUrl);
 
@@ -280,7 +279,7 @@ export default function Checklist({ application }: ChecklistProps) {
                     {renderDocumentPreview(doc)}
                   </div>
                   <div>
-                    <h3 className="font-medium text-[12px] sm:text-[16px] leading-[16px] sm:leading-[20px] text-white max-w-[250px] truncate">
+                    <h3 className="font-medium text-[12px] sm:text-[16px] leading-4 sm:leading-5 text-white max-w-[250px] truncate">
                       {getDocumentTypeDisplayName(doc.documentType)}
                     </h3>
                     <h4 className="text-white/60 font-medium text-[14px] leading-[18px] pt-1">
@@ -291,7 +290,7 @@ export default function Checklist({ application }: ChecklistProps) {
                 </div>
 
                 <button
-                  onClick={() => handleDownload(doc.url, doc.documentType)}
+                  onClick={() => handleDownload(doc.url, doc.documentType || "document")}
                   className="cursor-pointer p-2 hover:bg-white/10 rounded-lg transition-colors"
                 >
                   <NextImage
@@ -306,7 +305,7 @@ export default function Checklist({ application }: ChecklistProps) {
             ))
           ) : (
             <div className="bg-[#121315] p-6 rounded-lg text-center">
-              <p className="text-white/60 font-medium text-[16px] leading-[20px]">
+              <p className="text-white/60 font-medium text-[16px] leading-5">
                 No documents uploaded for this application
               </p>
             </div>

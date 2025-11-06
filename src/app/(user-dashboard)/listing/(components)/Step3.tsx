@@ -106,70 +106,30 @@ export default function Step3({ errors, onFieldChange }: Step3Props) {
     },
   ];
 
-  useEffect(() => {
-    const stored = localStorage.getItem("applicationData");
-    if (!stored) return;
+  // In your Step3 component, add this useEffect to verify documents are loaded
+useEffect(() => {
+  const stored = localStorage.getItem("applicationData");
+  if (!stored) return;
 
-    try {
-      const appData = JSON.parse(stored);
-      console.log("appdata", appData);
+  try {
+    const appData = JSON.parse(stored);
+    console.log("🔍 Current application documents:", appData.documents);
 
-      // ✅ Get documents from stored data
-      const documents =
-        appData?.documents || appData?.data?.DOCUMENT_UPLOAD?.documents || [];
-
-      console.log("documents", documents);
-
-      if (Array.isArray(documents) && documents.length > 0) {
-        // ✅ Take only first 4 documents
-        const limitedDocs = documents.slice(0, 4);
-
-        const restoredFiles: Record<DocumentKey, FileData | null> = {
-          governmentId: null,
-          propertyOwnership: null,
-          safetyPermits: null,
-          insuranceCertificate: null,
-        };
-        const restoredPreviews: Record<DocumentKey, string | null> = {
-          governmentId: null,
-          propertyOwnership: null,
-          safetyPermits: null,
-          insuranceCertificate: null,
-        };
-
-        // ✅ Assign the first 4 documents directly in order
-        limitedDocs.forEach((doc, index) => {
-          const keys: DocumentKey[] = [
-            "governmentId",
-            "propertyOwnership",
-            "safetyPermits",
-            "insuranceCertificate",
-          ];
-          const key = keys[index];
-          if (key) {
-            restoredFiles[key] = {
-              name: doc.originalName || "uploaded-document",
-              size: doc.size || 0,
-              url: doc.url,
-              documentType: doc.documentType || "",
-            };
-            restoredPreviews[key] = doc.url || null;
-          }
-        });
-
-        setFiles(restoredFiles);
-        setPreviewUrls(restoredPreviews);
-
-        // ✅ Update parent form data
-        onFieldChange(
-          "photos",
-          Object.values(restoredFiles).filter(Boolean) as FileData[]
-        );
+    // If documents exist in application data but not in local state, sync them
+    if (appData.documents && appData.documents.length > 0) {
+      console.log("📄 Documents found in application data:", appData.documents.length);
+      
+      // Verify we have the expected 4 documents
+      if (appData.documents.length < 4) {
+        console.warn(`⚠️ Only ${appData.documents.length} documents found, expected 4`);
       }
-    } catch (err) {
-      console.error("Error restoring documents from localStorage:", err);
+    } else {
+      console.warn("⚠️ No documents found in application data");
     }
-  }, [onFieldChange]);
+  } catch (err) {
+    console.error("Error checking application documents:", err);
+  }
+}, []);
 
   // helper to map documentType → key
   // const getKeyByDocumentType = (docType: string): DocumentKey | null => {

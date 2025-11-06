@@ -77,7 +77,7 @@ export default function TicketDetailDrawer({
   // ✅ Enhanced Handle Resolve with comprehensive debugging
   const handleResolve = async () => {
     console.log("🟡 Resolve button clicked!");
-    
+
     if (!ticket?.id) {
       console.error("🔴 No ticket ID found");
       toast.error("No ticket selected");
@@ -91,7 +91,7 @@ export default function TicketDetailDrawer({
 
       // Call the resolve API
       const response = await supportApi.resolveTicket(
-        ticket.id, 
+        ticket.id,
         note || "Ticket resolved by admin"
       );
 
@@ -100,7 +100,7 @@ export default function TicketDetailDrawer({
 
       setSelectedStatus("RESOLVED");
       toast.success("Ticket marked as resolved successfully!");
-      
+
       // Call the callback to refresh table
       if (onTicketResolved) {
         console.log("🟡 Calling onTicketResolved callback");
@@ -108,25 +108,26 @@ export default function TicketDetailDrawer({
       } else {
         console.log("🟡 No onTicketResolved callback provided");
       }
-      
+
       onClose();
     } catch (error: unknown) {
       console.error("🔴 Failed to resolve ticket:", error);
-      
+
       // Type-safe error handling
       const apiError = error as ApiError;
       console.error("🔴 Error details:", {
         message: apiError?.message,
         response: apiError?.response?.data,
         status: apiError?.response?.status,
-        headers: apiError?.response?.headers
+        headers: apiError?.response?.headers,
       });
-      
+
       // Show detailed error message
-      const errorMessage = apiError?.response?.data?.message 
-        || apiError?.message 
-        || "Failed to resolve ticket. Please try again.";
-      
+      const errorMessage =
+        apiError?.response?.data?.message ||
+        apiError?.message ||
+        "Failed to resolve ticket. Please try again.";
+
       toast.error(errorMessage);
     } finally {
       setLoading(false);
@@ -146,7 +147,7 @@ export default function TicketDetailDrawer({
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex justify-between items-center px-4 py-3 flex-shrink-0">
+      <div className="flex justify-between items-center px-4 py-3 shrink-0">
         <h2 className="text-lg font-semibold text-white">
           TIK-{ticket.id || "0001"}
         </h2>
@@ -155,11 +156,12 @@ export default function TicketDetailDrawer({
       {/* Body */}
       <div className="flex-1 overflow-y-auto px-7 space-y-6 scrollbar-hide py-4">
         <p className="text-[16px] leading-5 font-normal text-[#FFFFFF99]">
-          Submitted on {new Date(ticket.createdAt).toLocaleDateString()} • Status:{" "}
+          Submitted on {new Date(ticket.createdAt).toLocaleDateString()} •
+          Status:{" "}
           <span className="text-yellow-300 font-medium">{selectedStatus}</span>
         </p>
 
-        <div className="bg-[#121315] p-4 rounded-[8px] space-y-4 border border-[#FFFFFF1F]">
+        <div className="bg-[#121315] p-4 rounded-lg space-y-4 border border-[#FFFFFF1F]">
           {/* Subject */}
           <div>
             <h3 className="text-[14px] leading-[18px] text-gray-300 font-medium mb-2">
@@ -191,7 +193,9 @@ export default function TicketDetailDrawer({
                 className="rounded object-cover"
               />
               <div>
-                <h3 className="font-medium text-[16px] text-white">Attachment</h3>
+                <h3 className="font-medium text-[16px] text-white">
+                  Attachment
+                </h3>
                 <h4 className="text-white/60 text-[14px] break-all">
                   {ticket.attachmentUrls[0]}
                 </h4>
@@ -216,46 +220,48 @@ export default function TicketDetailDrawer({
           )}
         </div>
 
-        <div className="flex flex-col">
-          <h3 className="text-[14px] leading-[18px] text-gray-300 font-medium mb-[10px]">
-            Update Status
-          </h3>
-          <div className="flex gap-3">
-            {["PENDING", "RESOLVED"].map((status) => (
-              <label
-                key={status}
-                className={`flex justify-between items-center flex-1 px-3 py-3 gap-3 rounded-[8px] cursor-pointer transition-all duration-200
-                  ${
-                    selectedStatus === status
-                      ? "border border-[#E5F266] bg-[rgba(229,242,102,0.08)]"
-                      : "bg-[#1A1A1A] border border-[#FFFFFF1F]"
-                  }`}
-              >
-                <span
-                  className={`text-[12px] font-medium ${
-                    selectedStatus === status
-                      ? "text-[#E5F266]"
-                      : "text-[#FFFFFF99]"
-                  }`}
+        {(ticket.status === "OPEN" || ticket.status === "IN_PROGRESS") && (
+          <div className="flex flex-col">
+            <h3 className="text-[14px] leading-[18px] text-gray-300 font-medium mb-5">
+              Update Status
+            </h3>
+            <div className="flex gap-3">
+              {["PENDING", "RESOLVED"].map((status) => (
+                <label
+                  key={status}
+                  className={`flex justify-between items-center flex-1 px-3 py-3 gap-3 rounded-lg cursor-pointer transition-all duration-200
+            ${
+              selectedStatus === status
+                ? "border border-[#E5F266] bg-[rgba(229,242,102,0.08)]"
+                : "bg-[#1A1A1A] border border-[#FFFFFF1F]"
+            }`}
                 >
-                  {status}
-                </span>
+                  <span
+                    className={`text-[12px] font-medium ${
+                      selectedStatus === status
+                        ? "text-[#E5F266]"
+                        : "text-[#FFFFFF99]"
+                    }`}
+                  >
+                    {status}
+                  </span>
 
-                <input
-                  type="radio"
-                  name="status"
-                  checked={selectedStatus === status}
-                  onChange={() => setSelectedStatus(status)}
-                  className="accent-[#E5F266] cursor-pointer w-3 h-3"
-                />
-              </label>
-            ))}
+                  <input
+                    type="radio"
+                    name="status"
+                    checked={selectedStatus === status}
+                    onChange={() => setSelectedStatus(status)}
+                    className="accent-[#E5F266] cursor-pointer w-3 h-3"
+                  />
+                </label>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Note Field */}
         <div className="flex flex-col mt-5 mb-8">
-          <h3 className="text-[14px] leading-[18px] text-gray-300 font-medium mb-[10px]">
+          <h3 className="text-[14px] leading-[18px] text-gray-300 font-medium mb-2.5">
             Resolution Note
           </h3>
           <textarea
@@ -263,26 +269,26 @@ export default function TicketDetailDrawer({
             onChange={(e) => setNote(e.target.value)}
             placeholder="Add resolution details for this ticket..."
             rows={3}
-            className="w-full px-3 py-2 text-gray-300 focus:outline-none focus:border-[#E5F266] rounded-[8px]
+            className="w-full px-3 py-2 text-gray-300 focus:outline-none focus:border-[#E5F266] rounded-lg
               bg-[#1A1A1A] border border-[#FFFFFF1F] resize-none"
           />
         </div>
       </div>
 
       {/* Footer */}
-      <div className="p-5 flex-shrink-0">
-        <button
-          onClick={handleResolve}
-          disabled={loading}
-          className={`yellow-btn cursor-pointer w-full text-black px-4 py-3 rounded-[8px] font-semibold text-[16px] leading-5 transition-colors duration-300 ${
-            loading
-              ? "opacity-50 cursor-not-allowed"
-              : "hover:bg-[#E5F266] bg-[#E5F266]"
-          }`}
-        >
-          {loading ? "Resolving..." : "Resolve "}
-        </button>
-      </div>
+      {(ticket.status === "OPEN" || ticket.status === "IN_PROGRESS") && (
+        <div className="p-5 shrink-0">
+          <button
+            onClick={handleResolve}
+            disabled={loading}
+            className={`yellow-btn cursor-pointer w-full text-black px-4 py-3 rounded-lg font-semibold text-[16px] transition-colors duration-300 ${
+              loading ? "opacity-50 cursor-not-allowed" : "hover:bg-[#E5F266]"
+            }`}
+          >
+            {loading ? "Resolving..." : "Resolve Ticket"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

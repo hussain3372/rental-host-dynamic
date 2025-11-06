@@ -131,7 +131,7 @@ export default function HelpSupportDrawer({
 
       const attachmentUrls: string[] = [];
       let imageUrl = "";
-      
+
       if (image) {
         try {
           imageUrl = await uploadImageToServer(image);

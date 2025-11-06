@@ -8,7 +8,6 @@ import { Menu } from 'lucide-react';
 import { usePathname } from 'next/navigation';
 import SearchDrawer from "@/app/shared/SearchDrawer";
 import SearchDrawerShortcut from "@/app/shared/SearchDrawerShortcut";
-import Cookies from 'js-cookie';
 import { LogoutModal } from '../profile/LogoutModal';
 import { useNotificationContext } from '@/app/shared/context/HostNotificaiton'; // Fixed spelling
 import { useRouter } from 'next/navigation';
@@ -70,18 +69,18 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
       deleteCookie('next-auth.callback-url');
 
       // Create a logout URL that clears Google session and redirects back
-      const logoutUrl = 'https://accounts.google.com/Logout';
+      // const logoutUrl = 'https://accounts.google.com/Logout';
       const returnUrl = `${window.location.origin}/auth/login`;
       
       // Open Google logout in a hidden iframe to clear Google cookies
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = logoutUrl;
-      document.body.appendChild(iframe);
+      // const iframe = document.createElement('iframe');
+      // iframe.style.display = 'none';
+      // iframe.src = logoutUrl;
+      // document.body.appendChild(iframe);
 
       // Wait a moment for Google logout, then redirect
       setTimeout(() => {
-        document.body.removeChild(iframe);
+        // document.body.removeChild(iframe);
         window.location.href = returnUrl;
       }, 1000);
       router.push('/auth/login')

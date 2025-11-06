@@ -4,7 +4,6 @@
   import { LogoutModal } from "./LogoutModal";
   import { useRouter } from "next/navigation";
   import EditProfileDrawer from "./EditProfileDrawer";
-  import Cookies from "js-cookie";
   import { profile } from "@/app/api/Admin/profile";
 import toast from "react-hot-toast";
 
@@ -107,18 +106,14 @@ import toast from "react-hot-toast";
       deleteCookie('next-auth.callback-url');
 
       // Create a logout URL that clears Google session and redirects back
-      const logoutUrl = 'https://accounts.google.com/Logout';
+      
       const returnUrl = `${window.location.origin}/admin/auth/login`;
       
       // Open Google logout in a hidden iframe to clear Google cookies
-      const iframe = document.createElement('iframe');
-      iframe.style.display = 'none';
-      iframe.src = logoutUrl;
-      document.body.appendChild(iframe);
+      
 
       // Wait a moment for Google logout, then redirect
       setTimeout(() => {
-        document.body.removeChild(iframe);
         window.location.href = returnUrl;
       }, 1000);
       router.push('/admin/auth/login')

@@ -81,40 +81,46 @@ export default function Reports() {
   ];
 
   // Fetch reports from API
-  const fetchReports = async () => {
-    try {
-      setIsLoading(true);
-      const params = {
-        search: searchTerm,
-        reportType: certificationFilters.reportType as
-          | "WEEKLY"
-          | "MONTHLY"
-          | "CUSTOM"
-          | "ALL"
-          | undefined,
-        certificationStatus: certificationFilters.certificationStatus as
-          | "ALL"
-          | "ACTIVE"
-          | "EXPIRED"
-          | "REVOKED"
-          | undefined,
-        generatedDateTo: certificationFilters.generatedDateTo,
-      };
+  // Fetch reports from API
+const fetchReports = async () => {
+  // Don't make API call if search term is less than 3 characters and not empty
+  if (searchTerm && searchTerm.length < 3) {
+    return;
+  }
 
-      const response = await reports.getReports(params);
+  try {
+    setIsLoading(true);
+    const params = {
+      search: searchTerm,
+      reportType: certificationFilters.reportType as
+        | "WEEKLY"
+        | "MONTHLY"
+        | "CUSTOM"
+        | "ALL"
+        | undefined,
+      certificationStatus: certificationFilters.certificationStatus as
+        | "ALL"
+        | "ACTIVE"
+        | "EXPIRED"
+        | "REVOKED"
+        | undefined,
+      generatedDateTo: certificationFilters.generatedDateTo,
+    };
 
-      if (response.success && response.data) {
-        setAllReportsData(response.data.reports);
-        // setTotalPages(response.data.totalPages);
-        setTotalItems(response.data.total);
-      }
-    } catch (error) {
-      console.error("Error fetching reports:", error);
-      toast.error("Failed to fetch reports");
-    } finally {
-      setIsLoading(false);
+    const response = await reports.getReports(params);
+
+    if (response.success && response.data) {
+      setAllReportsData(response.data.reports);
+      // setTotalPages(response.data.totalPages);
+      setTotalItems(response.data.total);
     }
-  };
+  } catch (error) {
+    console.error("Error fetching reports:", error);
+    toast.error("Failed to fetch reports");
+  } finally {
+    setIsLoading(false);
+  }
+};
 
   const fetchStats = async () => {
     try {
@@ -127,10 +133,15 @@ export default function Reports() {
     }
   };
   // Fetch reports on mount and when filters change
-  useEffect(() => {
-    fetchReports();
-    fetchStats();
-  }, [searchTerm, certificationFilters]);
+  // Fetch reports on mount and when filters change
+useEffect(() => {
+  fetchReports();
+}, [searchTerm, certificationFilters]); // Remove fetchStats from here
+
+// Separate useEffect for stats
+useEffect(() => {
+  fetchStats();
+}, []); // Fetch stats only on mount
 
   // Get unique values for filter options
   const uniqueReportTypes = [
@@ -516,9 +527,6 @@ export default function Reports() {
       </div>
 
       <div className="flex flex-col justify-between mt-5">
-        {isLoading && (
-          <div className="text-center py-4 text-white">Loading...</div>
-        )}
         <Table
           data={displayData}
           title="Reports"

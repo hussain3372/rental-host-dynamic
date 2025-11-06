@@ -207,10 +207,10 @@ export default function LoginPage() {
         subtitle="Sign in to explore your personalized dashboard."
         submitText="Login"
         showAlter={true}
-        alterText="Don't have an account?"
-        linktext="Sign up"
+        // alterText="Don't have an account?"
+        // linktext="Sign up"
         loading={loading}
-        link="/auth/signup"
+        // link="/auth/signup"
         mode="login"
         onSubmit={handleLogin}
       />

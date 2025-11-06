@@ -7,10 +7,12 @@ import {
   useStripe,
   useElements,
 } from "@stripe/react-stripe-js";
+
+import { StripeCardElementChangeEvent } from '@stripe/stripe-js';
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { application } from "@/app/api/Host/application";
-import type { PaymentResponseReal } from "@/app/api/Host/application/types";
+import type { PaymentResponseReal , Data } from "@/app/api/Host/application/types";
 
 // Initialize Stripe with your publishable key
 const stripePromise = loadStripe(
@@ -21,8 +23,31 @@ interface StripePaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: () => void;
-  amount: number; // Amount in cents
+  amount: number;
   currency?: string;
+}
+
+// interface StripePaymentIntent {
+//   id: string;
+//   status: string;
+//   amount: number;
+//   currency: string;
+// }
+
+interface CardElementOptions {
+  style: {
+    base: {
+      fontSize: string;
+      color: string;
+      '::placeholder': {
+        color: string;
+      };
+      backgroundColor: string;
+    };
+    invalid: {
+      color: string;
+    };
+  };
 }
 
 const CheckoutForm: React.FC<{
@@ -32,50 +57,93 @@ const CheckoutForm: React.FC<{
 }> = ({ onSuccess, onClose, amount }) => {
   const stripe = useStripe();
   const elements = useElements();
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState("");
+  const [isProcessing, setIsProcessing] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string>("");
+  const [isCardComplete, setIsCardComplete] = useState<boolean>(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleCardChange = (event: StripeCardElementChangeEvent): void => {
+    setErrorMessage(event.error?.message || "");
+    setIsCardComplete(event.complete);
+  };
+
+  const handleSubmit = async (e: React.FormEvent): Promise<void> => {
     e.preventDefault();
 
-    if (!stripe || !elements) return;
+    if (!stripe || !elements) {
+      toast.error("Stripe not loaded");
+      return;
+    }
 
     setIsProcessing(true);
     setErrorMessage("");
 
     try {
-      // 1️⃣ Create payment intent on your backend
+      // 1️⃣ Get application ID
+      const stored: string | null = localStorage.getItem("applicationData");
+      const applicationData: Data | null = stored ? JSON.parse(stored) : null;
+      const applicationId: string | undefined = applicationData?.id;
+      
+      if (!applicationId) {
+        throw new Error("No application found. Please complete previous steps first.");
+      }
+
+      // 2️⃣ Create payment intent on your backend
       const response = await application.createPayment({
-        amount: 99, // Use the amount passed to the component
+        amount: Math.round(amount / 100), // Convert cents to dollars if needed
         currency: "USD",
-        description: "Payment for property listing application",
-        applicationId: localStorage.getItem("applicationData") 
-          ? JSON.parse(localStorage.getItem("applicationData")!).id 
-          : "",
+        description: "Payment for property certification",
+        applicationId: applicationId,
       });
 
-      // Cast to PaymentResponseReal since we know the API returns this shape
-      const backendResponse = response as unknown as PaymentResponseReal;
-      const { clientSecret } = backendResponse;
+      console.log("💰 Payment intent response:", response);
 
-      // 2️⃣ Confirm payment with Stripe
+      // Type guard for PaymentResponseReal
+      const isPaymentResponseReal = (obj: unknown): obj is PaymentResponseReal => {
+        return typeof obj === 'object' && obj !== null && 'clientSecret' in obj;
+      };
+
+      if (!isPaymentResponseReal(response)) {
+        throw new Error("Invalid payment response format");
+      }
+
+      const { clientSecret } = response;
+
+      if (!clientSecret) {
+        throw new Error("No client secret received from payment API");
+      }
+
+      // 3️⃣ Confirm payment with Stripe
       const cardElement = elements.getElement(CardElement);
-      if (!cardElement) throw new Error("Card element not found");
+      if (!cardElement) {
+        throw new Error("Card element not found");
+      }
 
-      const { error: stripeError, paymentIntent } =
-        await stripe.confirmCardPayment(clientSecret, {
-          payment_method: { card: cardElement },
-        });
+      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: { card: cardElement },
+      });
 
       if (stripeError) {
-        setErrorMessage(stripeError.message || "Payment failed");
-        toast.error(stripeError.message || "Payment failed");
+        const errorMsg: string = stripeError.message || "Payment failed";
+        setErrorMessage(errorMsg);
+        toast.error(errorMsg);
       } else if (paymentIntent?.status === "succeeded") {
-        toast.success("Payment successful!");
+        console.log("✅ Stripe payment succeeded:", paymentIntent);
+        
+        // 4️⃣ Fetch fresh application data to get updated payment status
+        console.log("🔄 Fetching updated application data...");
+        
+        // Wait a moment for backend to process
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
+        // The parent component should handle the success and refresh
+        toast.success("Payment processed successfully!");
         onSuccess();
+      } else {
+        throw new Error(`Payment status: ${paymentIntent?.status}`);
       }
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Payment failed";
+    } catch (error: unknown) {
+      console.error("❌ Payment error:", error);
+      const message: string = error instanceof Error ? error.message : "Payment failed";
       setErrorMessage(message);
       toast.error(message);
     } finally {
@@ -83,12 +151,12 @@ const CheckoutForm: React.FC<{
     }
   };
 
-  const cardElementOptions = {
+  const cardElementOptions: CardElementOptions = {
     style: {
       base: {
         fontSize: "16px",
         color: "#ffffff",
-        "::placeholder": {
+        '::placeholder': {
           color: "rgba(255, 255, 255, 0.4)",
         },
         backgroundColor: "transparent",
@@ -106,7 +174,10 @@ const CheckoutForm: React.FC<{
           Card Details
         </label>
         <div className="w-full p-4 bg-gradient-to-b from-[#202020] to-[#101010] border border-[#4a4a4a] rounded-lg">
-          <CardElement options={cardElementOptions} />
+          <CardElement 
+            options={cardElementOptions} 
+            onChange={handleCardChange}
+          />
         </div>
       </div>
 
@@ -121,16 +192,23 @@ const CheckoutForm: React.FC<{
           type="button"
           onClick={onClose}
           disabled={isProcessing}
-          className="flex-1 px-6 py-3 text-[16px] bg-gradient-to-b from-[#202020] to-[#101010] border border-[#4a4a4a] text-white font-semibold rounded-md hover:opacity-90 disabled:opacity-50"
+          className="flex-1 px-6 py-3 text-[16px] bg-gradient-to-b from-[#202020] to-[#101010] border border-[#4a4a4a] text-white font-semibold rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
           Cancel
         </button>
         <button
           type="submit"
-          disabled={!stripe || isProcessing}
-          className="flex-1 px-6 py-3 text-[16px] bg-gradient-to-b from-[#EFFC76] to-[#d4e05c] text-black font-semibold rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+          disabled={!stripe || isProcessing || !isCardComplete}
+          className="flex-1 px-6 py-3 text-[16px] bg-gradient-to-b from-[#EFFC76] to-[#d4e05c] text-black font-semibold rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
         >
-          {isProcessing ? "Processing..." : `Pay $${(amount / 100).toFixed(2)}`}
+          {isProcessing ? (
+            <span className="flex items-center justify-center gap-2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-black"></div>
+              Processing...
+            </span>
+          ) : (
+            `Pay $${(amount / 100).toFixed(2)}`
+          )}
         </button>
       </div>
     </form>
@@ -143,7 +221,7 @@ export default function StripePaymentModal({
   onSuccess,
   amount,
   currency = "USD",
-}: StripePaymentModalProps) {
+}: StripePaymentModalProps): React.JSX.Element | null {
   if (!isOpen) return null;
 
   return (
@@ -153,6 +231,7 @@ export default function StripePaymentModal({
         <button
           onClick={onClose}
           className="absolute top-4 right-4 text-white/60 hover:text-white transition-colors"
+          aria-label="Close payment modal"
         >
           <Image src="/images/close.svg" alt="close" width={24} height={24} />
         </button>
