@@ -56,7 +56,7 @@ const Dropdown: React.FC<DropdownProps> = ({
   return (
     <div
       ref={dropdownRef}
-      className="absolute right-0 top-full mt-1 !z-[2000] flex flex-col items-start w-full rounded-[10px] 
+      className="absolute right-0 top-full mt-1 z-2000! flex flex-col items-start w-full rounded-[10px] 
                  bg-[radial-gradient(75%_81%_at_50%_18.4%,#202020_0%,#101010_100%)] 
                  shadow-[inset_0_0_0_1px_rgba(255,255,255,0.1)] p-2 border border-gray-700"
     >
@@ -99,7 +99,7 @@ const CustomDateInput = React.forwardRef<
     ref={ref}
     readOnly
     placeholder={placeholder}
-    className="w-full bg-gradient-to-b from-[#202020] to-[#101010] border rounded-xl px-4 py-3 text-sm 
+    className="w-full bg-linear-to-b from-[#202020] to-[#101010] border rounded-xl px-4 py-3 text-sm 
                  border-[#404040] focus:border-[#EFFC76] focus:outline-none cursor-pointer 
                  text-white placeholder-white/40 transition-colors duration-200"
   />
@@ -194,10 +194,10 @@ export default function Drawer({ onClose, onReportCreated }: DrawerProps) {
 
         if (downloadResponse.success && downloadResponse.data) {
           // Create blob and download
-         // Option 2: If it's JSON or needs conversion
-            const blob = new Blob([JSON.stringify(downloadResponse.data)], {
-              type: "application/octet-stream",
-            });
+          // Option 2: If it's JSON or needs conversion
+          const blob = new Blob([JSON.stringify(downloadResponse.data)], {
+            type: "application/octet-stream",
+          });
           const url = window.URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = url;
@@ -226,15 +226,14 @@ export default function Drawer({ onClose, onReportCreated }: DrawerProps) {
       } else
         (error: unknown) => {
           if (error instanceof Error) {
-          toast.error(error?.message || "Failed to create report");
+            toast.error(error?.message || "Failed to create report");
           }
         };
     } catch (error: unknown) {
       if (error instanceof Error) {
-      console.error("Error creating report:", error);
-      toast.error(error?.message || "Failed to create and export report");
+        console.error("Error creating report:", error);
+        toast.error(error?.message || "Failed to create and export report");
       }
-      
     } finally {
       setIsLoading(false);
     }

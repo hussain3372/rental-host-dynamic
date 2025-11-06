@@ -29,8 +29,13 @@ export interface ReportListResponse {
   reports: ReportItem[];
   total: number;
   page: number;
+  
   limit: number;
   totalPages: number;
+  meta:{
+    total : number
+  }
+  
 }
 
 // ✅ Type for GET single report detail

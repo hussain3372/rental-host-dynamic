@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState, useEffect, useRef } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "@/app/shared/tables/Filter";
@@ -67,10 +67,25 @@ interface ApiFilters {
   take: number;
 }
 
+interface PaginationData {
+  total: number;
+  pageSize: number;
+  currentPage: number;
+  totalPages: number;
+  nextPage: number | null;
+  prevPage: number | null;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
 export default function Finances() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(6);
+  const [isLoading, setIsLoading] = useState(true);
+
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [refundOpen, setRefundOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -81,9 +96,7 @@ export default function Finances() {
   } | null>(null);
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
 
-  const [financeFilters, setFinanceFilters] = useState<
-    Record<string, string | Date | null>
-  >({
+  const [financeFilters, setFinanceFilters] = useState({
     status: "",
   });
 
@@ -91,29 +104,60 @@ export default function Finances() {
     {}
   );
 
-  const handleDropdownToggle = (key: string, value: boolean) => {
-    setDropdownStates((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const itemsPerPage = 6;
   const [financeData, setFinanceData] = useState<FinanceData[]>([]);
-  const [totalItems, setTotalItems] = useState(0);
-  const [loading, setLoading] = useState(false);
+  const [paginationData, setPaginationData] = useState<PaginationData>({
+    total: 0,
+    pageSize: itemsPerPage,
+    currentPage: 1,
+    totalPages: 1,
+    nextPage: null,
+    prevPage: null,
+    hasNextPage: false,
+    hasPrevPage: false,
+  });
 
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Debounce search term - only update if 3+ characters or empty
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      if (searchTerm.trim().length >= 3 || searchTerm.trim() === "") {
+        setDebouncedSearchTerm(searchTerm);
+      }
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  const hasActiveFilters = useMemo(() => {
+    return (
+      debouncedSearchTerm.trim() !== "" || financeFilters.status.trim() !== ""
+    );
+  }, [debouncedSearchTerm, financeFilters.status]);
 
   // Fetch billing data from API
-  const fetchBillingData = async (filters: ApiFilters) => {
+  const fetchBillingData = useCallback(async () => {
     try {
-      setLoading(true);
-      console.log("API Call with filters:", filters);
-
-      const response = (await setting.getBillingWithParams(filters)) as {
-        success: boolean;
-        data: PaymentResponse;
+      setIsLoading(true);
+      const filters: ApiFilters = {
+        skip: (currentPage - 1) * itemsPerPage,
+        take: itemsPerPage,
       };
 
-      if (response.success && response.data && response.data.payments) {
+      if (financeFilters.status) {
+        filters.status = financeFilters.status;
+      }
+      if (debouncedSearchTerm && debouncedSearchTerm.length >= 3) {
+        filters.search = debouncedSearchTerm;
+      }
+
+      console.log("📊 API Filters:", filters);
+
+      const response = await setting.getBillingWithParams(filters);
+
+      console.log("📥 API Response:", response);
+
+      if (response.success && response.data) {
         const formattedData: FinanceData[] = response.data.payments.map(
           (payment) => ({
             id: payment.id,
@@ -127,79 +171,70 @@ export default function Finances() {
             createdAt: payment.createdAt,
           })
         );
+
+        // FIX: Use the meta object from API response
+        const meta = response.data.meta;
+        const total = meta?.total || 0;
+        const totalPages = meta?.totalPages || 1;
+
+        console.log("🔢 Pagination Data from API:", {
+          total,
+          currentPage: meta?.page || currentPage,
+          itemsPerPage: meta?.limit || itemsPerPage,
+          totalPages,
+          hasNextPage: meta?.hasNextPage || false,
+          hasPrevPage: meta?.hasPrevPage || false,
+        });
+
         setFinanceData(formattedData);
-        setTotalItems(response.data.total || 0);
+
+        // FIX: Set pagination data from the meta object
+        setPaginationData({
+          total,
+          pageSize: meta?.limit || itemsPerPage,
+          currentPage: meta?.page || currentPage,
+          totalPages,
+          nextPage: meta?.hasNextPage ? (meta?.page || currentPage) + 1 : null,
+          prevPage: meta?.hasPrevPage ? (meta?.page || currentPage) - 1 : null,
+          hasNextPage: meta?.hasNextPage || false,
+          hasPrevPage: meta?.hasPrevPage || false,
+        });
+      } else {
+        console.error("Invalid API response structure:", response);
+        setFinanceData([]);
+        setPaginationData({
+          total: 0,
+          pageSize: itemsPerPage,
+          currentPage: 1,
+          totalPages: 1,
+          nextPage: null,
+          prevPage: null,
+          hasNextPage: false,
+          hasPrevPage: false,
+        });
       }
     } catch (err) {
       console.error("Error fetching billing data:", err);
       toast.error("Failed to load financial transactions");
+      setFinanceData([]);
+      setPaginationData({
+        total: 0,
+        pageSize: itemsPerPage,
+        currentPage: 1,
+        totalPages: 1,
+        nextPage: null,
+        prevPage: null,
+        hasNextPage: false,
+        hasPrevPage: false,
+      });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
-  };
-
-  // Main effect for fetching data when page or status filter changes
+  }, [debouncedSearchTerm, financeFilters.status, currentPage, itemsPerPage]);
+  // Main effect for fetching data
   useEffect(() => {
-    const filters: ApiFilters = {
-      skip: (currentPage - 1) * itemsPerPage,
-      take: itemsPerPage,
-    };
-
-    // Add status filter if it exists
-    if (financeFilters.status && typeof financeFilters.status === "string") {
-      filters.status = financeFilters.status;
-    }
-
-    // Add search term if it exists and is valid (3+ characters)
-    if (searchTerm && searchTerm.length >= 3) {
-      filters.search = searchTerm;
-    }
-
-    void fetchBillingData(filters);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentPage, financeFilters.status]);
-
-  // Debounced search effect - separate from pagination
-  useEffect(() => {
-    // Clear previous timeout
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    // If search term is less than 3 characters and not empty, don't make API call
-    if (searchTerm.length > 0 && searchTerm.length < 3) {
-      return;
-    }
-
-    // Set timeout for debounced search
-    searchTimeoutRef.current = setTimeout(() => {
-      setCurrentPage(1); // Reset to first page when searching
-
-      const filters: ApiFilters = {
-        skip: 0,
-        take: itemsPerPage,
-      };
-
-      // Add status filter if it exists
-      if (financeFilters.status && typeof financeFilters.status === "string") {
-        filters.status = financeFilters.status;
-      }
-
-      // Add search term if it exists
-      if (searchTerm && searchTerm.length >= 3) {
-        filters.search = searchTerm;
-      }
-
-      void fetchBillingData(filters);
-    }, 500); // 500ms debounce
-
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchTerm]);
+    fetchBillingData();
+  }, [fetchBillingData]);
 
   const displayData = useMemo(() => {
     return financeData.map((item) => ({
@@ -218,20 +253,7 @@ export default function Finances() {
       // await setting.deleteTransaction(id);
 
       // For now, just refetch the data
-      const filters: ApiFilters = {
-        skip: (currentPage - 1) * itemsPerPage,
-        take: itemsPerPage,
-      };
-
-      if (financeFilters.status && typeof financeFilters.status === "string") {
-        filters.status = financeFilters.status;
-      }
-
-      if (searchTerm && searchTerm.length >= 3) {
-        filters.search = searchTerm;
-      }
-
-      await fetchBillingData(filters);
+      await fetchBillingData();
 
       setIsModalOpen(false);
       setSingleRowToDelete(null);
@@ -254,9 +276,15 @@ export default function Finances() {
     }
   };
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [debouncedSearchTerm, financeFilters.status]);
+
   const handleResetFilter = () => {
     setFinanceFilters({ status: "" });
     setSearchTerm("");
+    setDebouncedSearchTerm("");
     setCurrentPage(1);
     setIsFilterOpen(false);
   };
@@ -264,6 +292,10 @@ export default function Finances() {
   const handleApplyFilter = () => {
     setIsFilterOpen(false);
     setCurrentPage(1);
+  };
+
+  const handleDropdownToggle = (key: string, value: boolean) => {
+    setDropdownStates((prev) => ({ ...prev, [key]: value }));
   };
 
   const isAllSelected = useMemo(() => {
@@ -293,6 +325,18 @@ export default function Finances() {
       newSelected.delete(id);
     }
     setSelectedRows(newSelected);
+  };
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+  };
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    // Only reset page if we're actually going to search (3+ chars) or clearing search
+    if (term.trim().length >= 3 || term.trim() === "") {
+      setCurrentPage(1);
+    }
   };
 
   const tableControls = {
@@ -331,7 +375,7 @@ export default function Finances() {
         />
       )}
 
-      <div className="flex flex-col !h-full justify-between">
+      <div className="flex flex-col h-full justify-between">
         <Table
           data={displayData}
           title="Financial Transactions"
@@ -349,14 +393,14 @@ export default function Finances() {
           rowIds={financeData.map((item) => item.id)}
           dropdownItems={dropdownItems}
           searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          onSearchChange={handleSearch}
           currentPage={currentPage}
-          onPageChange={setCurrentPage}
-          itemsPerPage={itemsPerPage}
-          totalItems={totalItems}
+          onPageChange={handlePageChange}
+          itemsPerPage={paginationData.pageSize}
+          totalItems={paginationData.total || 0}
           showFilter={true}
           onFilterToggle={setIsFilterOpen}
-          isLoading={loading}
+          isLoading={isLoading}
           disableClientSidePagination={true}
         />
       </div>

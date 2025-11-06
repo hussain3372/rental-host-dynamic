@@ -6,7 +6,7 @@ import {
   CreateReportRequest,
   CreateReportResponse,
   ReportStats,
-  DeleteReport
+  DeleteReport,
 } from "./types";
 
 const token = Cookies.get("superAdminAccessToken");
@@ -17,23 +17,33 @@ export const reports = {
     reportType?: "WEEKLY" | "MONTHLY" | "CUSTOM" | "ALL";
     certificationStatus?: "ALL" | "ACTIVE" | "EXPIRED" | "REVOKED";
     generatedDateTo?: string;
+    page?: number;
+    limit?: number;
+    skip?: number;
+    take?: number;
   }): Promise<ApiResponse<ReportListResponse>> => {
     const query = new URLSearchParams();
 
-    // Only append valid params
+    // ✅ Only append valid params
     if (params?.search) query.append("search", params.search);
 
-    // ✅ Only add reportType if it's a valid one (not empty or "ALL")
-    if (params?.reportType && params.reportType !== "ALL")
+    if (params?.reportType && params.reportType !== "ALL") {
       query.append("reportType", params.reportType);
+    }
 
-    // ✅ certificationStatus is safe to send even if "ALL"
-    if (params?.certificationStatus)
+    if (params?.certificationStatus) {
       query.append("certificationStatus", params.certificationStatus);
+    }
 
     // ✅ Add generatedDateTo only if it's a valid date
     if (params?.generatedDateTo && !isNaN(Date.parse(params.generatedDateTo)))
       query.append("generatedDateTo", params.generatedDateTo);
+
+    // ✅ Add pagination parameters
+    if (params?.page) query.append("page", params.page.toString());
+    if (params?.limit) query.append("limit", params.limit.toString());
+    if (params?.skip) query.append("skip", params.skip.toString());
+    if (params?.take) query.append("take", params.take.toString());
 
     return apiClient.get<ReportListResponse>(`/reports?${query.toString()}`, {
       headers: {
@@ -98,7 +108,7 @@ export const reports = {
     );
   },
 
-   getReportStats: async (): Promise<ApiResponse<ReportStats>> => {
+  getReportStats: async (): Promise<ApiResponse<ReportStats>> => {
     return apiClient.get<ReportStats>(`/certifications/stats`, {
       headers: {
         "Content-Type": "application/json",

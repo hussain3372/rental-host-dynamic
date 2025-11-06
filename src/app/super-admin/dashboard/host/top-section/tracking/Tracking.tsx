@@ -510,6 +510,7 @@ export default function Applications() {
           title="Registered Admins"
           control={tableControl}
           showDeleteButton={true}
+          showPagination={false}
           onDeleteSingle={(row, index) => {
             const originalRow = adminData[index];
             openDeleteSingleModal(row, originalRow.id);

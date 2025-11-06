@@ -55,4 +55,13 @@ export interface PaymentResponse {
     };
   }[];
   total: number;
+  meta : {
+    total : number
+    totalPages:number
+    hasPrevPage:boolean
+    hasNextPage : boolean
+    limit : number
+    page : number
+    
+  }
 }

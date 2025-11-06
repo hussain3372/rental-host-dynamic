@@ -1,13 +1,14 @@
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-// import { X, User, Briefcase, Calendar, Activity } from "lucide-react";
 import Image from "next/image";
 import Dropdown from "@/app/shared/Dropdown";
+
 interface ColumnConfig {
   truncate?: boolean;
   className?: string;
 }
+
 export type TableControl = {
   hover?: boolean;
   striped?: boolean;
@@ -95,8 +96,8 @@ export function Table<T extends Record<string, unknown>>({
   onFilterToggle = () => {},
   onDeleteAll = () => {},
   isDeleteAllDisabled = true,
-  disableClientSidePagination = false, // ✅ ADD THIS
-  hideIdColumn = false, // Add this
+  disableClientSidePagination = false,
+  hideIdColumn = false,
 }: TableProps<T>) {
   const [displayData, setDisplayData] = useState<T[]>(data);
   const [activeSortDropdown, setActiveSortDropdown] = useState<string | null>(
@@ -242,6 +243,7 @@ export function Table<T extends Record<string, unknown>>({
     : showPagination
     ? data.slice(startIndex, startIndex + itemsPerPage)
     : data;
+
   const renderPaginationButtons = () => {
     const buttons = [];
     const maxVisiblePages = 5;
@@ -250,7 +252,6 @@ export function Table<T extends Record<string, unknown>>({
       return null;
     }
 
-    // Previous button
     buttons.push(
       <button
         type="button"
@@ -263,7 +264,6 @@ export function Table<T extends Record<string, unknown>>({
       </button>
     );
 
-    // Calculate which pages to show
     let startPage = 1;
     let endPage = totalPages;
 
@@ -271,19 +271,15 @@ export function Table<T extends Record<string, unknown>>({
       const halfVisible = Math.floor(maxVisiblePages / 2);
 
       if (currentPage <= halfVisible + 1) {
-        // At the beginning
         endPage = maxVisiblePages;
       } else if (currentPage >= totalPages - halfVisible) {
-        // At the end
         startPage = totalPages - maxVisiblePages + 1;
       } else {
-        // In the middle
         startPage = currentPage - halfVisible;
         endPage = currentPage + halfVisible;
       }
     }
 
-    // Always show first page
     if (startPage > 1) {
       buttons.push(
         <button
@@ -296,7 +292,6 @@ export function Table<T extends Record<string, unknown>>({
         </button>
       );
 
-      // Show ellipsis if there's a gap
       if (startPage > 2) {
         buttons.push(
           <span
@@ -309,7 +304,6 @@ export function Table<T extends Record<string, unknown>>({
       }
     }
 
-    // Render page numbers
     for (let i = startPage; i <= endPage; i++) {
       buttons.push(
         <button
@@ -327,9 +321,7 @@ export function Table<T extends Record<string, unknown>>({
       );
     }
 
-    // Always show last page
     if (endPage < totalPages) {
-      // Show ellipsis if there's a gap
       if (endPage < totalPages - 1) {
         buttons.push(
           <span
@@ -353,7 +345,6 @@ export function Table<T extends Record<string, unknown>>({
       );
     }
 
-    // Next button
     buttons.push(
       <button
         type="button"
@@ -373,7 +364,8 @@ export function Table<T extends Record<string, unknown>>({
 
     return buttons;
   };
-  // ✅ Remove the "id" column from both header and body - FIXED VERSION
+
+  // ✅ FIX: Filter keys based on hideIdColumn
   const keys =
     displayData.length > 0
       ? Object.keys(displayData[0]).filter((key) => {
@@ -476,7 +468,7 @@ export function Table<T extends Record<string, unknown>>({
           </div>
         </div>
 
-        <div className="p-0 ">
+        <div className="p-0">
           <div
             className="scrollbar-hide"
             style={{
@@ -588,12 +580,6 @@ export function Table<T extends Record<string, unknown>>({
                           }}
                         >
                           {key}
-                          {/* <Image
-                            src="/images/menu.png"
-                            alt="menu"
-                            height={16}
-                            width={16}
-                          /> */}
                         </div>
                       </th>
                     ))}
@@ -612,12 +598,6 @@ export function Table<T extends Record<string, unknown>>({
                         }}
                       >
                         Action
-                        {/* <Image
-                          src="/images/menu.png"
-                          alt="menu"
-                          height={16}
-                          width={16}
-                        /> */}
                       </th>
                     )}
                   </tr>
@@ -656,123 +636,116 @@ export function Table<T extends Record<string, unknown>>({
                   </tbody>
                 ) : (
                   <tbody className="!bg-transparent table-container">
-                    {tableData.map((row, idx) => (
-                      <tr
-                        className="rounded-md bg-transparent"
-                        key={idx}
-                        style={{ cursor: "default" }}
-                        onClick={() => handleRowClick(row, idx)}
-                      >
-                        {showDeleteButton && (
-                          <td
-                            style={{
-                              padding: paddingSize,
-                              whiteSpace: "nowrap",
-                              width: "24px",
-                            }}
-                          >
-                            <label className="relative inline-flex items-center cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={selectedRows.has(
-                                  rowIds[
-                                    showPagination ? startIndex + idx : idx
-                                  ]
-                                )}
-                                onChange={(e) => {
-                                  const rowId =
-                                    rowIds[
-                                      showPagination ? startIndex + idx : idx
-                                    ];
-                                  onSelectRow?.(rowId, e.target.checked);
-                                }}
-                                className="peer hidden"
-                              />
-                              <span
-                                className="absolute inset-0 rounded-md border-2 border-[#FFFFFFCC] translate-x-1 translate-y-1 
-                              peer-checked:border-[#EFFC76]"
-                              ></span>
-                              <span
-                                className="relative w-5 h-5 rounded-md border-2 border-[#FFFFFFCC] bg-[#252628] 
-                                          flex items-center justify-center 
-                                          peer-checked:bg-[#EFFC76] peer-checked:border-[#EFFC76]
-                                          peer-checked:after:content-['✓'] peer-checked:after:text-black peer-checked:after:text-xs peer-checked:after:font-bold"
-                              ></span>
-                            </label>
-                          </td>
-                        )}
-
-                        {keys.map((key) => (
-                          <td
-                            key={key}
-                            style={{
-                              padding: paddingSize,
-                              fontWeight: 400,
-                              fontSize: "14px",
-                              lineHeight: "18px",
-                              color: "#FFFFFF99",
-                              whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              maxWidth: "150px", // 👈 adjust this width as needed
-                            }}
-                          >
-                            {renderCellContent(key, row[key])}
-                          </td>
-                        ))}
-
-                        {showDeleteButton && (
-                          <td style={{ position: "relative" }}>
-                            <button
-                              type="button"
-                              onClick={(e) => handleDropdownToggle(idx, e)}
-                              className={`px-6 py-1 text-white rounded cursor-pointer`}
+                    {tableData.map((row, idx) => {
+                      // ✅ FIX: Get the correct rowId from rowIds array
+                      const rowId = rowIds[idx];
+                      
+                      return (
+                        <tr
+                          className="rounded-md bg-transparent"
+                          key={rowId}
+                          style={{ cursor: "default" }}
+                          onClick={(e) => handleRowClick(row, idx, e)}
+                        >
+                          {showDeleteButton && (
+                            <td
+                              style={{
+                                padding: paddingSize,
+                                whiteSpace: "nowrap",
+                                width: "24px",
+                              }}
                             >
-                              <Image
-                                src="/images/menu.svg"
-                                alt="Open detail"
-                                width={3}
-                                height={12}
-                              />
-                            </button>
+                              <label className="relative inline-flex items-center cursor-pointer">
+                                <input
+                                  type="checkbox"
+                                  checked={selectedRows.has(rowId)}
+                                  onChange={(e) => {
+                                    onSelectRow?.(rowId, e.target.checked);
+                                  }}
+                                  className="peer hidden"
+                                />
+                                <span
+                                  className="absolute inset-0 rounded-md border-2 border-[#FFFFFFCC] translate-x-1 translate-y-1 
+                                peer-checked:border-[#EFFC76]"
+                                ></span>
+                                <span
+                                  className="relative w-5 h-5 rounded-md border-2 border-[#FFFFFFCC] bg-[#252628] 
+                                            flex items-center justify-center 
+                                            peer-checked:bg-[#EFFC76] peer-checked:border-[#EFFC76]
+                                            peer-checked:after:content-['✓'] peer-checked:after:text-black peer-checked:after:text-xs peer-checked:after:font-bold"
+                                ></span>
+                              </label>
+                            </td>
+                          )}
 
-                            {activeDropdown === idx && dropdownItems && (
-                              <Dropdown
-                                isOpen={true}
-                                onClose={() => setActiveDropdown(null)}
-                                items={dropdownItems.map((item) => {
-                                  let disabled = false;
-                                  if (
-                                    item.label === "Delete Application" ||
-                                    item.label.toLowerCase().includes("delete")
-                                  ) {
-                                    const rowId =
-                                      rowIds[
-                                        showPagination ? startIndex + idx : idx
-                                      ];
-                                    disabled = !selectedRows.has(rowId);
-                                  }
+                          {keys.map((key) => (
+                            <td
+                              key={key}
+                              style={{
+                                padding: paddingSize,
+                                fontWeight: 400,
+                                fontSize: "14px",
+                                lineHeight: "18px",
+                                color: "#FFFFFF99",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                maxWidth: "150px",
+                              }}
+                            >
+                              {renderCellContent(key, row[key])}
+                            </td>
+                          ))}
 
-                                  return {
-                                    label: item.label,
-                                    disabled,
-                                    className: disabled
-                                      ? "opacity-50 cursor-not-allowed"
-                                      : "",
-                                    onClick: () => {
-                                      if (!disabled) {
-                                        item.onClick(row, idx);
-                                        setActiveDropdown(null);
-                                      }
-                                    },
-                                  };
-                                })}
-                              />
-                            )}
-                          </td>
-                        )}
-                      </tr>
-                    ))}
+                          {showDeleteButton && (
+                            <td style={{ position: "relative" }}>
+                              <button
+                                type="button"
+                                onClick={(e) => handleDropdownToggle(idx, e)}
+                                className={`px-6 py-1 text-white rounded cursor-pointer`}
+                              >
+                                <Image
+                                  src="/images/menu.svg"
+                                  alt="Open detail"
+                                  width={3}
+                                  height={12}
+                                />
+                              </button>
+
+                              {activeDropdown === idx && dropdownItems && (
+                                <Dropdown
+                                  isOpen={true}
+                                  onClose={() => setActiveDropdown(null)}
+                                  items={dropdownItems.map((item) => {
+                                    let disabled = false;
+                                    if (
+                                      item.label === "Delete Application" ||
+                                      item.label.toLowerCase().includes("delete")
+                                    ) {
+                                      disabled = !selectedRows.has(rowId);
+                                    }
+
+                                    return {
+                                      label: item.label,
+                                      disabled,
+                                      className: disabled
+                                        ? "opacity-50 cursor-not-allowed"
+                                        : "",
+                                      onClick: () => {
+                                        if (!disabled) {
+                                          item.onClick(row, idx);
+                                          setActiveDropdown(null);
+                                        }
+                                      },
+                                    };
+                                  })}
+                                />
+                              )}
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 )}
               </table>

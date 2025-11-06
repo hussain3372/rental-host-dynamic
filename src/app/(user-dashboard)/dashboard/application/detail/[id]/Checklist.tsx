@@ -117,7 +117,10 @@ export default function Checklist({ application }: ChecklistProps) {
     );
   };
 
-const handleDownload = async (url: string | undefined, documentType: string) => {
+  const handleDownload = async (
+    url: string | undefined,
+    documentType: string
+  ) => {
     if (!url) {
       toast.error("No file available to download.");
       return;
@@ -290,7 +293,9 @@ const handleDownload = async (url: string | undefined, documentType: string) => 
                 </div>
 
                 <button
-                  onClick={() => handleDownload(doc.url, doc.documentType || "document")}
+                  onClick={() =>
+                    handleDownload(doc.url, doc.documentType || "document")
+                  }
                   className="cursor-pointer p-2 hover:bg-white/10 rounded-lg transition-colors"
                 >
                   <NextImage

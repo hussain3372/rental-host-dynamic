@@ -337,14 +337,23 @@ export default function Applications() {
     setCurrentPage(1);
   };
 
-  const dropdownItems = [
+ const dropdownItems = [
     {
       label: "View Details",
       onClick: (row: Record<string, string>, index: number) => {
-        const globalIndex = (currentPage - 1) * itemsPerPage + index;
-        const originalRow = allCertificationData[globalIndex];
-        if (originalRow) {
-          window.location.href = `/dashboard/application/detail/${originalRow.id}`;
+        console.log("🔍 Dropdown clicked - Row data:", row);
+        console.log("🔍 Index:", index);
+        console.log("🔍 Current page:", currentPage);
+        console.log("🔍 Display data:", displayData);
+        console.log("🔍 All certification data:", allCertificationData);
+        
+        // The row parameter already contains all the data including id
+        // Since displayData is mapped directly from allCertificationData
+        // and passed to the Table component, the row should have the id
+        if (row.id) {
+          window.location.href = `/dashboard/application/detail/${row.id}`;
+        } else {
+          console.error("❌ No ID found in row:", row);
         }
       },
     },

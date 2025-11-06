@@ -63,15 +63,16 @@ export const setting = {
 
   // In your settings/index.ts file, add this function:
 
-  getBillingWithParams: async (params: {
+ getBillingWithParams: async (params: {
     status?: string;
+    search?: string;
     skip?: number;
     take?: number;
-    search?: string; // ✅ new param
   }): Promise<ApiResponse<PaymentResponse>> => {
     const queryParams = new URLSearchParams();
 
     if (params.status) queryParams.append("status", params.status);
+    if (params.search) queryParams.append("search", params.search);
     if (params.skip !== undefined)
       queryParams.append("skip", params.skip.toString());
     if (params.take !== undefined)
@@ -90,4 +91,5 @@ export const setting = {
       },
     });
   },
+
 };
