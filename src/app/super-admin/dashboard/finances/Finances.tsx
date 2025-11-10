@@ -58,6 +58,7 @@ interface FinanceData {
   method: string;
   status: string;
   createdAt: string;
+  currency: string;
 }
 
 interface ApiFilters {
@@ -90,6 +91,7 @@ export default function Finances() {
   const [refundOpen, setRefundOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [selectedTransaction, setSelectedTransaction] = useState<FinanceData | null>(null);
   const [singleRowToDelete, setSingleRowToDelete] = useState<{
     row: Record<string, string>;
     id: string;
@@ -169,10 +171,10 @@ export default function Finances() {
             method: payment.paymentMethod || "N/A",
             status: payment.status,
             createdAt: payment.createdAt,
+            currency: payment.currency || "USD",
           })
         );
 
-        // FIX: Use the meta object from API response
         const meta = response.data.meta;
         const total = meta?.total || 0;
         const totalPages = meta?.totalPages || 1;
@@ -188,7 +190,6 @@ export default function Finances() {
 
         setFinanceData(formattedData);
 
-        // FIX: Set pagination data from the meta object
         setPaginationData({
           total,
           pageSize: meta?.limit || itemsPerPage,
@@ -231,10 +232,26 @@ export default function Finances() {
       setIsLoading(false);
     }
   }, [debouncedSearchTerm, financeFilters.status, currentPage, itemsPerPage]);
+
   // Main effect for fetching data
   useEffect(() => {
     fetchBillingData();
   }, [fetchBillingData]);
+
+  // Handle refund success
+  const handleRefundSuccess = () => {
+    // Refresh the data when refund is successful
+    fetchBillingData();
+    toast.success("Refund processed successfully!");
+  };
+
+  // Handle drawer close - refresh data
+  const handleRefundDrawerClose = () => {
+    setRefundOpen(false);
+    setSelectedTransaction(null);
+    // Refresh data when drawer closes to get updated status
+    fetchBillingData();
+  };
 
   const displayData = useMemo(() => {
     return financeData.map((item) => ({
@@ -333,7 +350,6 @@ export default function Finances() {
 
   const handleSearch = (term: string) => {
     setSearchTerm(term);
-    // Only reset page if we're actually going to search (3+ chars) or clearing search
     if (term.trim().length >= 3 || term.trim() === "") {
       setCurrentPage(1);
     }
@@ -346,11 +362,19 @@ export default function Finances() {
   const dropdownItems = [
     {
       label: "View Receipt",
-      onClick: () => setReceiptOpen(true),
+      onClick: (row: Record<string, string>, index: number) => {
+        const originalRow = financeData[index];
+        setSelectedTransaction(originalRow);
+        setReceiptOpen(true);
+      },
     },
     {
       label: "Issue Refund",
-      onClick: () => setRefundOpen(true),
+      onClick: (row: Record<string, string>, index: number) => {
+        const originalRow = financeData[index];
+        setSelectedTransaction(originalRow);
+        setRefundOpen(true);
+      },
     },
     {
       label: "Delete Transaction",
@@ -437,16 +461,23 @@ export default function Finances() {
         ]}
       />
 
-      {receiptOpen && (
+      {receiptOpen && selectedTransaction && (
         <ReceiptDrawer
           isOpen={receiptOpen}
-          onClose={() => setReceiptOpen(false)}
+          transaction={selectedTransaction}
+          onClose={() => {
+            setReceiptOpen(false);
+            setSelectedTransaction(null);
+          }}
         />
       )}
-      {refundOpen && (
+
+      {refundOpen && selectedTransaction && (
         <RefundDrawer
           isOpen={refundOpen}
-          onClose={() => setRefundOpen(false)}
+          transaction={selectedTransaction}
+          onClose={handleRefundDrawerClose}
+          onRefundSuccess={handleRefundSuccess}
         />
       )}
     </>

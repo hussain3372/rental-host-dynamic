@@ -51,7 +51,7 @@ const fetchSearchResults = async (query: string) => {
         const mappedResults: SearchResult[] = apiResponse.data.map((item) => ({
           id: item.id,
           name: item.propertyName,
-          description: `${item.hostName} - ${item.hostCompany}`,
+          description: `${item.hostName}`,
           image: item.thumbnail || "/images/search.png",
         }));
         

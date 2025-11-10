@@ -236,9 +236,10 @@ export default function LoginPage() {
         showAlter={true}
         alterText="Don't have an account?"
         linktext="Sign up"
-        loading={loading || googleLoading}
+        loading={loading}
         link="/auth/signup"
         mode="login"
+        socialLoading={googleLoading}
         onGoogleLogin={googleLogin}
         onSubmit={handleLogin}
       />

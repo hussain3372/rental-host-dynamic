@@ -17,23 +17,39 @@ export const propertyAPI = {
   /**
    * Search properties by keyword (simple search)
    */
-  searchProperties: async (search: string, params?: SearchParams): Promise<ApiResponse<SearchResponse>> => {
-    const requestParams: Record<string, string | number | boolean | undefined> = {
-      search,
-    };
+  // Fixed searchProperties method - use 'search' parameter
+searchProperties: async (params: {
+  search?: string;
+  location?: string;
+  status?: string;
+  expiryDate?: string;
+} = {}): Promise<ApiResponse<SearchResponse>> => {
+  
+  const cleanParams: Record<string, string> = {};
+  
+  // Only add search if it has 3+ characters
+  if (params?.search && params.search.trim().length >= 3) {
+    cleanParams.search = params.search.trim();
+  }
+  
+  if (params?.location && params.location !== "All Locations") {
+    cleanParams.location = params.location;
+  }
+  
+  if (params?.status && params.status !== "Status") {
+    cleanParams.status = params.status.toUpperCase();
+  }
+  
+  if (params?.expiryDate) {
+    cleanParams.expiryDate = params.expiryDate;
+  }
 
-    // Add other params if they exist, excluding search from params to avoid conflicts
-    if (params) {
-      const { search: _, ...otherParams } = params;
-      Object.assign(requestParams, otherParams);
-    }
-
-    return apiClient.get<SearchResponse>("/search/advanced", {
-      headers: { "Content-Type": "application/json" },
-      requiresAuth: false,
-      params: requestParams,
-    });
-  },
+  return apiClient.get<SearchResponse>("/search/advanced", {
+    headers: { "Content-Type": "application/json" },
+    requiresAuth: false,
+    params: cleanParams,
+  });
+},
 
   /**
    * Get a single property by ID

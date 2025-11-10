@@ -1,5 +1,6 @@
 "use client";
-import React, { useMemo, useState, useEffect } from "react";
+
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "../../tables-essentials/Filter";
@@ -7,7 +8,7 @@ import { reports } from "@/app/api/Admin/reports";
 import Image from "next/image";
 import Drawer from "./Drawer";
 import { ReportItem } from "@/app/api/Admin/reports/types";
-import { toast } from "react-hot-toast"; // or your toast library
+import { toast } from "react-hot-toast";
 
 interface CertificationData {
   "Report ID": string;
@@ -17,19 +18,37 @@ interface CertificationData {
   Format: string;
 }
 
+interface ReportStats {
+  total: number;
+  active: number;
+  expired: number;
+  revoked: number;
+}
+
+interface ApiParams {
+  search?: string;
+  reportType?: "WEEKLY" | "MONTHLY" | "CUSTOM" | "ALL";
+  certificationStatus?: "ALL" | "ACTIVE" | "EXPIRED" | "REVOKED";
+  generatedDateTo?: string;
+  page?: number;
+  // pageSize?: number;
+}
+
 export default function Reports() {
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [isExportDrawerOpen, setIsExportDrawerOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage] = useState(10);
   const [isLoading, setIsLoading] = useState(false);
-  const [data, setData] = useState({
+  
+  const [stats, setStats] = useState<ReportStats>({
     total: 0,
     active: 0,
     expired: 0,
     revoked: 0,
   });
-  const itemsPerPage = 6;
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
@@ -40,116 +59,158 @@ export default function Reports() {
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
 
   const [showReportTypeDropdown, setShowReportTypeDropdown] = useState(false);
-  // const [showFormatDropdown, setShowFormatDropdown] = useState(false);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
 
-  const [certificationFilters, setCertificationFilters] = useState({
+  const [appliedFilters, setAppliedFilters] = useState({
     reportType: "",
     certificationStatus: "",
     generatedDateTo: "",
   });
 
+  const [tempFilters, setTempFilters] = useState({
+    reportType: "",
+    certificationStatus: "",
+    generatedDateTo: "",
+  });
+
+  const [generatedDate, setGeneratedDate] = useState<Date | null>(null);
+
   const [allReportsData, setAllReportsData] = useState<ReportItem[]>([]);
-  // const [totalPages, setTotalPages] = useState(1);
   const [totalItems, setTotalItems] = useState(0);
 
-  const Credentials = [
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 500);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [searchTerm]);
+
+  const credentials = [
     {
       id: 1,
       img: "/images/manager.svg",
-      val: data.total,
+      val: stats.total,
       title: "Total Issued Certificates",
     },
     {
       id: 2,
       img: "/images/pending.svg",
-      val: data.active,
+      val: stats.active,
       title: "Active Certificates",
     },
     {
       id: 3,
       img: "/images/certificate.svg",
-      val: data.expired,
+      val: stats.expired,
       title: "Expired Certificates",
     },
     {
       id: 4,
       img: "/images/revoke.svg",
-      val: data.revoked,
+      val: stats.revoked,
       title: "Revoked Certificates",
     },
   ];
 
   // Fetch reports from API
-  // Fetch reports from API
-const fetchReports = async () => {
-  // Don't make API call if search term is less than 3 characters and not empty
-  if (searchTerm && searchTerm.length < 3) {
-    return;
-  }
-
-  try {
-    setIsLoading(true);
-    const params = {
-      search: searchTerm,
-      reportType: certificationFilters.reportType as
-        | "WEEKLY"
-        | "MONTHLY"
-        | "CUSTOM"
-        | "ALL"
-        | undefined,
-      certificationStatus: certificationFilters.certificationStatus as
-        | "ALL"
-        | "ACTIVE"
-        | "EXPIRED"
-        | "REVOKED"
-        | undefined,
-      generatedDateTo: certificationFilters.generatedDateTo,
-    };
-
-    const response = await reports.getReports(params);
-
-    if (response.success && response.data) {
-      setAllReportsData(response.data.reports);
-      // setTotalPages(response.data.totalPages);
-      setTotalItems(response.data.total);
+  const fetchReports = useCallback(async () => {
+    // Don't make API call if search term is less than 3 characters and not empty
+    if (debouncedSearchTerm && debouncedSearchTerm.length < 3) {
+      return;
     }
-  } catch (error) {
-    console.error("Error fetching reports:", error);
-    toast.error("Failed to fetch reports");
-  } finally {
-    setIsLoading(false);
-  }
-};
 
-  const fetchStats = async () => {
+    try {
+      // setIsLoading(true);
+      const params: ApiParams = {
+        page: currentPage,
+        // pageSize: itemsPerPage,
+      };
+
+      // Only include search if it has 3+ characters
+      if (debouncedSearchTerm.trim().length >= 3) {
+        params.search = debouncedSearchTerm.trim();
+      }
+
+      if (appliedFilters.reportType) {
+        params.reportType = appliedFilters.reportType as "WEEKLY" | "MONTHLY" | "CUSTOM" | "ALL";
+      }
+
+      if (appliedFilters.certificationStatus) {
+        params.certificationStatus = appliedFilters.certificationStatus as "ALL" | "ACTIVE" | "EXPIRED" | "REVOKED";
+      }
+
+      if (appliedFilters.generatedDateTo) {
+        params.generatedDateTo = appliedFilters.generatedDateTo;
+      }
+
+      console.log("🚀 Fetching reports with params:", params);
+
+      const response = await reports.getReports(params);
+
+      if (response.success && response.data) {
+        setAllReportsData(response.data.reports);
+        setTotalItems(response.data.total);
+      } else {
+        console.log("❌ No reports found or API error");
+        setAllReportsData([]);
+        setTotalItems(0);
+      }
+    } catch (error) {
+      console.error("💥 Error fetching reports:", error);
+      // toast.error("Failed to fetch reports");
+      setAllReportsData([]);
+      setTotalItems(0);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [debouncedSearchTerm, appliedFilters, currentPage, itemsPerPage]);
+
+  const fetchStats = useCallback(async () => {
     try {
       const response = await reports.getReportStats();
-
-      setData(response.data);
-      console.log(response);
+      if (response.data) {
+        setStats(response.data);
+      }
     } catch (error) {
-      console.log(error);
+      console.error("Error fetching stats:", error);
+      toast.error("Failed to fetch statistics");
     }
+  }, []);
+
+  // Fetch reports when filters or page change
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
+
+  // Fetch stats only on mount
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // Sync temp filters when filter drawer opens
+  useEffect(() => {
+    if (isFilterOpen) {
+      setTempFilters(appliedFilters);
+      if (appliedFilters.generatedDateTo) {
+        setGeneratedDate(new Date(appliedFilters.generatedDateTo));
+      } else {
+        setGeneratedDate(null);
+      }
+    }
+  }, [isFilterOpen, appliedFilters]);
+
+  // Date formatting method
+  const formatDateForAPI = (date: Date | null): string => {
+    if (!date) return "";
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
-  // Fetch reports on mount and when filters change
-  // Fetch reports on mount and when filters change
-useEffect(() => {
-  fetchReports();
-}, [searchTerm, certificationFilters]); // Remove fetchStats from here
-
-// Separate useEffect for stats
-useEffect(() => {
-  fetchStats();
-}, []); // Fetch stats only on mount
-
-  // Get unique values for filter options
-  const uniqueReportTypes = [
-    ...new Set(allReportsData.map((item) => item.reportType)),
-  ];
-  const uniqueStatuses = [
-    ...new Set(allReportsData.map((item) => item.certificationStatus)),
-  ];
 
   // Transform API data to display format
   const transformedData: CertificationData[] = useMemo(() => {
@@ -164,7 +225,7 @@ useEffect(() => {
         day: "numeric",
         year: "numeric",
       });
-      const generatedDate = new Date(report.generatedAt).toLocaleDateString(
+      const generatedDateFormatted = new Date(report.generatedAt).toLocaleDateString(
         "en-US",
         {
           month: "short",
@@ -173,7 +234,6 @@ useEffect(() => {
         }
       );
 
-      // Extract file extension from fileName
       const fileExtension =
         report.fileName.split(".").pop()?.toUpperCase() || "PDF";
 
@@ -181,12 +241,13 @@ useEffect(() => {
         "Report ID": report.id,
         "Report Type": report.reportType,
         "Date Range": `${startDate} - ${endDate}`,
-        "Generated Date": generatedDate,
+        "Generated Date": generatedDateFormatted,
         Format: fileExtension,
       };
     });
   }, [allReportsData]);
 
+  // Selection handlers
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set<string>();
     if (checked) {
@@ -219,7 +280,7 @@ useEffect(() => {
     );
   }, [transformedData, selectedRows, isAllDisplayedSelected]);
 
-  // Delete multiple reports
+  // Delete handlers
   const handleDeleteApplications = async (selectedRowIds: Set<string>) => {
     try {
       setIsLoading(true);
@@ -233,7 +294,6 @@ useEffect(() => {
       setIsModalOpen(false);
       setSelectedRows(new Set());
 
-      // Refetch data
       await fetchReports();
     } catch (error) {
       console.error("Error deleting reports:", error);
@@ -243,7 +303,6 @@ useEffect(() => {
     }
   };
 
-  // Delete single report
   const handleDeleteSingleApplication = async (
     row: Record<string, string>,
     id: string
@@ -256,10 +315,8 @@ useEffect(() => {
       setIsModalOpen(false);
       setSingleRowToDelete(null);
 
-      // Refetch data
       await fetchReports();
 
-      // Adjust page if needed
       const remainingDataCount = totalItems - 1;
       const maxPageAfterDeletion = Math.ceil(remainingDataCount / itemsPerPage);
 
@@ -274,8 +331,14 @@ useEffect(() => {
     }
   };
 
+  // Pagination and search handlers
   const handlePageChange = (page: number) => {
     setCurrentPage(page);
+  };
+
+  const handleSearch = (term: string) => {
+    setSearchTerm(term);
+    setCurrentPage(1);
   };
 
   const openDeleteSingleModal = (row: Record<string, string>, id: string) => {
@@ -303,40 +366,6 @@ useEffect(() => {
   };
 
   // Download report
-  // const handleDownloadReport = async (reportId: string) => {
-  //   try {
-  //     setIsLoading(true);
-  //     const response = await reports.downloadReport(reportId);
-
-  //     if (response.success && response.data) {
-  //       // Create blob and download
-  //       const blob = new Blob([response.data as any], {
-  //         type: "application/octet-stream",
-  //       });
-  //       const url = window.URL.createObjectURL(blob);
-  //       const link = document.createElement("a");
-  //       link.href = url;
-
-  //       // Get filename from the report
-  //       const report = allReportsData.find((r) => r.id === reportId);
-  //       link.download = report?.fileName || `report-${reportId}.pdf`;
-
-  //       document.body.appendChild(link);
-  //       link.click();
-  //       document.body.removeChild(link);
-  //       window.URL.revokeObjectURL(url);
-
-  //       toast.success("Report downloaded successfully");
-  //     }
-  //   } catch (error) {
-  //     console.error("Error downloading report:", error);
-  //     toast.error("Failed to download report");
-  //   } finally {
-  //     setIsLoading(false);
-  //   }
-  // };
-
-  // Re-download report
   const handleDownloadReport = async (reportId: string) => {
     try {
       setIsLoading(true);
@@ -346,7 +375,6 @@ useEffect(() => {
         const { filePath, fileName } = response.data;
 
         if (filePath) {
-          // Open report in a new tab
           window.open(filePath, "_blank");
           toast.success(`${fileName || "Report"} downloaded successfully`);
         } else {
@@ -363,77 +391,149 @@ useEffect(() => {
     }
   };
 
-  // Remove "Report ID" from display data - FIXED
+  // Display data without Report ID
   const displayData = useMemo(() => {
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const endIndex = startIndex + itemsPerPage;
+    return transformedData.map(({ "Report ID": id, ...rest }) => {
+      return {
+        ...rest,
+        id, // Include id as hidden field for row identification
+      };
+    });
+  }, [transformedData]);
 
-    return transformedData
-      .slice(startIndex, endIndex)
-      .map(({ "Report ID": id, ...rest }) => {
-        console.log("Report ID:", id); // ✅ Logs each Report ID
-        return rest; // keep everything except "Report ID"
-      });
-  }, [transformedData, currentPage, itemsPerPage]);
-
+  // Reset to first page when filters change
   useEffect(() => {
     setCurrentPage(1);
     setSelectedRows(new Set());
-  }, [searchTerm, certificationFilters]);
+  }, [debouncedSearchTerm, appliedFilters]);
 
+  // Filter handlers
   const handleResetFilter = () => {
-    setCertificationFilters({
+    const resetFilters = {
       reportType: "",
       certificationStatus: "",
       generatedDateTo: "",
-    });
+    };
+
+    setTempFilters(resetFilters);
+    setAppliedFilters(resetFilters);
+    setGeneratedDate(null);
     setSearchTerm("");
+    setCurrentPage(1);
+    setIsFilterOpen(false);
   };
 
   const handleApplyFilter = () => {
+    const dateString = formatDateForAPI(generatedDate);
+
+    const filtersToApply = {
+      reportType: tempFilters.reportType,
+      certificationStatus: tempFilters.certificationStatus,
+      generatedDateTo: dateString,
+    };
+
+    console.log("🟢 APPLYING FILTERS:", filtersToApply);
+
+    setAppliedFilters(filtersToApply);
+    setCurrentPage(1);
     setIsFilterOpen(false);
   };
+
+  const handleCloseFilter = () => {
+    setTempFilters(appliedFilters);
+    if (appliedFilters.generatedDateTo) {
+      setGeneratedDate(new Date(appliedFilters.generatedDateTo));
+    } else {
+      setGeneratedDate(null);
+    }
+    setIsFilterOpen(false);
+  };
+
+  // Get unique values for filter options
+  const uniqueReportTypes = useMemo(() => 
+    [...new Set(allReportsData.map((item) => item.reportType))],
+    [allReportsData]
+  );
+
+  const uniqueStatuses = useMemo(() => 
+    [...new Set(allReportsData.map((item) => item.certificationStatus))],
+    [allReportsData]
+  );
 
   const dropdownItems = [
     {
       label: "Download Report",
       onClick: (row: Record<string, string>) => {
-        // Get the original report ID from allReportsData since it's removed from display
-        const reportIndex = displayData.findIndex(
-          (displayRow) =>
-            displayRow["Report Type"] === row["Report Type"] &&
-            displayRow["Date Range"] === row["Date Range"] &&
-            displayRow["Generated Date"] === row["Generated Date"] &&
-            displayRow["Format"] === row["Format"]
-        );
+        // Find the report by matching display data properties
+        const report = allReportsData.find((r) => {
+          const startDate = new Date(r.startDate).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+          const endDate = new Date(r.endDate).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+          const generatedDateFormatted = new Date(r.generatedAt).toLocaleDateString(
+            "en-US",
+            {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }
+          );
+          const fileExtension = r.fileName.split(".").pop()?.toUpperCase() || "PDF";
 
-        if (reportIndex !== -1) {
-          const originalIndex = (currentPage - 1) * itemsPerPage + reportIndex;
-          const reportId = allReportsData[originalIndex]?.id;
-          if (reportId) {
-            handleDownloadReport(reportId);
-          }
+          return (
+            row["Report Type"] === r.reportType &&
+            row["Date Range"] === `${startDate} - ${endDate}` &&
+            row["Generated Date"] === generatedDateFormatted &&
+            row["Format"] === fileExtension
+          );
+        });
+
+        if (report?.id) {
+          handleDownloadReport(report.id);
         }
       },
     },
     {
       label: "Delete Report",
       onClick: (row: Record<string, string>) => {
-        // Get the original report ID from allReportsData since it's removed from display
-        const reportIndex = displayData.findIndex(
-          (displayRow) =>
-            displayRow["Report Type"] === row["Report Type"] &&
-            displayRow["Date Range"] === row["Date Range"] &&
-            displayRow["Generated Date"] === row["Generated Date"] &&
-            displayRow["Format"] === row["Format"]
-        );
+        // Find the report by matching display data properties
+        const report = allReportsData.find((r) => {
+          const startDate = new Date(r.startDate).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+          const endDate = new Date(r.endDate).toLocaleDateString("en-US", {
+            month: "short",
+            day: "numeric",
+            year: "numeric",
+          });
+          const generatedDateFormatted = new Date(r.generatedAt).toLocaleDateString(
+            "en-US",
+            {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            }
+          );
+          const fileExtension = r.fileName.split(".").pop()?.toUpperCase() || "PDF";
 
-        if (reportIndex !== -1) {
-          const originalIndex = (currentPage - 1) * itemsPerPage + reportIndex;
-          const reportId = allReportsData[originalIndex]?.id;
-          if (reportId) {
-            openDeleteSingleModal(row, reportId);
-          }
+          return (
+            row["Report Type"] === r.reportType &&
+            row["Date Range"] === `${startDate} - ${endDate}` &&
+            row["Generated Date"] === generatedDateFormatted &&
+            row["Format"] === fileExtension
+          );
+        });
+
+        if (report?.id) {
+          openDeleteSingleModal(row, report.id);
         }
       },
     },
@@ -441,8 +541,15 @@ useEffect(() => {
 
   const tableControl = {
     hover: true,
-   
   };
+
+  if (isLoading && currentPage === 1) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <p className="text-white">Loading reports...</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -503,13 +610,14 @@ useEffect(() => {
         <button
           className="py-3 px-5 yellow-btn text-[#121315] font-semibold text-[16px] leading-5 transition-all duration-200 hover:scale-105"
           onClick={() => setIsExportDrawerOpen(true)}
+          type="button"
         >
           Export Report
         </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 pt-5 flex-wrap lg:flex-nowrap justify-between">
-        {Credentials.map((item) => (
+        {credentials.map((item) => (
           <div key={item.id} className="gap-3">
             <div className="flex items-center bg-[#121315] rounded-xl gap-4 p-5">
               <Image src={item.img} alt={item.title} width={48} height={48} />
@@ -517,7 +625,7 @@ useEffect(() => {
                 <h2 className="font-medium text-[18px] leading-[22px] text-white">
                   {item.val}
                 </h2>
-                <p className="text-white/80 font-normal text-[14px] leading-[18px] pt-2 min-h-[44px]">
+                <p className="text-white/80 font-normal text-[14px] leading-[18px] pt-2  ">
                   {item.title}
                 </p>
               </div>
@@ -533,22 +641,38 @@ useEffect(() => {
           control={tableControl}
           showDeleteButton={true}
           onDeleteSingle={(row) => {
-            // Get the original report ID from allReportsData since it's removed from display
-            const reportIndex = displayData.findIndex(
-              (displayRow) =>
-                displayRow["Report Type"] === row["Report Type"] &&
-                displayRow["Date Range"] === row["Date Range"] &&
-                displayRow["Generated Date"] === row["Generated Date"] &&
-                displayRow["Format"] === row["Format"]
-            );
+            // Find the report by matching display data properties
+            const report = allReportsData.find((r) => {
+              const startDate = new Date(r.startDate).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              });
+              const endDate = new Date(r.endDate).toLocaleDateString("en-US", {
+                month: "short",
+                day: "numeric",
+                year: "numeric",
+              });
+              const generatedDateFormatted = new Date(r.generatedAt).toLocaleDateString(
+                "en-US",
+                {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                }
+              );
+              const fileExtension = r.fileName.split(".").pop()?.toUpperCase() || "PDF";
 
-            if (reportIndex !== -1) {
-              const originalIndex =
-                (currentPage - 1) * itemsPerPage + reportIndex;
-              const reportId = allReportsData[originalIndex]?.id;
-              if (reportId) {
-                openDeleteSingleModal(row, reportId);
-              }
+              return (
+                row["Report Type"] === r.reportType &&
+                row["Date Range"] === `${startDate} - ${endDate}` &&
+                row["Generated Date"] === generatedDateFormatted &&
+                row["Format"] === fileExtension
+              );
+            });
+
+            if (report?.id) {
+              openDeleteSingleModal(row, report.id);
             }
           }}
           showPagination={true}
@@ -562,7 +686,7 @@ useEffect(() => {
           rowIds={transformedData.map((item) => item["Report ID"])}
           dropdownItems={dropdownItems}
           searchTerm={searchTerm}
-          onSearchChange={setSearchTerm}
+          onSearchChange={handleSearch}
           currentPage={currentPage}
           onPageChange={handlePageChange}
           itemsPerPage={itemsPerPage}
@@ -573,24 +697,40 @@ useEffect(() => {
           isDeleteAllDisabled={
             selectedRows.size === 0 || selectedRows.size < displayData.length
           }
+          disableClientSidePagination={true}
         />
       </div>
 
       <FilterDrawer
         isOpen={isFilterOpen}
-        onClose={() => setIsFilterOpen(false)}
+        onClose={handleCloseFilter}
         title="Filter Reports"
         description="Refine reports to find the specific data you need."
         resetLabel="Reset"
         onReset={handleResetFilter}
         buttonLabel="Apply Filter"
         onApply={handleApplyFilter}
-        filterValues={certificationFilters}
-        onFilterChange={(filters) => {
-          setCertificationFilters((prev) => ({
-            ...prev,
-            ...filters,
-          }));
+        filterValues={{
+          reportType: tempFilters.reportType,
+          certificationStatus: tempFilters.certificationStatus,
+          "Generated on": generatedDate,
+        }}
+        onFilterChange={(newValues) => {
+          if (newValues.reportType !== undefined) {
+            setTempFilters((prev) => ({
+              ...prev,
+              reportType: newValues.reportType as string,
+            }));
+          }
+          if (newValues.certificationStatus !== undefined) {
+            setTempFilters((prev) => ({
+              ...prev,
+              certificationStatus: newValues.certificationStatus as string,
+            }));
+          }
+          if (newValues["Generated on"] !== undefined) {
+            setGeneratedDate(newValues["Generated on"] as Date | null);
+          }
         }}
         dropdownStates={{
           reportType: showReportTypeDropdown,
@@ -608,16 +748,10 @@ useEffect(() => {
             placeholder: "Select type",
             options: uniqueReportTypes,
           },
-          {
-            label: "Certification Status",
-            key: "certificationStatus",
-            type: "dropdown",
-            placeholder: "Select status",
-            options: uniqueStatuses,
-          },
+         
           {
             label: "Generated on",
-            key: "generatedDateTo",
+            key: "Generated on",
             type: "date",
             placeholder: "Select date",
           },

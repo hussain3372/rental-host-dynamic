@@ -1,6 +1,7 @@
+// SearchPageClient.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useSearchParams } from "next/navigation";
 import Searchsection from "./Searchsection";
 import VerifiedProperties from "./VerifiedProperties";
@@ -12,133 +13,239 @@ export default function SearchPageClient() {
   const queryFromUrl = searchParams.get("query") || "";
 
   const [searchText, setSearchText] = useState(queryFromUrl);
-  const [allProperties, setAllProperties] = useState<MappedProperty[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<MappedProperty[]>([]);
-  const [loading, setLoading] = useState(true);
-  
-  // Dynamic filter options
+  const [loading, setLoading] = useState(false);
   const [availableLocations, setAvailableLocations] = useState<string[]>([]);
   const [availableStatuses, setAvailableStatuses] = useState<string[]>([]);
 
-  const fetchProperties = async (
-    query: string = "",
-    location?: string,
-    status?: string,
-    expiryDate?: string
-  ) => {
-    setLoading(true);
-    try {
-      console.log("Fetching properties with params:", { query, location, status, expiryDate });
-      
-      // Build query string manually
-      const params = new URLSearchParams();
-      
-      if (query.trim() && query.length >= 3) {
-        params.append('query', query.trim());
-      }
-      if (location && location !== "All Locations") {
-        params.append('location', location);
-      }
-      if (status && status !== "Status") {
-        // Map frontend status to backend status
-        const backendStatus = status === "Verified" ? "ACTIVE" : 
-                             status === "Expired" ? "EXPIRED" : 
-                             status === "Pending" ? "PENDING" : status;
-        params.append('status', backendStatus);
-      }
-      if (expiryDate) {
-        params.append('expiryDate', expiryDate);
-      }
+  const isInitialMount = useRef(true);
+  const lastSearchParams = useRef<string>("");
 
-      const queryString = params.toString();
-      const url = queryString ? `?${queryString}` : '';
-      
-      console.log("API URL with params:", url);
+  // Simple debounce hook
+  const useDebounce = (value: string, delay: number) => {
+    const [debouncedValue, setDebouncedValue] = useState(value);
 
-      const response = await propertyAPI.searchProperties(url);
-      
-      console.log("Full API Response:", response);
-      
-      const apiData = response?.data as SearchResponse;
-      const certificationsData = apiData?.data?.certifications || [];
-      
-      const mapped: MappedProperty[] = certificationsData.map((item) => ({
-        id: item.id,
-        title: item.property.name || "Unnamed Property",
-        address: item.property.address || "Unknown Address",
-        image: item.property.images?.[0] || "/images/empty.png",
-        status: item.status === "ACTIVE" ? "Verified" : item.status === "EXPIRED" ? "Expired" : "Pending",
-        expiry: item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : "N/A",
-        location: item.property.address || "Unknown",
-      }));
-      
-      console.log("Mapped properties:", mapped);
-      
-      setAllProperties(mapped);
-      setFilteredProperties(mapped);
-      
-      // Extract unique locations and statuses
-      const locations = Array.from(
-        new Set(
-          certificationsData
-            .map(item => item.property.address)
-            .filter(addr => addr && addr.trim() !== "")
-        )
-      );
-      setAvailableLocations(locations);
-      
-      const statuses = Array.from(
-        new Set(
-          certificationsData.map(item => 
-            item.status === "ACTIVE" ? "Verified" : 
-            item.status === "EXPIRED" ? "Expired" : 
-            "Pending"
-          )
-        )
-      );
-      setAvailableStatuses(statuses);
-      
-    } catch (error) {
-      console.error("Error fetching certified properties:", error);
-      setAllProperties([]);
-      setFilteredProperties([]);
-    } finally {
-      setLoading(false);
-    }
+    useEffect(() => {
+      const handler = setTimeout(() => {
+        setDebouncedValue(value);
+      }, delay);
+
+      return () => {
+        clearTimeout(handler);
+      };
+    }, [value, delay]);
+
+    return debouncedValue;
   };
 
-  useEffect(() => {
-    console.log("Initial mount with queryFromUrl:", queryFromUrl);
-    const initialQuery = queryFromUrl.length >= 3 ? queryFromUrl : "";
-    fetchProperties(initialQuery);
-  }, [queryFromUrl]);
+  const debouncedSearchText = useDebounce(searchText, 500);
 
-  const handleSearch = (
+  const mapApiDataToProperties = useCallback((certificationsData: SearchResponse['data']['certifications']): MappedProperty[] => {
+    if (!certificationsData || !Array.isArray(certificationsData)) return [];
+    
+    return certificationsData.map((item) => ({
+      id: item.id,
+      title: item.property?.name || "Unnamed Property",
+      address: item.property?.address || "Unknown Address",
+      image: item.property?.images?.[0] || "/images/empty.png",
+      status: item.status === "ACTIVE" ? "Verified" : item.status === "EXPIRED" ? "Expired" : "Pending",
+      expiry: item.expiresAt ? new Date(item.expiresAt).toLocaleDateString() : "N/A",
+      location: item.property?.address || "Unknown",
+    }));
+  }, []);
+
+const extractFilterOptions = useCallback((certificationsData: SearchResponse['data']['certifications']) => {    if (!certificationsData || !Array.isArray(certificationsData)) {
+      return { locations: [], statuses: [] };
+    }
+    
+    const locations = Array.from(
+      new Set(
+        certificationsData
+          .map(item => item.property?.address)
+          .filter((addr): addr is string => Boolean(addr && addr.trim() !== ""))
+      )
+    );
+    
+    const statuses = Array.from(
+      new Set(
+        certificationsData.map(item => 
+          item.status === "ACTIVE" ? "Verified" : 
+          item.status === "EXPIRED" ? "Expired" : 
+          "Pending"
+        )
+      )
+    );
+    
+    return { locations, statuses };
+  }, []);
+ const getParamsString = useCallback((params: Record<string, string>): string => {
+    return Object.entries(params)
+      .map(([key, value]) => `${key}=${value}`)
+      .sort()
+      .join('&');
+  }, []);
+  // In SearchPageClient.tsx - update the buildCleanParams function
+const buildCleanParams = useCallback((
+  search: string = "",
+  location?: string,
+  status?: string,
+  expiryDate?: string
+): Record<string, string> => {
+  const params: Record<string, string> = {};
+  
+  const trimmedSearch = search.trim();
+  if (trimmedSearch.length >= 3) {
+    params.search = trimmedSearch; // Changed from 'query' to 'search'
+  }
+  
+  if (location && location !== "All Locations") {
+    params.location = location;
+  }
+  
+  if (status && status !== "Status") {
+    params.status = status.toUpperCase();
+  }
+  
+  if (expiryDate) {
+    params.expiryDate = expiryDate;
+  }
+
+  return params;
+}, []);
+
+// Update the fetchProperties function
+const fetchProperties = useCallback(async (
+  search: string = "", // Changed from query to search
+  location?: string,
+  status?: string,
+  expiryDate?: string
+) => {
+  const params = buildCleanParams(search, location, status, expiryDate);
+  const paramsString = getParamsString(params);
+  
+  // Prevent duplicate API calls
+  if (paramsString === lastSearchParams.current && !isInitialMount.current) {
+    return;
+  }
+  
+  lastSearchParams.current = paramsString;
+  setLoading(true);
+  
+  try {
+    console.log("API call with params:", params);
+
+    // Call API with search parameter
+    const response = await propertyAPI.searchProperties({
+      search, // This will become ?search=something
+      location,
+      status, 
+      expiryDate
+    });
+    
+    const apiData = response?.data as SearchResponse;
+    const certificationsData = apiData?.data?.certifications || [];
+    
+    const mappedProperties = mapApiDataToProperties(certificationsData);
+    const { locations, statuses } = extractFilterOptions(certificationsData);
+    
+    setFilteredProperties(mappedProperties);
+    setAvailableLocations(locations);
+    setAvailableStatuses(statuses);
+    
+  } catch (error) {
+    console.error("Error fetching certified properties:", error);
+    setFilteredProperties([]);
+    setAvailableLocations([]);
+    setAvailableStatuses([]);
+  } finally {
+    setLoading(false);
+    isInitialMount.current = false;
+  }
+}, [buildCleanParams, getParamsString, mapApiDataToProperties, extractFilterOptions]);
+
+ 
+
+  // const fetchProperties = useCallback(async (
+  //   query: string = "",
+  //   location?: string,
+  //   status?: string,
+  //   expiryDate?: string
+  // ) => {
+  //   const params = buildCleanParams(query, location, status, expiryDate);
+  //   const paramsString = getParamsString(params);
+    
+  //   // Prevent duplicate API calls
+  //   if (paramsString === lastSearchParams.current && !isInitialMount.current) {
+  //     return;
+  //   }
+    
+  //   lastSearchParams.current = paramsString;
+  //   setLoading(true);
+    
+  //   try {
+  //     console.log("API call with params:", params);
+
+  //     // Direct API call with clean params object
+  //     const response = await propertyAPI.searchProperties(params);
+      
+  //     const apiData = response?.data as SearchResponse;
+  //     const certificationsData = apiData?.data?.certifications || [];
+      
+  //     const mappedProperties = mapApiDataToProperties(certificationsData);
+  //     const { locations, statuses } = extractFilterOptions(certificationsData);
+      
+  //     setFilteredProperties(mappedProperties);
+  //     setAvailableLocations(locations);
+  //     setAvailableStatuses(statuses);
+      
+  //   } catch (error) {
+  //     console.error("Error fetching certified properties:", error);
+  //     setFilteredProperties([]);
+  //     setAvailableLocations([]);
+  //     setAvailableStatuses([]);
+  //   } finally {
+  //     setLoading(false);
+  //     isInitialMount.current = false;
+  //   }
+  // }, [buildCleanParams, getParamsString, mapApiDataToProperties, extractFilterOptions]);
+
+  // Initial load - only once
+  useEffect(() => {
+    if (isInitialMount.current) {
+      const initialQuery = queryFromUrl.length >= 3 ? queryFromUrl : "";
+      fetchProperties(initialQuery);
+    }
+  }, [queryFromUrl, fetchProperties]);
+
+  // Debounced search
+  useEffect(() => {
+    if (isInitialMount.current) return;
+    
+    if (debouncedSearchText.length >= 3 || debouncedSearchText.length === 0) {
+      fetchProperties(debouncedSearchText);
+    }
+  }, [debouncedSearchText, fetchProperties]);
+
+  const handleSearch = useCallback((
     query?: string,
     location?: string,
     status?: string,
     expiryDate?: string
   ) => {
-    console.log("Search triggered with:", { query, location, status, expiryDate });
-    fetchProperties(
-      query !== undefined ? query : searchText,
-      location,
-      status,
-      expiryDate
-    );
-  };
+    const searchQuery = query ?? searchText;
+    fetchProperties(searchQuery, location, status, expiryDate);
+  }, [searchText, fetchProperties]);
 
-  const handleSearchTextChange = (value: string) => {
-    console.log("Search text changed:", value);
+  const handleSearchTextChange = useCallback((value: string) => {
     setSearchText(value);
-  };
+  }, []);
 
   return (
     <>
       <Searchsection
         onSearch={setFilteredProperties}
         initialValue={searchText}
-        properties={allProperties}
+        properties={filteredProperties}
         onSearchTextChange={handleSearchTextChange}
         onSearchClick={handleSearch}
         availableLocations={availableLocations}

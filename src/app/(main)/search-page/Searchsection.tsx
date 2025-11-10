@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
@@ -24,9 +24,7 @@ type SearchsectionProps = {
 };
 
 const Searchsection: React.FC<SearchsectionProps> = ({
-  // onSearch,
   initialValue = "",
-  // properties,
   onSearchTextChange,
   onSearchClick,
   availableLocations,
@@ -34,8 +32,6 @@ const Searchsection: React.FC<SearchsectionProps> = ({
 }) => {
   const [inputValue, setInputValue] = useState(initialValue);
   const [isSmallScreen, setIsSmallScreen] = useState(false);
-
-  // Dropdown selections
   const [selectedLocation, setSelectedLocation] = useState("All Locations");
   const [selectedStatus, setSelectedStatus] = useState("Status");
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
@@ -44,60 +40,68 @@ const Searchsection: React.FC<SearchsectionProps> = ({
     setInputValue(initialValue);
   }, [initialValue]);
 
-  // Responsive placeholder logic
   useEffect(() => {
     const checkScreenSize = () => {
       setIsSmallScreen(window.innerWidth < 1024);
     };
+    
     checkScreenSize();
     window.addEventListener("resize", checkScreenSize);
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Apply dropdown filters locally (removed - now triggers API call)
-  const handleFilterChange = (
-    location?: string,
-    status?: string,
-    date?: Date | null
-  ) => {
-    const expiryParam = date ? date.toISOString().split('T')[0] : undefined;
-    
-    onSearchClick(
-      inputValue,
-      location !== "All Locations" ? location : undefined,
-      status !== "Status" ? status : undefined,
-      expiryParam
-    );
-  };
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setInputValue(value);
     onSearchTextChange(value);
-  };
+  }, [onSearchTextChange]);
 
-  const handleLocationChange = (location: string) => {
+  const handleLocationChange = useCallback((location: string) => {
     setSelectedLocation(location);
-    handleFilterChange(location, selectedStatus, selectedDate);
-  };
+    // Trigger API call immediately when filter changes
+    const expiryParam = selectedDate ? selectedDate.toISOString().split('T')[0] : undefined;
+    onSearchClick(
+      inputValue,
+      location !== "All Locations" ? location : undefined,
+      selectedStatus !== "Status" ? selectedStatus : undefined,
+      expiryParam
+    );
+  }, [inputValue, selectedStatus, selectedDate, onSearchClick]);
 
-  const handleStatusChange = (status: string) => {
+  const handleStatusChange = useCallback((status: string) => {
     setSelectedStatus(status);
-    handleFilterChange(selectedLocation, status, selectedDate);
-  };
+    // Trigger API call immediately when filter changes
+    const expiryParam = selectedDate ? selectedDate.toISOString().split('T')[0] : undefined;
+    onSearchClick(
+      inputValue,
+      selectedLocation !== "All Locations" ? selectedLocation : undefined,
+      status !== "Status" ? status : undefined,
+      expiryParam
+    );
+  }, [inputValue, selectedLocation, selectedDate, onSearchClick]);
 
-  const handleDateChange = (date: Date | null) => {
-    setSelectedDate(date);
-    handleFilterChange(selectedLocation, selectedStatus, date);
-  };
+  const handleDateChange = useCallback((date: Date | null) => {
+  setSelectedDate(date);
 
-  const handleSearchClick = () => {
-    if (inputValue.length < 3) {
-      return;
-    }
-    const expiryParam = selectedDate
-      ? selectedDate.toISOString().split('T')[0]
-      : undefined;
+
+  const expiryParam = date ? 
+  `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}` : 
+  undefined;
+
+
+  onSearchClick(
+    inputValue,
+    selectedLocation !== "All Locations" ? selectedLocation : undefined,
+    selectedStatus !== "Status" ? selectedStatus : undefined,
+    expiryParam
+  );
+}, [inputValue, selectedLocation, selectedStatus, onSearchClick]);
+
+
+  const handleSearchClick = useCallback(() => {
+    if (inputValue.length < 3) return;
+    
+    const expiryParam = selectedDate ? selectedDate.toISOString().split('T')[0] : undefined;
     
     onSearchClick(
       inputValue,
@@ -105,13 +109,12 @@ const Searchsection: React.FC<SearchsectionProps> = ({
       selectedStatus !== "Status" ? selectedStatus : undefined,
       expiryParam
     );
-  };
+  }, [inputValue, selectedLocation, selectedStatus, selectedDate, onSearchClick]);
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Enter") handleSearchClick();
-  };
+  }, [handleSearchClick]);
 
-  // Custom date picker input
   const CustomDateInput = React.forwardRef<
     HTMLButtonElement,
     { value?: string; onClick?: () => void }
@@ -137,7 +140,6 @@ const Searchsection: React.FC<SearchsectionProps> = ({
         alt="dropdown"
         width={16}
         height={16}
-        className=""
       />
     </button>
   ));
@@ -146,75 +148,14 @@ const Searchsection: React.FC<SearchsectionProps> = ({
 
   return (
     <div className="text-white container-class w-full">
-      <div className="inset-0 hidden sm:block pointer-events-none container-class">
-        <Image
-          src="/images/gar1.png"
-          alt="gradient"
-          width={400}
-          height={902}
-          className="absolute top-0 left-12 transform-3d !h-[585px] !w-[400px]"
-        />
-        <Image
-          src="/images/gar2.png"
-          alt="gradient"
-          width={350}
-          height={902}
-          className="absolute top-0 left-[30%] !h-[585px] -translate-x-1/2"
-        />
-        <Image
-          src="/images/gar3.png"
-          alt="gradient"
-          width={300}
-          height={902}
-          className="absolute top-0 left-1/2 !h-[585px] -translate-x-1/2"
-        />
-        <Image
-          src="/images/gar4.png"
-          alt="gradient"
-          width={350}
-          height={902}
-          className="absolute top-0 right-[30%] !h-[585px] translate-x-1/2"
-        />
-        <Image
-          src="/images/gar5.png"
-          alt="gradient"
-          width={400}
-          height={902}
-          className="absolute top-0 right-12 !h-[585px] !w-[400px]"
-        />
-      </div>
-
-      <div className="inset-0 hidden sm:block z-10 overflow-hidden">
-        <Image
-          src="/images/search-bg.png"
-          alt="Background"
-          className="inset-0 absolute !top-2"
-          fill
-          style={{ transform: "translateY(-7px)" }}
-        />
-      </div>
-
-      {/* Background pattern */}
-      <div className="absolute inset-0 opacity-10">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)`,
-            backgroundSize: "50px 50px",
-          }}
-        ></div>
-      </div>
-
-      {/* Main Content */}
+      {/* ... (rest of your JSX remains the same) */}
       <div className="relative z-10 flex flex-col items-center justify-center">
-        {/* Heading */}
         <div className="text-center bg-gradient-to-r from-white/40 via-white to-white/40 bg-clip-text">
           <h1 className="text-[32px] sm:text-[40px] md:text-[52px] text-transparent font-medium leading-[60px] mt-[52px] mb-4 sm:mb-[40px] w-full max-w-[835px]">
             Trusted Certification for Growth
           </h1>
         </div>
 
-        {/* Search Bar */}
         <div className="flex flex-col lg:flex-row md:w-[608px] lg:w-[860px] bg-[#0A0C0B] rounded-[16px] sm:rounded-[24px] relative px-5 py-[18px] gap-5">
           <input
             type="text"
@@ -237,7 +178,6 @@ const Searchsection: React.FC<SearchsectionProps> = ({
           </div>
         </div>
 
-        {/* Dropdown Filters */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 w-full sm:w-[500px] md:w-[700px] lg:w-[860px] mt-5 pr-4 sm:pr-[0px] sm:pl-[0px] pl-4">
           <DropdownField
             icon="/images/location.png"

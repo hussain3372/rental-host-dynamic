@@ -84,3 +84,12 @@ export interface GetTicketsResponse {
   
 }
 
+export interface ImageUploadResponse {
+  status: string;
+  message: string;
+  data: {
+    url: string;
+    key: string;
+    name: string;
+  };
+}

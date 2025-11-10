@@ -1,3 +1,4 @@
+// VerifiedProperties.tsx
 "use client";
 import React, { useState } from "react";
 import Image from "next/image";
@@ -50,12 +51,6 @@ export const VerifiedProperties: React.FC<VerifiedPropertiesProps> = ({
             color="#EFFC76" 
             className="mb-6"
           />
-          {/* <h3 className="text-[24px] leading-7 font-medium text-white mb-2">
-            Loading Certified Properties
-          </h3> */}
-          {/* <p className="text-[16px] leading-5 text-[#FFFFFF99] font-normal">
-            Fetching verified properties from our database...
-          </p> */}
         </div>
       </div>
     );
@@ -127,7 +122,6 @@ export const VerifiedProperties: React.FC<VerifiedPropertiesProps> = ({
                 "status" in property
                   ? property.status
                   : property.certificateStatus || undefined;
-              console.log("Status from API:", status);
 
               const expiry =
                 "expiry" in property
@@ -148,7 +142,6 @@ export const VerifiedProperties: React.FC<VerifiedPropertiesProps> = ({
                           height={300}
                           className="object-cover"
                           onError={(e) => {
-                            // Fallback if image fails to load
                             e.currentTarget.src = "/images/empty.png";
                           }}
                         />

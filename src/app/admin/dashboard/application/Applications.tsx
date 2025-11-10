@@ -542,7 +542,7 @@ export default function Applications() {
           onFilterToggle={setIsFilterOpen}
           onDeleteAll={handleDeleteSelected}
           isDeleteAllDisabled={
-            selectedRows.size === 0 || selectedRows.size < displayData.length
+            selectedRows.size <= 1
           }
           disableClientSidePagination={true}
         />

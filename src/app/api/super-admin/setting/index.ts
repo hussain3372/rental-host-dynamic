@@ -4,6 +4,8 @@ import {
   TwoFactorAuth,
   ChangePasswordResponse,
   PaymentResponse,
+  RefundResponse,
+  RefundRequest
 } from "./types";
 import Cookies from "js-cookie";
 
@@ -85,6 +87,15 @@ export const setting = {
     console.log("Making API call to:", url);
 
     return apiClient.get<PaymentResponse>(url, {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+    });
+  },
+
+  processRefund: async (payload: RefundRequest): Promise<ApiResponse<RefundResponse>> => {
+    return apiClient.post<RefundResponse>("/payments/admin/refund", payload, {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,

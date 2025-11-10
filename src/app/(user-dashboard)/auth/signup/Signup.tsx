@@ -108,7 +108,8 @@ export default function Signup() {
         alterText="Already have an account?"
         linktext=" Login"
         link="/auth/login"
-        loading={loading || googleLoading}
+        loading={loading}
+        socialLoading={googleLoading}
         mode="signup"
         onAppleLogin={() => {
           console.log("apple login");

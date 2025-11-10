@@ -4,7 +4,6 @@ import React, {
   useState,
   useEffect,
   useCallback,
-  useRef,
 } from "react";
 import { Table } from "@/app/admin/tables-essentials/Tables";
 import { Modal } from "@/app/shared/Modal";
@@ -142,13 +141,13 @@ export default function Reports() {
   const Credentials: CredentialItem[] = [
     {
       id: 1,
-      img: "/images/manager.svg",
+      img: "/images/ravanue.svg",
       val: data.total,
       title: "Total Issued Certificates",
     },
     {
       id: 2,
-      img: "/images/pending.svg",
+      img: "/images/manager.svg",
       val: data.active,
       title: "Active Certificates",
     },
@@ -160,7 +159,7 @@ export default function Reports() {
     },
     {
       id: 4,
-      img: "/images/revoke.svg",
+      img: "/images/p-app.svg",
       val: data.revoked,
       title: "Revoked Certificates",
     },
@@ -691,7 +690,7 @@ export default function Reports() {
                 <h2 className="font-medium text-[18px] leading-[22px] text-white">
                   {item.val}
                 </h2>
-                <p className="text-white/80 font-normal text-[14px] leading-[18px] pt-2 min-h-[44px]">
+                <p className="text-white/80 font-normal text-[14px] leading-[18px] pt-2  ">
                   {item.title}
                 </p>
               </div>

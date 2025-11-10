@@ -128,18 +128,23 @@ export const application = {
     } as ApiResponse<PropertyType>;
   },
 
-  approveORrejectApplication: async (
-    id: string,
-    status: string
-  ): Promise<ApiResponse> => {
-    const token = getToken();
-    return apiClient.post(`/applications/${id}/${status}`, undefined, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-  },
+ approveORrejectApplication: async (
+  id: string,
+  status: string,
+  reviewNotes?: string // Add optional reviewNotes parameter
+): Promise<ApiResponse> => {
+  const token = getToken();
+  
+  // Create payload object
+  const payload = reviewNotes ? { reviewNotes } : undefined;
+  
+  return apiClient.post(`/applications/${id}/${status}`, payload, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+},
 
   requestMoreInfor: async (id: string): Promise<ApiResponse<InfoData>> => {
     const token = getToken();

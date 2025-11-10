@@ -1,32 +1,82 @@
 "use client";
-// import Image from "next/image";
 import React, { useState, useRef, useEffect } from "react";
 
 interface DrawerProps {
   onClose: () => void;
   isOpen: boolean;
+  transaction: {
+    id: string;
+    hostName: string;
+    transactionId: string;
+    planName: string;
+    amount: number;
+    method: string;
+    status: string;
+    createdAt: string;
+    currency: string;
+    application?: {
+      id: string;
+      status: string;
+      propertyDetails: {
+        propertyName: string;
+        address: string;
+      };
+    };
+    host?: {
+      name: string;
+      email: string;
+    };
+    gatewayResponse?: {
+      id?: string;
+      customer?: string;
+      receipt_email?: string;
+    };
+    refundedAmount?: string | null;
+    refundedAt?: string | null;
+  };
 }
 
-
-
-const ReceiptDrawer: React.FC<DrawerProps> = ({ onClose, isOpen }) => {
-  const [certificateName, setCertificateName] = useState("");
-  const [propertyType, setPropertyType] = useState("");
-  const [validity, setValidity] = useState("");
-  const [images, setImages] = useState<File[]>([]);
+const ReceiptDrawer: React.FC<DrawerProps> = ({ onClose, isOpen, transaction }) => {
   const [isMounted, setIsMounted] = useState(false);
   const [isVisible, setIsVisible] = useState(false);
-
-  // Dropdown states
-  
-
   const drawerRef = useRef<HTMLDivElement>(null);
 
-  // Property type options
-  
+  // Format date to readable format
+  const formatDate = (dateString: string): string => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
 
-  // Validity options
-  
+  // Format currency
+  const formatCurrency = (amount: number, currency: string): string => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: currency || 'USD',
+    }).format(amount);
+  };
+
+  // Generate invoice number from transaction ID
+  const generateInvoiceNumber = (transactionId: string): string => {
+    return `INV-${transactionId.slice(-8).toUpperCase()}`;
+  };
+
+  // Handle download receipt
+  const handleDownloadReceipt = () => {
+    // In a real application, this would generate and download a PDF receipt
+    console.log("Downloading receipt for transaction:", transaction.id);
+    
+    // For now, we'll just show a success message
+    
+    // Close the drawer after download
+    setIsVisible(false);
+    setTimeout(onClose, 300);
+  };
 
   // Handle mount/unmount with smooth transitions
   useEffect(() => {
@@ -46,33 +96,6 @@ const ReceiptDrawer: React.FC<DrawerProps> = ({ onClose, isOpen }) => {
     }
   }, [isOpen, isMounted]);
 
-  // Handle image upload
-  
-
-  // Remove image
-
-  // Handle form submission
-  const handleAddCertificate = () => {
-    const certificateData = {
-      certificateName,
-      propertyType,
-      validity,
-      images: images.map((file) => file.name),
-    };
-
-    console.log("Adding certificate:", certificateData);
-
-    // Reset form
-    setCertificateName("");
-    setPropertyType("");
-    setValidity("");
-    setImages([]);
-    setIsVisible(false);
-    setTimeout(onClose, 300);
-  };
-
-  // Trigger file input click
-  
   // Close drawer when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -138,67 +161,81 @@ const ReceiptDrawer: React.FC<DrawerProps> = ({ onClose, isOpen }) => {
 
   if (!isMounted) return null;
 
-  const transaction = [
+  // Prepare transaction details
+  const transactionDetails = [
     {
-      title:"Transaction ID",
-      value:"TRANS - 9876",
+      title: "Transaction ID",
+      value: transaction.transactionId || "N/A",
     },
     {
-      title:"Date & Time",
-      value:"Aug 15, 2025, 10:32 AM",
+      title: "Date & Time",
+      value: formatDate(transaction.createdAt),
     },
     {
-      title:"Plan Name",
-      value:"Professional",
+      title: "Plan Name",
+      value: transaction.planName,
     },
     {
-      title:"Plan Duration",
-      value:"Monthly",
+      title: "Payment Status",
+      value: transaction.status.charAt(0) + transaction.status.slice(1).toLowerCase(),
+    },
+  ];
+
+  // Prepare host information
+  const hostInfo = [
+    {
+      title: "Host Name",
+      value: transaction.host?.name || transaction.hostName || "N/A",
     },
     {
-      title:"Status",
-      value:"Completed",
+      title: "Email",
+      value: transaction.host?.email || transaction.gatewayResponse?.receipt_email || "N/A",
     },
-  ]
-  const host = [
+  ];
+
+  // Prepare payment information
+  const paymentInfo = [
     {
-      title:"Host Name",
-      value:"Sarah Kim",
-    },
-    {
-      title:"Email",
-      value:"sarah@gmail.com",
-    },
-    
-  ]
-  const payment = [
-    {
-      title:"Amount",
-      value:"$24",
+      title: "Amount",
+      value: formatCurrency(transaction.amount, transaction.currency),
     },
     {
-      title:"Payment Method",
-      value:"Credit/Debit",
+      title: "Payment Method",
+      value: transaction.method === "card" ? "Credit/Debit Card" : 
+             transaction.method === "MOCK" ? "Mock Payment" : 
+             transaction.method.charAt(0) + transaction.method.slice(1).toLowerCase(),
     },
     {
-      title:"Card Number",
-      value:"987 ****** 9876",
+      title: "Currency",
+      value: transaction.currency,
     },
-    
-  ]
-  const details = [
+  ];
+
+  // Prepare additional details
+  const additionalDetails = [
     {
-      title:"Invoice Number",
-      value:"INV-78652",
+      title: "Invoice Number",
+      value: generateInvoiceNumber(transaction.id),
     },
-    
-  ]
+    {
+      title: "Application ID",
+      value: transaction.application?.id || "N/A",
+    },
+    ...(transaction.refundedAmount ? [{
+      title: "Refunded Amount",
+      value: formatCurrency(parseFloat(transaction.refundedAmount), transaction.currency),
+    }] : []),
+    ...(transaction.refundedAt ? [{
+      title: "Refunded At",
+      value: formatDate(transaction.refundedAt),
+    }] : []),
+  ];
 
   return (
     <>
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 bg-black/50  transition-opacity duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
+        className={`fixed inset-0 bg-black/50 transition-opacity duration-500 ease-[cubic-bezier(0.4,0,0.2,1)] ${
           isVisible ? "opacity-50" : "opacity-0"
         }`}
         onClick={handleOverlayClick}
@@ -220,84 +257,78 @@ const ReceiptDrawer: React.FC<DrawerProps> = ({ onClose, isOpen }) => {
             Detailed record of this transaction for your reference.
           </p>
 
-          {/* Certificate Name */}
+          {/* Transaction Details */}
           <div className="mb-5">
             <label className="block text-[14px] text-[#FFFFFF] font-medium mb-[10px] transition-all duration-300 ease-out">
               Transaction Details
             </label>
             <div className="bg-gradient-to-b from-[#202020] to-[#101010] flex flex-col gap-3 py-3 px-5 w-full rounded-[10px]">
-            {
-              transaction.map((item,index)=>(
+              {transactionDetails.map((item, index) => (
                 <div key={index} className="">
                   <div className="flex justify-between">
                     <p className="font-regular text-[14px] leading-[18px] text-[#FFFFFFCC]">{item.title}</p>
                     <p className="font-medium text-[14px] leading-[18px] text-[#FFFFFF]">{item.value}</p>
                   </div>
                 </div>
-              ))
-            }
+              ))}
+            </div>
           </div>
-          </div>
+
+          {/* Host Information */}
           <div className="mb-5">
             <label className="block text-[14px] text-[#FFFFFF] font-medium mb-[10px] transition-all duration-300 ease-out">
               Host Information
             </label>
             <div className="bg-gradient-to-b from-[#202020] to-[#101010] flex flex-col gap-3 py-3 px-5 w-full rounded-[10px]">
-            {
-              host.map((item,index)=>(
+              {hostInfo.map((item, index) => (
                 <div key={index} className="">
                   <div className="flex justify-between">
                     <p className="font-regular text-[14px] leading-[18px] text-[#FFFFFFCC]">{item.title}</p>
                     <p className="font-medium text-[14px] leading-[18px] text-[#FFFFFF]">{item.value}</p>
                   </div>
                 </div>
-              ))
-            }
+              ))}
+            </div>
           </div>
-          </div>
+
+          {/* Payment Information */}
           <div className="mb-5">
             <label className="block text-[14px] text-[#FFFFFF] font-medium mb-[10px] transition-all duration-300 ease-out">
               Payment Information
             </label>
             <div className="bg-gradient-to-b from-[#202020] to-[#101010] flex flex-col gap-3 py-3 px-5 w-full rounded-[10px]">
-            {
-              payment.map((item,index)=>(
+              {paymentInfo.map((item, index) => (
                 <div key={index} className="">
                   <div className="flex justify-between">
                     <p className="font-regular text-[14px] leading-[18px] text-[#FFFFFFCC]">{item.title}</p>
                     <p className="font-medium text-[14px] leading-[18px] text-[#FFFFFF]">{item.value}</p>
                   </div>
                 </div>
-              ))
-            }
+              ))}
+            </div>
           </div>
-          </div>
+
+          {/* Additional Details */}
           <div className="mb-5">
             <label className="block text-[14px] text-[#FFFFFF] font-medium mb-[10px] transition-all duration-300 ease-out">
               Additional Details
             </label>
             <div className="bg-gradient-to-b from-[#202020] to-[#101010] flex flex-col gap-3 py-3 px-5 w-full rounded-[10px]">
-            {
-              details.map((item,index)=>(
+              {additionalDetails.map((item, index) => (
                 <div key={index} className="">
                   <div className="flex justify-between">
                     <p className="font-regular text-[14px] leading-[18px] text-[#FFFFFFCC]">{item.title}</p>
                     <p className="font-medium text-[14px] leading-[18px] text-[#FFFFFF]">{item.value}</p>
                   </div>
                 </div>
-              ))
-            }
+              ))}
+            </div>
           </div>
-          </div>
-
-          {/* Property Type */}
-          
-
-                  </div>
+        </div>
 
         <div className="transition-all duration-300 ease-out">
           <button
-            onClick={handleAddCertificate}
+            onClick={handleDownloadReceipt}
             className="w-full h-[52px] py-4 mt-[50px] text-[18px] font-semibold rounded-md yellow-btn text-black text-sm 
                       transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
                       hover:scale-[1.02] active:scale-[0.98]"

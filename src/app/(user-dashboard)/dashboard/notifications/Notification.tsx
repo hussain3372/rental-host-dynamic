@@ -55,7 +55,7 @@ export default function NotificationsPage() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [totalCount, setTotalCount] = useState(0);
+  // const [totalCount, setTotalCount] = useState(0);
   const [unreadCount, setUnreadCount] = useState(0);
   const [loadingIds, setLoadingIds] = useState<Set<string>>(new Set());
   const [allRead, setAllRead] = useState(false);
@@ -108,7 +108,7 @@ export default function NotificationsPage() {
           hasMore: (currentOffset + transformed.length) < (response.data.total || 0)
         });
 
-        setTotalCount(response.data.total || 0);
+        // setTotalCount(response.data.total || 0);
         setUnreadCount(response.data.unreadCount || 0);
         setAllRead((response.data.unreadCount || 0) === 0);
       }
@@ -231,7 +231,7 @@ export default function NotificationsPage() {
         const deletedNotif = notifications.find((n) => n.id === id);
         
         setNotifications((prev) => prev.filter((n) => n.id !== id));
-        setTotalCount((prev) => Math.max(0, prev - 1));
+        // setTotalCount((prev) => Math.max(0, prev - 1));
         
         if (deletedNotif?.status === "unread") {
           setUnreadCount((prev) => Math.max(0, prev - 1));
@@ -303,7 +303,7 @@ export default function NotificationsPage() {
         </div>
 
         {/* Mark all as read */}
-        {notifications.length > 0 && unreadCount > 0 && (
+        {notifications.length > 0 && unreadCount > 0 && activeTab !== "read" && (
           <div
             className="flex items-center gap-5 px-4 py-2 rounded-md bg-[#121315] cursor-pointer max-w-[201px]"
             onClick={handleMarkAllAsRead}

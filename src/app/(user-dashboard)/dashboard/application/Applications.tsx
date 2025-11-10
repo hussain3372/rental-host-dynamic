@@ -265,14 +265,14 @@ export default function Applications() {
   }, [fetchApplications]);
 
   const displayData = useMemo(() => {
-  return allCertificationData.map(({ id, ...rest }) => {
-    return {
-      ...rest,
-      // Include id as a hidden field or data attribute
-      id: id, // This will be available in the row object
-    };
-  });
-}, [allCertificationData]);
+    return allCertificationData.map(({ id, ...rest }) => {
+      return {
+        ...rest,
+        // Include id as a hidden field or data attribute
+        id: id, // This will be available in the row object
+      };
+    });
+  }, [allCertificationData]);
 
   useEffect(() => {
     setCurrentPage(1);
@@ -337,7 +337,7 @@ export default function Applications() {
     setCurrentPage(1);
   };
 
- const dropdownItems = [
+  const dropdownItems = [
     {
       label: "View Details",
       onClick: (row: Record<string, string>, index: number) => {
@@ -346,7 +346,7 @@ export default function Applications() {
         console.log("🔍 Current page:", currentPage);
         console.log("🔍 Display data:", displayData);
         console.log("🔍 All certification data:", allCertificationData);
-        
+
         // The row parameter already contains all the data including id
         // Since displayData is mapped directly from allCertificationData
         // and passed to the Table component, the row should have the id
@@ -403,16 +403,16 @@ export default function Applications() {
             data={displayData}
             title="Applications"
             showDeleteButton={false}
-             control={{
-    hover: true,
-  }}
+            control={{
+              hover: true,
+            }}
             showPagination={true}
             clickable={true}
-           onRowClick={(row: Record<string, string>) => {
-  if (row.id) {
-    window.location.href = `/dashboard/application/detail/${row.id}`;
-  }
-}}
+            onRowClick={(row: Record<string, string>) => {
+              if (row.id) {
+                window.location.href = `/dashboard/application/detail/${row.id}`;
+              }
+            }}
             dropdownItems={dropdownItems}
             searchTerm={searchTerm}
             onSearchChange={handleSearch}
@@ -422,7 +422,6 @@ export default function Applications() {
             totalItems={totalItems}
             showFilter={true}
             onFilterToggle={setIsFilterOpen}
-            
             disableClientSidePagination={true}
           />
         </form>

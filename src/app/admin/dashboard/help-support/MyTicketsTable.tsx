@@ -10,10 +10,15 @@ interface CertificationData {
   id: number;
   "Ticket Id": string;
   "Issue Type": string;
-  Subject: string;  
+  Subject: string;
   "Created On": string;
   Status: string;
   "Host Name"?: string;
+}
+
+interface FilterValues {
+  status: string;
+  submittedDate: string | Date | null;
 }
 
 interface MyTicketsTableProps {
@@ -69,7 +74,7 @@ export default function MyTicketsTable({
     submittedDate: "",
   });
 
-  const [tempFilters, setTempFilters] = useState({
+  const [tempFilters, setTempFilters] = useState<FilterValues>({
     status: "",
     submittedDate: "",
   });
@@ -86,6 +91,8 @@ export default function MyTicketsTable({
   const [totalItems, setTotalItems] = useState(0);
 
   // Sync temp filters when filter drawer opens
+  // Sync temp filters when filter drawer opens
+  // ✅ FIXED: Sync temp filters when filter drawer opens
   useEffect(() => {
     if (isFilterOpen) {
       setTempFilters(appliedFilters);
@@ -125,9 +132,9 @@ export default function MyTicketsTable({
       const response = await supportApi.getTickets({
         page: currentPage,
         limit: itemsPerPage,
-        search: debouncedSearchTerm.trim() || undefined, // ✅ Use debouncedSearchTerm
+        search: debouncedSearchTerm.trim() || undefined,
         status: appliedFilters.status || undefined,
-        createdAt: appliedFilters.submittedDate || undefined,
+        createdAt: appliedFilters.submittedDate || undefined, // Make sure this matches your API expected parameter
       });
 
       console.log("🔵 My Tickets API Response:", response);
@@ -181,7 +188,7 @@ export default function MyTicketsTable({
   }, [
     currentPage,
     itemsPerPage,
-    debouncedSearchTerm, 
+    debouncedSearchTerm,
     appliedFilters.status,
     appliedFilters.submittedDate,
   ]);
@@ -189,7 +196,6 @@ export default function MyTicketsTable({
   useEffect(() => {
     fetchTickets();
   }, [fetchTickets, refreshTrigger]);
-
 
   // Unique dropdown values
   const uniqueStatuses = [
@@ -340,6 +346,8 @@ export default function MyTicketsTable({
   }, [searchTerm, appliedFilters, onPageChange]);
 
   // ✅ FIXED: Enhanced reset filter function like Applications table
+  // ✅ FIXED: Enhanced reset filter function
+  // ✅ FIXED: Enhanced reset filter function
   const handleResetFilter = () => {
     const resetFilters = {
       status: "",
@@ -348,31 +356,53 @@ export default function MyTicketsTable({
 
     setTempFilters(resetFilters);
     setAppliedFilters(resetFilters);
-    setSubmittedDate(null);
+    setSubmittedDate(null); // Reset the date state too
     onFilterToggle(false);
+
+    // Trigger refetch without filters
+    fetchTickets();
+  };
+  // ✅ FIXED: Enhanced apply filter function like Applications table
+  // ✅ FIXED: Enhanced apply filter function
+  const handleApplyFilter = () => {
+    const dateString = formatDateForAPI(submittedDate);
+
+    const filtersToApply = {
+      status: tempFilters.status,
+      submittedDate: dateString,
+    };
+
+    console.log("🟢 APPLYING FILTERS:", filtersToApply);
+    setAppliedFilters(filtersToApply);
+    onFilterToggle(false);
+
+    // Trigger API call with the correct parameter name
     fetchTickets();
   };
 
-  // ✅ FIXED: Enhanced apply filter function like Applications table
-  const handleApplyFilter = () => {
-    const filtersToApply = {
-      ...tempFilters,
-      submittedDate: submittedDate ? formatDateForAPI(submittedDate) : "",
-    };
+  const handleFilterChange = (filters: Partial<FilterValues>) => {
+    setTempFilters((prev) => ({
+      ...prev,
+      ...filters,
+    }));
 
-    console.log("Applying filters:", filtersToApply);
-    setAppliedFilters(filtersToApply);
-    onFilterToggle(false);
+    // Handle date separately since it's stored in separate state
+    if (filters.submittedDate !== undefined) {
+      setSubmittedDate(filters.submittedDate as Date | null);
+    }
   };
-
   // ✅ FIXED: Enhanced close filter function like Applications table
+  // ✅ FIXED: Enhanced close filter function
   const handleCloseFilter = () => {
     setTempFilters(appliedFilters);
+
+    // Sync the date picker with applied filters
     if (appliedFilters.submittedDate) {
       setSubmittedDate(new Date(appliedFilters.submittedDate));
     } else {
       setSubmittedDate(null);
     }
+
     onFilterToggle(false);
   };
 
@@ -481,24 +511,22 @@ export default function MyTicketsTable({
 
       <FilterDrawer
         isOpen={isFilterOpen}
-        onClose={handleCloseFilter} // ✅ Use enhanced close function
+        onClose={handleCloseFilter}
         title="Apply Filter"
         description="Refine listings to find the right property faster."
         resetLabel="Reset"
         onReset={handleResetFilter}
         buttonLabel="Apply Filter"
         onApply={handleApplyFilter}
-        filterValues={tempFilters} // ✅ Use tempFilters instead of certificationFilters
-        onFilterChange={(filters) => {
-          setTempFilters((prev) => ({
-            ...prev,
-            ...filters,
-          }));
+        filterValues={{
+          ...tempFilters,
+          submittedDate: submittedDate,
         }}
+        onFilterChange={handleFilterChange}
         dropdownStates={{
           status: statusDropdownOpen,
         }}
-        onDropdownToggle={(key, value) => {
+        onDropdownToggle={(key: string, value: boolean) => {
           if (key === "status") setStatusDropdownOpen(value);
         }}
         fields={[

@@ -7,17 +7,17 @@ import toast from "react-hot-toast";
 interface ChecklistProps {
   notes: string[];
   application: Application;
+  onRejectClick: () => void;
 }
 
-export default function Checklist({ notes, application }: ChecklistProps) {
+export default function Checklist({ notes, application, onRejectClick }: ChecklistProps) {
   const [isApproving, setIsApproving] = useState(false);
-  const [isRejecting, setIsRejecting] = useState(false);
 
   // Convert complianceChecklist object to array format for display
   const checklist = application.complianceChecklist
     ? Object.entries(application.complianceChecklist).map(
         ([name, completed]) => ({
-          id: name, // Use name as ID since we don't have proper IDs
+          id: name,
           name: name,
           completed: completed,
         })
@@ -40,8 +40,6 @@ export default function Checklist({ notes, application }: ChecklistProps) {
   };
 
   const getDocumentImage = (document: Document): string => {
-    // Use the actual document URL from backend for images
-    // For non-image files, fall back to appropriate icons
     const fileName = document.fileName.toLowerCase();
 
     if (fileName.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)) {
@@ -52,7 +50,6 @@ export default function Checklist({ notes, application }: ChecklistProps) {
       return "/images/pdf-icon.svg";
     }
 
-    // Default document icon for other file types
     return "/images/doc-icon.svg";
   };
 
@@ -60,48 +57,29 @@ export default function Checklist({ notes, application }: ChecklistProps) {
     return filePath.split("/").pop() || "Unknown file";
   };
 
-  const handleApproveReject = async (action: "approve" | "reject") => {
+  const handleApprove = async () => {
     if (!application?.id) return;
 
     try {
-      if (action === "approve") {
-        setIsApproving(true);
-      } else {
-        setIsRejecting(true);
-      }
-
+      setIsApproving(true);
       const response = await applicationApi.approveORrejectApplication(
         application.id,
-        action
+        "approve"
       );
 
       if (response.success) {
-        toast.success(`Application ${action}d successfully!`);
+        toast.success(`Application approved successfully!`);
         window.location.reload();
       } else {
-        // Extract proper error message from the response structure
-        const errorMessage =
-          response.message ||
-          response.message ||
-          `Failed to ${action} application`;
-        console.error(`Failed to ${action} application:`, errorMessage);
+        const errorMessage = response.message || `Failed to approve application`;
         toast.error(errorMessage);
       }
     } catch (error) {
-      console.error(`Error ${action}ing application:`, error);
-
-      // Handle different error structures
-      const errorMessage =
-        error instanceof Error
-          ? error.message
-          : `Failed to ${action} application`;
+      console.error(`Error approving application:`, error);
+      const errorMessage = error instanceof Error ? error.message : `Failed to approve application`;
       toast.error(errorMessage);
     } finally {
-      if (action === "approve") {
-        setIsApproving(false);
-      } else {
-        setIsRejecting(false);
-      }
+      setIsApproving(false);
     }
   };
 
@@ -189,15 +167,15 @@ export default function Checklist({ notes, application }: ChecklistProps) {
       {showActionButtons && (
         <div className="pt-15 flex w-full justify-end gap-3">
           <button
-            onClick={() => handleApproveReject("reject")}
-            disabled={isRejecting || isApproving}
+            onClick={onRejectClick}
+            disabled={isApproving}
             className="hollow-btn font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isRejecting ? "Rejecting..." : "Reject"}
+            Reject
           </button>
           <button
-            onClick={() => handleApproveReject("approve")}
-            disabled={isApproving || isRejecting}
+            onClick={handleApprove}
+            disabled={isApproving}
             className="yellow-btn text-[#101010] font-semibold text-[16px] leading-5 py-3 px-[27px] rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {isApproving ? "Approving..." : "Approve"}

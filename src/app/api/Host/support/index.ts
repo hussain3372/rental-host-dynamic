@@ -6,10 +6,24 @@ import {
   CreateTicketPayload,
   CreateTicketResponse,
   GetTicketsResponse,
-  Ticket
+  Ticket,
+  ImageUploadResponse
 } from "./types";
 
 const token = Cookies.get("accessToken");
+
+export const uploadImage = async (file: File): Promise<ApiResponse<ImageUploadResponse>> => {
+  const formData = new FormData();
+  formData.append("image", file);
+
+  return apiClient.post<ImageUploadResponse>("/applications/image-upload", formData, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      // Let the browser set Content-Type with boundary for FormData
+    },
+  });
+};
+
 
 const getAuthHeaders = () => ({
   "Content-Type": "application/json",

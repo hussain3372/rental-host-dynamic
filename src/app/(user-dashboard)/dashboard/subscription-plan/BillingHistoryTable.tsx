@@ -409,16 +409,7 @@ export default function BillingHistory() {
     );
   }
 
-  if (error) {
-    return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-red-500 text-center">
-          <p className="font-semibold">Error Loading Data</p>
-          <p className="text-sm mt-2">{error}</p>
-        </div>
-      </div>
-    );
-  }
+ 
 
   // Only hide completely if there's no data initially and no error
   if (!isLoading && allBillingData.length === 0 && !error) {

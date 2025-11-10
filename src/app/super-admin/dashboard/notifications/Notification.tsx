@@ -255,7 +255,7 @@ export default function NotificationsPage() {
 
 
   const filteredNotifications = notifications; // Now filtered by API
-  const readCount = totalCount - unreadCount;
+  // const readCount = totalCount - unreadCount;
 
   if (loading) {
     return (

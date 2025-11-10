@@ -25,7 +25,6 @@ export default function SearchDrawer({ isOpen, onClose }: SearchDrawerProps) {
       } else if (searchQuery.trim().length === 0) {
         setResults([]);
       }
-      // Don't do anything if query length is 1-2 characters
     }, 400);
     
     return () => clearTimeout(delay);
@@ -48,11 +47,11 @@ const fetchSearchResults = async (query: string) => {
       if (apiResponse && 'data' in apiResponse && Array.isArray(apiResponse.data)) {
         const mappedResults: SearchResult[] = apiResponse.data.map((item) => ({
           id: item.id,
-          name: item.propertyName,
-          description: `${item.hostName} - ${item.hostCompany}`,
+          name: item.name, // Use 'name' from API response, not 'propertyName'
+          description: `${item.status} - ${item.currentStep}`, // Create description from available fields
           image: item.thumbnail || "/images/search.png",
         }));
-        
+        console.log('Actual data:', mappedResults);
         setResults(mappedResults);
       } else {
         setResults([]);

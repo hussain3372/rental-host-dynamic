@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from "react";
 import Image from "next/image";
 import Dropdown from "@/app/shared/InputDropDown";
 import { supportApi } from "@/app/api/Host/support";
-import { uploadImage } from "@/app/api/super-admin/support";
+import { uploadImage } from "@/app/api/Host/support";
 import toast from "react-hot-toast";
 
 interface HelpSupportDrawerProps {

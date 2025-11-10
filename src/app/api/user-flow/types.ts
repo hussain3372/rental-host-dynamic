@@ -141,6 +141,7 @@ export interface SearchParams {
   limit?: number;
   propertyType?: string;
   amenities?: string[];
+  expiryDate?:string
 }
 
 export interface Facets {

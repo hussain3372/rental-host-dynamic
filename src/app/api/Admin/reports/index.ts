@@ -12,37 +12,42 @@ import {
 const token = Cookies.get("adminAccessToken");
 
 export const reports = {
-  getReports: async (params?: {
-    search?: string;
-    reportType?: "WEEKLY" | "MONTHLY" | "CUSTOM" | "ALL";
-    certificationStatus?: "ALL" | "ACTIVE" | "EXPIRED" | "REVOKED";
-    generatedDateTo?: string;
-  }): Promise<ApiResponse<ReportListResponse>> => {
-    const query = new URLSearchParams();
+ getReports: async (params?: {
+  search?: string;
+  reportType?: "WEEKLY" | "MONTHLY" | "CUSTOM" | "ALL";
+  certificationStatus?: "ALL" | "ACTIVE" | "EXPIRED" | "REVOKED";
+  generatedDateTo?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<ApiResponse<ReportListResponse>> => {
+  const query = new URLSearchParams();
 
-    // Only append valid params
-    if (params?.search) query.append("search", params.search);
+  // Only append valid params
+  if (params?.search) query.append("search", params.search);
 
-    // ✅ Only add reportType if it's a valid one (not empty or "ALL")
-    if (params?.reportType && params.reportType !== "ALL")
-      query.append("reportType", params.reportType);
+  // ✅ Only add reportType if it's a valid one (not empty or "ALL")
+  if (params?.reportType && params.reportType !== "ALL")
+    query.append("reportType", params.reportType);
 
-    // ✅ certificationStatus is safe to send even if "ALL"
-    if (params?.certificationStatus)
-      query.append("certificationStatus", params.certificationStatus);
+  // ✅ certificationStatus is safe to send even if "ALL"
+  if (params?.certificationStatus)
+    query.append("certificationStatus", params.certificationStatus);
 
-    // ✅ Add generatedDateTo only if it's a valid date
-    if (params?.generatedDateTo && !isNaN(Date.parse(params.generatedDateTo)))
-      query.append("generatedDateTo", params.generatedDateTo);
+  // ✅ Add generatedDateTo only if it's a valid date
+  if (params?.generatedDateTo && !isNaN(Date.parse(params.generatedDateTo)))
+    query.append("generatedDateTo", params.generatedDateTo);
 
-    return apiClient.get<ReportListResponse>(`/reports?${query.toString()}`, {
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      },
-    });
-  },
+  // ✅ Add pagination parameters
+  if (params?.page) query.append("page", params.page.toString());
+  if (params?.pageSize) query.append("pageSize", params.pageSize.toString());
 
+  return apiClient.get<ReportListResponse>(`/reports?${query.toString()}`, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+},
   createReport: async (
     data: CreateReportRequest
   ): Promise<ApiResponse<CreateReportResponse>> => {

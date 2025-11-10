@@ -142,14 +142,7 @@ export default function Applications() {
 
   // HAS ACTIVE FILTERS LOGIC (From Inspiration)
   // HAS ACTIVE FILTERS LOGIC (From Inspiration) - FIXED
-const hasActiveFilters = useMemo(() => {
-  const currentFilters = viewMode === "hosts" ? appliedCertificationFilters : appliedAdminFilters;
-  return (
-    searchTerm.trim() !== "" ||
-    currentFilters.status.trim() !== "" ||
-    (viewMode === "hosts" )
-  );
-}, [searchTerm, appliedCertificationFilters, appliedAdminFilters, viewMode]);
+
 
 
   // Fetch data based on view mode (UPDATED with pagination logic from inspiration)
