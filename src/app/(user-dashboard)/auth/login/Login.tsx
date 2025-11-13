@@ -90,7 +90,9 @@ export default function LoginPage() {
         if (Notification.permission === "granted") {
           console.log("✅ Permission granted, generating FCM token...");
           const token = await getToken(messaging, {
-            vapidKey: process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY || "BEyjKXOqIyfAIE2cXJZdqdLXzA_NVMq4K4EHN_WO3UXBhsHPxz_amir9TBY5PEDzkT7mvMbwudeMc8q-nnp1A9Y",
+            vapidKey:
+              process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY ||
+              "BEyjKXOqIyfAIE2cXJZdqdLXzA_NVMq4K4EHN_WO3UXBhsHPxz_amir9TBY5PEDzkT7mvMbwudeMc8q-nnp1A9Y",
           });
 
           if (token) {

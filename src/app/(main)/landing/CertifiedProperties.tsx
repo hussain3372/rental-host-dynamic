@@ -129,7 +129,7 @@ const CertifiedProperties = () => {
       {/* Properties Section */}
       <div className="mt-16 space-y-16">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-[80px] items-start">
-          {properties.map((property, index) => {
+          {properties.slice(0, 4).map((property, index) => {
             let colSpan = "";
             let width = 420;
             let height = 420;
@@ -187,6 +187,7 @@ const CertifiedProperties = () => {
                   </p>
                 ) : (
                   <CardFooter
+                    id={property.id}
                     title={property.title}
                     address={property.address}
                   />
@@ -202,7 +203,15 @@ const CertifiedProperties = () => {
 
 export default CertifiedProperties;
 
-const CardFooter = ({ title, address }: { title: string; address: string }) => {
+const CardFooter = ({
+  title,
+  address,
+  id,
+}: {
+  title: string;
+  address: string;
+  id: string;
+}) => {
   return (
     <div className="flex justify-between items-center mt-4 cursor-pointer">
       <div>
@@ -217,7 +226,11 @@ const CardFooter = ({ title, address }: { title: string; address: string }) => {
       </div>
 
       {/* Arrow animation */}
-      <div className="relative w-[32px] h-[32px] overflow-hidden mt-[-12px]">
+      <Link
+        href={`/property-detail/${id}`}
+        key={id}
+        className="relative w-[32px] h-[32px] overflow-hidden mt-[-12px]"
+      >
         <Image
           src="/images/stash_arrow-up-light1.png"
           alt="Arrow"
@@ -232,7 +245,7 @@ const CardFooter = ({ title, address }: { title: string; address: string }) => {
           height={32}
           className="absolute inset-0 -translate-x-6 mt-[-6px] opacity-0 transition-all duration-500 ease-in-out group-hover:translate-x-0 group-hover:opacity-100"
         />
-      </div>
+      </Link>
     </div>
   );
 };

@@ -326,7 +326,7 @@ const ReceiptDrawer: React.FC<DrawerProps> = ({ onClose, isOpen, transaction }) 
           </div>
         </div>
 
-        <div className="transition-all duration-300 ease-out">
+        {/* <div className="transition-all duration-300 ease-out">
           <button
             onClick={handleDownloadReceipt}
             className="w-full h-[52px] py-4 mt-[50px] text-[18px] font-semibold rounded-md yellow-btn text-black text-sm 
@@ -335,7 +335,7 @@ const ReceiptDrawer: React.FC<DrawerProps> = ({ onClose, isOpen, transaction }) 
           >
             Download Receipt
           </button>
-        </div>
+        </div> */}
       </div>
     </>
   );

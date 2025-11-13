@@ -19,17 +19,17 @@ export const propertyAPI = {
    */
   // Fixed searchProperties method - use 'search' parameter
 searchProperties: async (params: {
-  search?: string;
+  q?: string;
   location?: string;
   status?: string;
-  expiryDate?: string;
+  expiresAtFilter?: string;
 } = {}): Promise<ApiResponse<SearchResponse>> => {
   
   const cleanParams: Record<string, string> = {};
   
   // Only add search if it has 3+ characters
-  if (params?.search && params.search.trim().length >= 3) {
-    cleanParams.search = params.search.trim();
+  if (params?.q && params.q.trim().length >= 3) {
+    cleanParams.q = params.q.trim();
   }
   
   if (params?.location && params.location !== "All Locations") {
@@ -40,8 +40,8 @@ searchProperties: async (params: {
     cleanParams.status = params.status.toUpperCase();
   }
   
-  if (params?.expiryDate) {
-    cleanParams.expiryDate = params.expiryDate;
+  if (params?.expiresAtFilter) {
+    cleanParams.expiresAt = params.expiresAtFilter;
   }
 
   return apiClient.get<SearchResponse>("/search/advanced", {

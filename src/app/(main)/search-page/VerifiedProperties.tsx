@@ -6,7 +6,7 @@ import Link from "next/link";
 import StatusPill from "@/app/shared/StatusPills";
 import BlackButton from "@/app/shared/BlackButton";
 import { Property, MappedProperty } from "@/app/api/user-flow/types";
-import Loader from "@/app/shared/loaders"; 
+import Loader from "@/app/shared/loaders";
 
 type PropertyWithTypeObject = Property & {
   propertyType?: { images?: string[] };
@@ -14,7 +14,7 @@ type PropertyWithTypeObject = Property & {
 
 type VerifiedPropertiesProps = {
   properties: (Property | MappedProperty)[];
-  isLoading?: boolean; 
+  isLoading?: boolean;
 };
 
 type StatusVariant = "success" | "error" | "warning" | "info" | "default";
@@ -36,7 +36,7 @@ const getVariantFromStatus = (status?: string): StatusVariant => {
 
 export const VerifiedProperties: React.FC<VerifiedPropertiesProps> = ({
   properties,
-  isLoading = false, 
+  isLoading = false,
 }) => {
   const [showAll, setShowAll] = useState(false);
   const displayedProperties = showAll ? properties : properties.slice(0, 9);
@@ -45,12 +45,7 @@ export const VerifiedProperties: React.FC<VerifiedPropertiesProps> = ({
     return (
       <div className="container-class bg-[#121315] text-white py-[40px] px-[20px] sm:py-[60px] sm:px-[40px] md:py-[70px] md:px-[80px] lg:py-[100px] lg:px-[120px]">
         <div className="flex flex-col items-center justify-center min-h-[400px]">
-          <Loader 
-            type="moon" 
-            size="large" 
-            color="#EFFC76" 
-            className="mb-6"
-          />
+          <Loader type="moon" size="large" color="#EFFC76" className="mb-6" />
         </div>
       </div>
     );

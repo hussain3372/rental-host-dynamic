@@ -543,7 +543,6 @@ export default function HostTicketTable({
   // Table control - same styling
   const tableControl = {
     hover: true,
-   
   };
 
   // Reset pagination when filters change
@@ -565,6 +564,9 @@ export default function HostTicketTable({
         // ✅ Use index to find the original row with Ticket Id
         const globalIndex = (currentPage - 1) * itemsPerPage + index;
         const originalRow = filteredCertificationData[globalIndex];
+
+        console.log("globalIndex:", globalIndex, "filteredCertificationData length:", filteredCertificationData.length);
+
 
         if (originalRow) {
           onViewDetails(originalRow);

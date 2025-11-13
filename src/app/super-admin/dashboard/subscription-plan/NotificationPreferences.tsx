@@ -322,7 +322,7 @@ const NotificationPreferences: React.FC = () => {
         <div className="space-y-0">
           <PreferenceItem
             title="Email Notifications"
-            description="Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium."
+            description="Receive important updates and alerts directly in your inbox."
             hasToggle
             toggleState={emailNotifications}
             onToggleChange={() => {
@@ -341,7 +341,7 @@ const NotificationPreferences: React.FC = () => {
 
           <PreferenceItem
             title="Push Notifications"
-            description="Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium."
+            description="Get instant alerts and updates on your device."
             hasToggle
             toggleState={pushNotifications}
             onToggleChange={() => {
@@ -417,7 +417,7 @@ const NotificationPreferences: React.FC = () => {
       />
 
       {/* Security Preferences Card */}
-      <div className="bg-[#121315] rounded-[12px] p-5">
+      <div className="bg-[#121315] rounded-xl p-5">
         <h3 className="text-white text-[18px] leading-[22px] font-medium mb-5">
           Security Preferences
         </h3>
@@ -426,7 +426,7 @@ const NotificationPreferences: React.FC = () => {
         <div className="space-y-0">
           <PreferenceItem
             title="Change Password"
-            description="Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium."
+            description="Update your password to keep your account secure."
             hasArrow
             onArrowClick={() => setIsPasswordDrawerOpen(true)}
           />
@@ -439,7 +439,7 @@ const NotificationPreferences: React.FC = () => {
           /> */}
           <PreferenceItem
             title="2 - Factor Authentication"
-            description="Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium."
+            description="Add an extra layer of security to protect your account."
             hasToggle
             toggleState={twoFactorAuth}
             onToggleChange={handleToggle2FA}

@@ -8,6 +8,5 @@ export default function page() {
       <Managament />
       <Finances />
     </div>
-    
   );
 }

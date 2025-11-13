@@ -38,7 +38,6 @@ interface TicketDetailDrawerProps {
   onTicketResolved?: () => void;
 }
 
-// Define proper error interface
 interface ApiError {
   message?: string;
   response?: {
@@ -74,9 +73,15 @@ export default function TicketDetailDrawer({
     }
   }, [ticket]);
 
-  // ✅ Enhanced Handle Resolve with comprehensive debugging
-  const handleResolve = async () => {
-    console.log("🟡 Resolve button clicked!");
+  useEffect(() => {
+    if (ticket?.resolution) {
+      setNote(ticket.resolution);
+    }
+  }, [ticket]);
+
+  // ✅ Handle Update Status - calls appropriate API based on selected status
+  const handleUpdateStatus = async () => {
+    console.log("🟡 Update button clicked!");
 
     if (!ticket?.id) {
       console.error("🔴 No ticket ID found");
@@ -84,22 +89,52 @@ export default function TicketDetailDrawer({
       return;
     }
 
+    if (!selectedStatus) {
+      toast.error("Please select a status");
+      return;
+    }
+
     try {
       setLoading(true);
-      console.log("🟡 Starting resolve process for ticket:", ticket.id);
+      console.log("🟡 Starting update process for ticket:", ticket.id);
+      console.log("🟡 Selected status:", selectedStatus);
       console.log("🟡 Resolution note:", note);
 
-      // Call the resolve API
-      const response = await supportApi.resolveTicket(
-        ticket.id,
-        note || "Ticket resolved by admin"
-      );
+      let response;
+
+      // Call different APIs based on selected status
+      switch (selectedStatus) {
+        case "PENDING":
+          console.log("🟡 Calling pendingTicket API");
+          response = await supportApi.pendingTicket(
+            ticket.id,
+            note || "Ticket marked as pending by admin"
+          );
+          toast.success("Ticket marked as pending successfully!");
+          break;
+
+        case "RESOLVED":
+          console.log("🟡 Calling resolveTicket API");
+          response = await supportApi.resolveTicket(
+            ticket.id,
+            note || "Ticket resolved by admin"
+          );
+          toast.success("Ticket marked as resolved successfully!");
+          break;
+
+        case "CLOSED":
+          console.log("🟡 Calling closeTicket API");
+          response = await supportApi.closeTicket(ticket.id);
+          toast.success("Ticket closed successfully!");
+          break;
+
+        default:
+          toast.error("Invalid status selected");
+          return;
+      }
 
       console.log("🟢 API Response received:", response);
       console.log("🟢 Response data:", response.data);
-
-      setSelectedStatus("RESOLVED");
-      toast.success("Ticket marked as resolved successfully!");
 
       // Call the callback to refresh table
       if (onTicketResolved) {
@@ -111,9 +146,8 @@ export default function TicketDetailDrawer({
 
       onClose();
     } catch (error: unknown) {
-      console.error("🔴 Failed to resolve ticket:", error);
+      console.error("🔴 Failed to update ticket:", error);
 
-      // Type-safe error handling
       const apiError = error as ApiError;
       console.error("🔴 Error details:", {
         message: apiError?.message,
@@ -122,11 +156,10 @@ export default function TicketDetailDrawer({
         headers: apiError?.response?.headers,
       });
 
-      // Show detailed error message
       const errorMessage =
         apiError?.response?.data?.message ||
         apiError?.message ||
-        "Failed to resolve ticket. Please try again.";
+        "Failed to update ticket. Please try again.";
 
       toast.error(errorMessage);
     } finally {
@@ -143,6 +176,21 @@ export default function TicketDetailDrawer({
       </div>
     );
   }
+
+  // Determine button text based on selected status
+  const getButtonText = () => {
+    if (loading) return "Updating...";
+    switch (selectedStatus) {
+      case "PENDING":
+        return "Mark as Pending";
+      case "RESOLVED":
+        return "Resolve Ticket";
+      case "CLOSED":
+        return "Close Ticket";
+      default:
+        return "Update Ticket";
+    }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -220,7 +268,7 @@ export default function TicketDetailDrawer({
           )}
         </div>
 
-        {(ticket.status === "OPEN" || ticket.status === "IN_PROGRESS") && (
+        {ticket.status === "OPEN" && (
           <div className="flex flex-col">
             <h3 className="text-[14px] leading-[18px] text-gray-300 font-medium mb-5">
               Update Status
@@ -259,15 +307,65 @@ export default function TicketDetailDrawer({
           </div>
         )}
 
+        {ticket.status === "IN_PROGRESS" && (
+          <div className="flex flex-col">
+            <h3 className="text-[14px] leading-[18px] text-gray-300 font-medium mb-5">
+              Update Status
+            </h3>
+            <div className="flex gap-3">
+              {["CLOSED", "RESOLVED"].map((status) => (
+                <label
+                  key={status}
+                  className={`flex justify-between items-center flex-1 px-3 py-3 gap-3 rounded-lg cursor-pointer transition-all duration-200
+            ${
+              selectedStatus === status
+                ? "border border-[#E5F266] bg-[rgba(229,242,102,0.08)]"
+                : "bg-[#1A1A1A] border border-[#FFFFFF1F]"
+            }`}
+                >
+                  <span
+                    className={`text-[12px] font-medium ${
+                      selectedStatus === status
+                        ? "text-[#E5F266]"
+                        : "text-[#FFFFFF99]"
+                    }`}
+                  >
+                    {status}
+                  </span>
+
+                  <input
+                    type="radio"
+                    name="status"
+                    checked={selectedStatus === status}
+                    onChange={() => setSelectedStatus(status)}
+                    className="accent-[#E5F266] cursor-pointer w-3 h-3"
+                  />
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Note Field */}
-        <div className="flex flex-col mt-5 mb-8">
+        <div
+          className={`flex flex-col mt-5 mb-8 ${
+            ticket.status === "RESOLVED" ? "pointer-events-none" : ""
+          }`}
+        >
           <h3 className="text-[14px] leading-[18px] text-gray-300 font-medium mb-2.5">
             Resolution Note
+            {selectedStatus === "CLOSED" && (
+              <span className="text-xs text-gray-500 ml-2">(Optional)</span>
+            )}
           </h3>
           <textarea
             value={note}
             onChange={(e) => setNote(e.target.value)}
-            placeholder="Add resolution details for this ticket..."
+            placeholder={
+              selectedStatus === "CLOSED"
+                ? "Add closure details (optional)..."
+                : "Add resolution details for this ticket..."
+            }
             rows={3}
             className="w-full px-3 py-2 text-gray-300 focus:outline-none focus:border-[#E5F266] rounded-lg
               bg-[#1A1A1A] border border-[#FFFFFF1F] resize-none"
@@ -279,13 +377,15 @@ export default function TicketDetailDrawer({
       {(ticket.status === "OPEN" || ticket.status === "IN_PROGRESS") && (
         <div className="p-5 shrink-0">
           <button
-            onClick={handleResolve}
-            disabled={loading}
+            onClick={handleUpdateStatus}
+            disabled={loading || selectedStatus === ticket.status}
             className={`yellow-btn cursor-pointer w-full text-black px-4 py-3 rounded-lg font-semibold text-[16px] transition-colors duration-300 ${
-              loading ? "opacity-50 cursor-not-allowed" : "hover:bg-[#E5F266]"
+              loading || selectedStatus === ticket.status
+                ? "opacity-50 cursor-not-allowed"
+                : "hover:bg-[#E5F266]"
             }`}
           >
-            {loading ? "Resolving..." : "Resolve Ticket"}
+            {getButtonText()}
           </button>
         </div>
       )}

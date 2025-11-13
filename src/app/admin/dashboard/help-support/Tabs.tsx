@@ -12,7 +12,7 @@ const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab }) => {
   ];
 
   return (
-    <div className="flex p-[6px] items-center gap-[20px] rounded-[12px] bg-[#121315] w-full max-w-[249px]">
+    <div className="flex p-1.5 items-center gap-5 rounded-3 bg-[#121315] w-full max-w-[249px]">
       {tabs.map((tab) => (
         <button
           key={tab.id}
