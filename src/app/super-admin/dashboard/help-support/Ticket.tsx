@@ -93,8 +93,8 @@ export default function Ticket({
   // Fetch filter options
   const fetchFilterOptions = useCallback(async () => {
     try {
-      // Fetch ALL tickets without filters for dropdown options
-      const response = await supportApi.getsuperAdminTickets(1, 1000);
+      // Fetch ALL admin tickets without filters for dropdown options
+      const response = await supportApi.getAdminTickets(1, 1000);
 
       let ticketsData = null;
 
@@ -227,9 +227,9 @@ export default function Ticket({
         createdAt: appliedFilters.submittedDate || undefined,
       };
 
-      console.log("🚀 HITTING SUPER-ADMIN TICKETS API WITH PARAMS:", apiParams);
+      console.log("🚀 HITTING ADMIN TICKETS API WITH PARAMS:", apiParams);
 
-      const response = await supportApi.getsuperAdminTickets(
+      const response = await supportApi.getAdminTickets(
         apiParams.page,
         apiParams.limit,
         apiParams.search,
@@ -489,7 +489,6 @@ export default function Ticket({
   // Table control
   const tableControl = {
     hover: true,
-    
   };
 
   // Reset pagination when filters change
@@ -557,7 +556,7 @@ export default function Ticket({
       <div className="flex flex-col justify-between">
         <Table
           data={displayData}
-          title="Tickets"
+          title="Admin Tickets"
           control={tableControl}
           showDeleteButton={true}
           onDeleteSingle={(row, index) => {
@@ -603,6 +602,14 @@ export default function Ticket({
           isDeleteAllDisabled={selectedRows.size < 2}
           showActionColumn={true}
           disableClientSidePagination={true}
+          onFirstColumnClick={(row: Record<string, string>, index: number) => {
+            const originalRow = filteredCertificationData[index];
+            if (originalRow) {
+              onViewDetails(originalRow);
+            } else {
+              console.error(" Could not find original row for index:", index);
+            }
+          }}
         />
       </div>
 

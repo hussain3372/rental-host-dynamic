@@ -456,40 +456,41 @@ const RefundDrawer = ({
           </div>
 
           {/* Refund Reason */}
-          {transaction.status === "COMPLETED" ||
-            (transaction.status === "PENDING" && (
-              <div className="mb-5">
-                <label className="block text-[14px] text-[#FFFFFF] font-medium mb-[10px] transition-all duration-300 ease-out">
-                  Reason for refund
-                </label>
-                <textarea
-                  placeholder="Give a reason for refund"
-                  className="bg-gradient-to-b from-[#202020] border resize-none border-[#414141] to-[#101010] w-full rounded-[10px] p-3 focus:outline-none text-[14px] font-regular text-white placeholder-[#FFFFFF99]"
-                  rows={4}
-                  value={refundReason}
-                  onChange={handleReasonChange}
-                />
-              </div>
-            ))}
+          {(transaction.status === "COMPLETED" ||
+            transaction.status === "PENDING") && (
+            <div className="mb-5">
+              <label className="block text-[14px] text-[#FFFFFF] font-medium mb-[10px] transition-all duration-300 ease-out">
+                Reason for refund
+              </label>
+              <textarea
+                placeholder="Give a reason for refund"
+                className="bg-gradient-to-b from-[#202020] border resize-none border-[#414141] to-[#101010] w-full rounded-[10px] p-3 focus:outline-none text-[14px] font-regular text-white placeholder-[#FFFFFF99]"
+                rows={4}
+                value={refundReason}
+                onChange={handleReasonChange}
+              />
+            </div>
+          )}
         </div>
 
-        {transaction.status === "COMPLETED" || (transaction.status === "PENDING" && (
-            <div className="transition-all duration-300 ease-out">
-              <button
-                onClick={handleConfirmRefund}
-                disabled={isProcessing}
-                className={`w-full h-[52px] py-4 mt-[50px] text-[18px] font-semibold rounded-md text-black text-sm 
-                        transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
-                        hover:scale-[1.02] active:scale-[0.98] ${
-                          isProcessing
-                            ? "bg-gray-400 cursor-not-allowed"
-                            : "yellow-btn hover:bg-yellow-600"
-                        }`}
-              >
-                {isProcessing ? "Processing Refund..." : "Confirm Refund"}
-              </button>
-            </div>
-          ))}
+        {(transaction.status === "COMPLETED" ||
+          transaction.status === "PENDING") && (
+          <div className="transition-all duration-300 ease-out">
+            <button
+              onClick={handleConfirmRefund}
+              disabled={isProcessing}
+              className={`w-full h-[52px] py-4 mt-[50px] text-[18px] font-semibold rounded-md text-black text-sm 
+          transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
+          hover:scale-[1.02] active:scale-[0.98] ${
+            isProcessing
+              ? "bg-gray-400 cursor-not-allowed"
+              : "yellow-btn hover:bg-yellow-600"
+          }`}
+            >
+              {isProcessing ? "Processing Refund..." : "Confirm Refund"}
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

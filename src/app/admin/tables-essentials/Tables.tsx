@@ -67,6 +67,7 @@ interface TableProps<T> {
   disableClientSidePagination?: boolean;
   isLoading?: boolean;
   hideIdColumn?: boolean;
+  onFirstColumnClick?: (row: T, index: number) => void;
 }
 
 export function Table<T extends Record<string, unknown>>({
@@ -98,6 +99,7 @@ export function Table<T extends Record<string, unknown>>({
   isDeleteAllDisabled = true,
   disableClientSidePagination = false,
   hideIdColumn = false,
+  onFirstColumnClick,
 }: TableProps<T>) {
   const [displayData, setDisplayData] = useState<T[]>(data);
   const [activeSortDropdown, setActiveSortDropdown] = useState<string | null>(
@@ -149,7 +151,19 @@ export function Table<T extends Record<string, unknown>>({
 
     return <span className={badgeClasses}>{status}</span>;
   };
-
+  
+  // Add this function for first column click
+  const handleFirstColumnClick = (
+    row: T,
+    index: number,
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation(); // Prevent row click from firing
+    if (onFirstColumnClick) {
+      onFirstColumnClick(row, index);
+    }
+  };
+  
   const renderCellContent = (key: string, value: unknown) => {
     if (key.toLowerCase() === "status" && typeof value === "string") {
       return renderStatusBadge(value);
@@ -365,7 +379,6 @@ export function Table<T extends Record<string, unknown>>({
     return buttons;
   };
 
-  // ✅ FIX: Filter keys based on hideIdColumn
   const keys =
     displayData.length > 0
       ? Object.keys(displayData[0]).filter((key) => {
@@ -637,9 +650,8 @@ export function Table<T extends Record<string, unknown>>({
                 ) : (
                   <tbody className="!bg-transparent table-container">
                     {tableData.map((row, idx) => {
-                      // ✅ FIX: Get the correct rowId from rowIds array
                       const rowId = rowIds[idx];
-                      
+
                       return (
                         <tr
                           className="rounded-md bg-transparent"
@@ -678,9 +690,14 @@ export function Table<T extends Record<string, unknown>>({
                             </td>
                           )}
 
-                          {keys.map((key) => (
+                          {keys.map((key, keyIndex) => (
                             <td
                               key={key}
+                              onClick={
+                                keyIndex === 0 && onFirstColumnClick
+                                  ? (e) => handleFirstColumnClick(row, idx, e)
+                                  : undefined
+                              }
                               style={{
                                 padding: paddingSize,
                                 fontWeight: 400,
@@ -691,7 +708,22 @@ export function Table<T extends Record<string, unknown>>({
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
                                 maxWidth: "150px",
+                                ...(keyIndex === 0 && onFirstColumnClick
+                                  ? {
+                                      cursor: "pointer",
+                                      textDecoration: "underline",
+                                      textDecorationColor: "white/60",
+                                      textUnderlineOffset: "3px",
+                                      transition: "all 0.2s ease",
+                                    }
+                                  : {}),
                               }}
+                              // NEW: Add hover class for first column
+                              className={
+                                keyIndex === 0 && onFirstColumnClick
+                                  ? "hover:text-[#EFFC76] hover:decoration-[#ffeb3b]"
+                                  : ""
+                              }
                             >
                               {renderCellContent(key, row[key])}
                             </td>
@@ -720,7 +752,9 @@ export function Table<T extends Record<string, unknown>>({
                                     let disabled = false;
                                     if (
                                       item.label === "Delete Application" ||
-                                      item.label.toLowerCase().includes("delete")
+                                      item.label
+                                        .toLowerCase()
+                                        .includes("delete")
                                     ) {
                                       disabled = !selectedRows.has(rowId);
                                     }

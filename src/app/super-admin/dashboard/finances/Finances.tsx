@@ -91,7 +91,8 @@ export default function Finances() {
   const [refundOpen, setRefundOpen] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-  const [selectedTransaction, setSelectedTransaction] = useState<FinanceData | null>(null);
+  const [selectedTransaction, setSelectedTransaction] =
+    useState<FinanceData | null>(null);
   const [singleRowToDelete, setSingleRowToDelete] = useState<{
     row: Record<string, string>;
     id: string;
@@ -426,6 +427,11 @@ export default function Finances() {
           onFilterToggle={setIsFilterOpen}
           isLoading={isLoading}
           disableClientSidePagination={true}
+          onFirstColumnClick={(row: Record<string, string>, index: number) => {
+            const originalRow = financeData[index];
+            setSelectedTransaction(originalRow);
+            setReceiptOpen(true);
+          }}
         />
       </div>
 

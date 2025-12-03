@@ -760,6 +760,12 @@ export default function Applications() {
           onDeleteAll={handleDeleteSelected}
           isDeleteAllDisabled={selectedRows.size < 2}
           disableClientSidePagination={true}
+          onFirstColumnClick={(row: Record<string, string>, index: number) => {
+            const originalRow = allCertificationData[index];
+            if (originalRow && originalRow.id) {
+              window.location.href = `/super-admin/dashboard/applications/detail/${originalRow.id}`;
+            }
+          }}
         />
       </div>
 

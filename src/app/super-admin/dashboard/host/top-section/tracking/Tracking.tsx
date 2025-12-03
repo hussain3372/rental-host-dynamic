@@ -14,8 +14,6 @@ interface AdminData {
   Status: string;
 }
 
-
-
 // Normalize status for display (convert API status to display format)
 const normalizeStatus = (status: string): string => {
   const statusMap: Record<string, string> = {
@@ -317,72 +315,77 @@ export default function Applications() {
 
   // Helper function to get user-friendly error messages
   const getErrorMessage = (error: unknown, adminName: string): string => {
-  console.log("Error details:", error);
+    console.log("Error details:", error);
 
-  // Type guard to check if error is an object
-  const isErrorObject = (err: unknown): err is Record<string, unknown> => 
-    typeof err === 'object' && err !== null;
+    // Type guard to check if error is an object
+    const isErrorObject = (err: unknown): err is Record<string, unknown> =>
+      typeof err === "object" && err !== null;
 
-  // Check for foreign key constraint violation
-  if (isErrorObject(error)) {
-    // Check for direct error properties
-    if (
-      error.code === "FOREIGN_KEY_CONSTRAINT_VIOLATION" ||
-      error.prismaCode === "P2003"
-    ) {
-      let constraintDetails: string | undefined;
-      
-      // Check for constraint in error.details?.meta?.constraint
-      if (isErrorObject(error.details) && 
-          isErrorObject(error.details.meta) && 
-          typeof error.details.meta.constraint === 'string') {
-        constraintDetails = error.details.meta.constraint;
+    // Check for foreign key constraint violation
+    if (isErrorObject(error)) {
+      // Check for direct error properties
+      if (
+        error.code === "FOREIGN_KEY_CONSTRAINT_VIOLATION" ||
+        error.prismaCode === "P2003"
+      ) {
+        let constraintDetails: string | undefined;
+
+        // Check for constraint in error.details?.meta?.constraint
+        if (
+          isErrorObject(error.details) &&
+          isErrorObject(error.details.meta) &&
+          typeof error.details.meta.constraint === "string"
+        ) {
+          constraintDetails = error.details.meta.constraint;
+        }
+
+        // Check for constraint in error.error?.details?.meta?.constraint
+        if (
+          !constraintDetails &&
+          isErrorObject(error.error) &&
+          isErrorObject(error.error.details) &&
+          isErrorObject(error.error.details.meta) &&
+          typeof error.error.details.meta.constraint === "string"
+        ) {
+          constraintDetails = error.error.details.meta.constraint;
+        }
+
+        if (constraintDetails?.includes("notifications_userId_fkey")) {
+          return `Cannot delete admin because they have associated notifications. Please clear their notifications first.`;
+        } else if (constraintDetails) {
+          return `Cannot delete ${adminName} because they have associated data in the system (${constraintDetails}).`;
+        } else {
+          return `Cannot delete ${adminName} because they have associated data in the system. Please remove all related records first.`;
+        }
       }
-      
-      // Check for constraint in error.error?.details?.meta?.constraint
-      if (!constraintDetails && 
-          isErrorObject(error.error) && 
-          isErrorObject(error.error.details) && 
-          isErrorObject(error.error.details.meta) && 
-          typeof error.error.details.meta.constraint === 'string') {
-        constraintDetails = error.error.details.meta.constraint;
+
+      // Check for other specific error types
+      if (error.code === "USER_HAS_ACTIVE_RECORDS") {
+        return `Cannot delete ${adminName} because they have active records in the system.`;
       }
 
-      if (constraintDetails?.includes("notifications_userId_fkey")) {
-        return `Cannot delete admin because they have associated notifications. Please clear their notifications first.`;
-      } else if (constraintDetails) {
-        return `Cannot delete ${adminName} because they have associated data in the system (${constraintDetails}).`;
-      } else {
-        return `Cannot delete ${adminName} because they have associated data in the system. Please remove all related records first.`;
+      // Check for message properties
+      if (
+        typeof error.message === "string" &&
+        (error.message.includes("foreign key") ||
+          error.message.includes("constraint"))
+      ) {
+        return `Cannot delete ${adminName} because they have associated records in the system. Please remove all related data first.`;
+      }
+
+      // Generic error messages based on response
+      if (typeof error.message === "string") {
+        return `Failed to delete ${adminName}: ${error.message}`;
       }
     }
 
-    // Check for other specific error types
-    if (error.code === "USER_HAS_ACTIVE_RECORDS") {
-      return `Cannot delete ${adminName} because they have active records in the system.`;
+    if (error === false) {
+      return `Failed to delete ${adminName}. The server rejected the request.`;
     }
 
-    // Check for message properties
-    if (typeof error.message === 'string' && (
-      error.message.includes("foreign key") || 
-      error.message.includes("constraint")
-    )) {
-      return `Cannot delete ${adminName} because they have associated records in the system. Please remove all related data first.`;
-    }
-
-    // Generic error messages based on response
-    if (typeof error.message === 'string') {
-      return `Failed to delete ${adminName}: ${error.message}`;
-    }
-  }
-
-  if (error === false) {
-    return `Failed to delete ${adminName}. The server rejected the request.`;
-  }
-
-  // Default fallback
-  return `Failed to delete ${adminName}. Please try again.`;
-};
+    // Default fallback
+    return `Failed to delete ${adminName}. Please try again.`;
+  };
 
   const openDeleteSingleModal = (row: Record<string, string>, id: number) => {
     setSingleRowToDelete({ row, id });
@@ -457,7 +460,7 @@ export default function Applications() {
   const modalContent = getModalContent();
 
   const tableControl = {
-    hover: true
+    hover: true,
   };
 
   const displayData = useMemo(() => {
@@ -535,6 +538,11 @@ export default function Applications() {
           onDeleteAll={handleDeleteSelected}
           isDeleteAllDisabled={selectedRows.size === 0 || isDeleting}
           isLoading={isLoading}
+          
+          onFirstColumnClick={(row: Record<string, string>, index: number) => {
+            const originalRow = adminData[index];
+            window.location.href = `/super-admin/dashboard/user-management/admin/detail/${originalRow.id}`;
+          }}
         />
       </div>
 

@@ -56,8 +56,8 @@ export default function Certificates() {
   const [totalPages, setTotalPages] = useState(0);
 
   const tableControls = {
-    hover : true
-  }
+    hover: true,
+  };
 
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   // Fetch certificates from API with all filters
@@ -490,6 +490,12 @@ export default function Certificates() {
           onFilterToggle={setIsFilterOpen}
           onDeleteAll={handleDeleteSelected}
           isDeleteAllDisabled={selectedRows.size === 0}
+          onFirstColumnClick={(row: Record<string, string>, index: number) => {
+            const originalRow = certificationData[index];
+            if (originalRow.originalData) {
+              window.location.href = `/admin/dashboard/certificates/detail/${originalRow.originalData.id}`;
+            }
+          }}
         />
       </div>
 

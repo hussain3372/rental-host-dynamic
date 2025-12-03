@@ -392,7 +392,6 @@ export default function Applications() {
 
   const tableControl = {
     hover: true,
-    
   };
 
   useEffect(() => {
@@ -541,10 +540,12 @@ export default function Applications() {
           showFilter={true}
           onFilterToggle={setIsFilterOpen}
           onDeleteAll={handleDeleteSelected}
-          isDeleteAllDisabled={
-            selectedRows.size <= 1
-          }
+          isDeleteAllDisabled={selectedRows.size <= 1}
           disableClientSidePagination={true}
+          onFirstColumnClick={(row: Record<string, string>, index: number) => {
+            const originalRow = allCertificationData[index];
+            window.location.href = `/admin/dashboard/application/detail/${originalRow.id}`;
+          }}
         />
       </div>
 

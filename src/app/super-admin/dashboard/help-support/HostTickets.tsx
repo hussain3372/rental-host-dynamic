@@ -3,20 +3,20 @@ import React, { useMemo, useState, useEffect, useCallback } from "react";
 import { Table } from "@/app/shared/tables/Tables";
 import { Modal } from "@/app/shared/Modal";
 import FilterDrawer from "@/app/shared/tables/Filter";
-import { supportApi } from "@/app/api/Admin/support";
-import { Ticket } from "@/app/api/Admin/support/types";
+import { supportApi } from "@/app/api/super-admin/support";
+import { Ticket as TicketType } from "@/app/api/Admin/support/types";
 
 interface CertificationData {
   id: number;
   "Ticket Id": string;
   "Issue Type": string;
   Subject: string;
-  "Host Name": string;
+  "Admin Name": string;
   "Created On": string;
   Status: string;
 }
 
-interface HostTicketTableProps {
+interface TicketProps {
   searchTerm: string;
   onSearchChange: (term: string) => void;
   currentPage: number;
@@ -27,17 +27,7 @@ interface HostTicketTableProps {
   onViewDetails: (ticket: CertificationData) => void;
 }
 
-interface TicketApiParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-  subject?: string;
-  property?: string;
-  status?: string;
-  createdAt?: string;
-}
-
-export default function HostTicketTable({
+export default function HostTickets({
   searchTerm,
   onSearchChange,
   currentPage,
@@ -46,7 +36,7 @@ export default function HostTicketTable({
   isFilterOpen,
   onFilterToggle,
   onViewDetails,
-}: HostTicketTableProps) {
+}: TicketProps) {
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState("");
 
   // Modal and delete states
@@ -65,17 +55,15 @@ export default function HostTicketTable({
   const [loading, setLoading] = useState(true);
   const [totalItems, setTotalItems] = useState(0);
 
-  // Filter states - following the same pattern as HelpSupport
+  // Filter states
   const [appliedFilters, setAppliedFilters] = useState({
-    subject: "",
-    property: "",
+    category: "",
     status: "",
     submittedDate: "",
   });
 
   const [tempFilters, setTempFilters] = useState({
-    subject: "",
-    property: "",
+    category: "",
     status: "",
     submittedDate: "",
   });
@@ -84,16 +72,14 @@ export default function HostTicketTable({
   const [submittedDate, setSubmittedDate] = useState<Date | null>(null);
 
   // Dropdown states
-  const [subjectDropdownOpen, setSubjectDropdownOpen] = useState(false);
-  const [propertyDropdownOpen, setPropertyDropdownOpen] = useState(false);
+  const [categoryDropdownOpen, setCategoryDropdownOpen] = useState(false);
   const [statusDropdownOpen, setStatusDropdownOpen] = useState(false);
 
   // State for filter options - from API
-  const [, setAllSubjects] = useState<string[]>([]);
-  const [, setAllProperties] = useState<string[]>([]);
+  const [allCategories, setAllCategories] = useState<string[]>([]);
   const [allStatuses, setAllStatuses] = useState<string[]>([]);
 
-  // Debounced search - same as HelpSupport
+  // Debounced search
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm);
@@ -104,18 +90,15 @@ export default function HostTicketTable({
     };
   }, [searchTerm]);
 
-  // Fetch filter options - same pattern as HelpSupport
+  // Fetch filter options
   const fetchFilterOptions = useCallback(async () => {
     try {
-      // Fetch ALL tickets without filters for dropdown options
-      const response = await supportApi.getTickets({
-        page: 1,
-        limit: 1000,
-      });
+      // Fetch ALL host tickets without filters for dropdown options
+      const response = await supportApi.getHostTickets(1, 1000);
 
       let ticketsData = null;
 
-      // Extract data based on your API response structure - same logic
+      // Extract data based on your API response structure
       if (Array.isArray(response.data?.data?.data)) {
         ticketsData = response.data.data.data;
       } else if (Array.isArray(response.data?.data)) {
@@ -128,35 +111,27 @@ export default function HostTicketTable({
 
       if (ticketsData && Array.isArray(ticketsData)) {
         // Get unique values for filters
-        const subjects = [
+        const categories = [
           ...new Set(
             ticketsData
-              .map((ticket: Ticket) => ticket.subject || "")
+              .map((ticket: TicketType) => ticket.category || "")
               .filter(Boolean)
-          ),
-        ];
-
-        const properties = [
-          ...new Set(
-            ticketsData.map((ticket: Ticket) => ticket.id || "").filter(Boolean)
           ),
         ];
 
         const statuses = [
           ...new Set(
             ticketsData
-              .map((ticket: Ticket) => ticket.status || "")
+              .map((ticket: TicketType) => ticket.status || "")
               .filter(Boolean)
           ),
         ];
 
-        setAllSubjects(subjects);
-        setAllProperties(properties);
+        setAllCategories(categories);
         setAllStatuses(statuses);
 
-        console.log("🟢 Host Tickets Filter options loaded:", {
-          subjects: subjects.length,
-          properties: properties.length,
+        console.log("🟢 Admin Tickets Filter options loaded:", {
+          categories: categories.length,
           statuses: statuses.length,
         });
       }
@@ -165,32 +140,28 @@ export default function HostTicketTable({
     }
   }, []);
 
-  // Update filter options when main data changes - same pattern
+  // Update filter options when main data changes
   useEffect(() => {
     if (allCertificationData.length > 0) {
       console.log(
-        "🔄 Updating host tickets filter options from current data..."
+        "🔄 Updating admin tickets filter options from current data..."
       );
 
-      const subjects = [
-        ...new Set(allCertificationData.map((item) => item.Subject || "")),
-      ].filter(Boolean);
-
-      const properties = [
-        ...new Set(allCertificationData.map((item) => item["Ticket Id"] || "")),
+      const categories = [
+        ...new Set(
+          allCertificationData.map((item) => item["Issue Type"] || "")
+        ),
       ].filter(Boolean);
 
       const statuses = [
         ...new Set(allCertificationData.map((item) => item.Status || "")),
       ].filter(Boolean);
 
-      setAllSubjects(subjects);
-      setAllProperties(properties);
+      setAllCategories(categories);
       setAllStatuses(statuses);
 
-      console.log("🟢 Updated host tickets filter options:", {
-        subjects: subjects.length,
-        properties: properties.length,
+      console.log("🟢 Updated admin tickets filter options:", {
+        categories: categories.length,
         statuses: statuses.length,
       });
     }
@@ -200,7 +171,7 @@ export default function HostTicketTable({
     fetchFilterOptions();
   }, [fetchFilterOptions]);
 
-  // Sync temp filters when filter drawer opens - same pattern
+  // Sync temp filters when filter drawer opens
   useEffect(() => {
     if (isFilterOpen) {
       setTempFilters(appliedFilters);
@@ -212,7 +183,7 @@ export default function HostTicketTable({
     }
   }, [isFilterOpen, appliedFilters]);
 
-  // Date formatting for API - same function
+  // Date formatting for API
   const formatDateForAPI = (date: Date | null): string => {
     if (!date) return "";
     const year = date.getFullYear();
@@ -221,69 +192,55 @@ export default function HostTicketTable({
     return `${year}-${month}-${day}`;
   };
 
-  // Fetch tickets - same pattern but with Host Name
+  // Fetch tickets using super-admin specific endpoint
   const fetchTickets = useCallback(async () => {
     try {
       // setLoading(true);
 
-      if (
+      // Check if we should skip API call
+      const shouldSkipCall =
         debouncedSearchTerm.trim().length > 0 &&
         debouncedSearchTerm.trim().length < 3 &&
-        !appliedFilters.subject &&
-        !appliedFilters.property &&
+        !appliedFilters.category &&
         !appliedFilters.status &&
-        !appliedFilters.submittedDate
-      ) {
+        !appliedFilters.submittedDate;
+
+      if (shouldSkipCall) {
         console.log(
           "🟡 Skipping API call - search term too short and no filters applied"
         );
-        // setAllCertificationData([]);
-        // setTotalItems(0);
+        // Don't set data to empty arrays, just skip the API call
         setLoading(false);
         return;
       }
 
-      // Build API parameters correctly - same as HelpSupport
-      const apiParams: TicketApiParams = {
+      // Build API parameters for super-admin endpoint
+      const apiParams = {
         page: currentPage,
         limit: itemsPerPage,
+        search:
+          debouncedSearchTerm.trim().length >= 3
+            ? debouncedSearchTerm.trim()
+            : undefined,
+        category: appliedFilters.category?.trim() || undefined,
+        status: appliedFilters.status?.trim() || undefined,
+        createdAt: appliedFilters.submittedDate || undefined,
       };
-
-      // Add search term if applicable
-      if (debouncedSearchTerm.trim().length >= 3) {
-        apiParams.search = debouncedSearchTerm.trim();
-      }
-
-      // Add filters - use correct parameter names
-      if (appliedFilters.subject?.trim()) {
-        apiParams.subject = appliedFilters.subject.trim();
-      }
-
-      if (appliedFilters.property?.trim()) {
-        apiParams.property = appliedFilters.property.trim();
-      }
-
-      if (appliedFilters.status?.trim()) {
-        apiParams.status = appliedFilters.status.trim();
-      }
-
-      if (appliedFilters.submittedDate) {
-        apiParams.createdAt = appliedFilters.submittedDate;
-      }
 
       console.log("🚀 HITTING HOST TICKETS API WITH PARAMS:", apiParams);
 
-      // const response = await supportApi.getTickets(apiParams);
-      const response = await supportApi.getAdminTickets(
-        currentPage,
-        itemsPerPage,
-        apiParams.search || undefined,
-        undefined,
-        apiParams.status || undefined,
-        apiParams.createdAt || undefined
+      const response = await supportApi.getHostTickets(
+        apiParams.page,
+        apiParams.limit,
+        apiParams.search,
+        apiParams.category,
+        apiParams.status,
+        apiParams.createdAt
       );
-      console.log("🔵 Full Host Tickets API Response:", response);
 
+      console.log("🔵 Full Super-Admin Tickets API Response:", response);
+
+      // Extract data based on your API response structure
       let ticketsData = null;
       let apiTotal = 0;
 
@@ -305,15 +262,15 @@ export default function HostTicketTable({
       }
 
       if (ticketsData && Array.isArray(ticketsData)) {
-        console.log("🟢 Host Tickets data found:", ticketsData);
+        console.log("🟢 Super-Admin Tickets data found:", ticketsData);
 
         const tickets: CertificationData[] = ticketsData.map(
-          (item: Ticket, index: number) => ({
+          (item: TicketType, index: number) => ({
             id: index + 1,
             "Ticket Id": item.id,
             "Issue Type": item.category,
             Subject: item.subject,
-            "Host Name": item.user?.name || `User ${item.userId}`, // Added Host Name
+            "Admin Name": item.user?.name || `User ${item.userId}`,
             "Created On": new Date(item.createdAt).toLocaleDateString("en-US", {
               month: "short",
               day: "numeric",
@@ -326,12 +283,12 @@ export default function HostTicketTable({
         setAllCertificationData(tickets);
         setTotalItems(apiTotal);
       } else {
-        console.error("🔴 No valid host tickets data found");
+        console.error("🔴 No valid super-admin tickets data found");
         setAllCertificationData([]);
         setTotalItems(0);
       }
     } catch (error) {
-      console.error("🔴 Error fetching host tickets:", error);
+      console.error("🔴 Error fetching super-admin tickets:", error);
       setAllCertificationData([]);
       setTotalItems(0);
     } finally {
@@ -341,8 +298,7 @@ export default function HostTicketTable({
     currentPage,
     itemsPerPage,
     debouncedSearchTerm,
-    appliedFilters.subject,
-    appliedFilters.property,
+    appliedFilters.category,
     appliedFilters.status,
     appliedFilters.submittedDate,
   ]);
@@ -351,46 +307,38 @@ export default function HostTicketTable({
     fetchTickets();
   }, [fetchTickets]);
 
-  // Debug effects to track state changes
   useEffect(() => {
     console.log(
-      "🟢 Host Tickets allCertificationData updated:",
+      "🟢 Super-Admin Tickets allCertificationData updated:",
       allCertificationData
     );
     console.log(
-      "🟢 Host Tickets allCertificationData length:",
+      "🟢 Super-Admin Tickets allCertificationData length:",
       allCertificationData.length
     );
-    console.log("🟢 Host Tickets Applied Filters:", appliedFilters);
+    console.log("🟢 Super-Admin Tickets Applied Filters:", appliedFilters);
   }, [allCertificationData, appliedFilters]);
 
-  // ✅ Same filtering approach - using API-filtered data directly
+  // Use API-filtered data directly
   const filteredCertificationData = useMemo(() => {
-    console.log("🟠 Using API-filtered host tickets data directly");
+    console.log("🟠 Using API-filtered super-admin tickets data directly");
     return allCertificationData;
   }, [allCertificationData]);
 
   const displayData = useMemo(() => {
     const result = filteredCertificationData.map(
       ({ id, "Ticket Id": ticketId, ...rest }) => {
-        console.log(id, ticketId); // Keep for debugging
-        return rest; // Returns only: Issue Type, Subject, Host Name, Created On, Status
+        console.log(id, "Ticket ID:", ticketId);
+        return rest;
       }
-    );
-
-    console.log(
-      "🟢 Host Tickets Display Data for Table:",
-      result.length,
-      "items"
     );
     return result;
   }, [filteredCertificationData]);
 
-  // Filter handlers - same pattern as HelpSupport
+  // Filter handlers
   const handleResetFilter = () => {
     const resetFilters = {
-      subject: "",
-      property: "",
+      category: "",
       status: "",
       submittedDate: "",
     };
@@ -402,20 +350,19 @@ export default function HostTicketTable({
     onPageChange(1);
     onFilterToggle(false);
 
-    console.log("🟢 Host Tickets Filters reset");
+    console.log("🟢 Super-Admin Tickets Filters reset");
   };
 
   const handleApplyFilter = () => {
     const dateString = formatDateForAPI(submittedDate);
 
     const filtersToApply = {
-      subject: tempFilters.subject,
-      property: tempFilters.property,
+      category: tempFilters.category,
       status: tempFilters.status,
       submittedDate: dateString,
     };
 
-    console.log("🟢 APPLYING HOST TICKET FILTERS:", filtersToApply);
+    console.log("🟢 APPLYING SUPER-ADMIN TICKET FILTERS:", filtersToApply);
 
     setAppliedFilters(filtersToApply);
     onPageChange(1);
@@ -432,7 +379,6 @@ export default function HostTicketTable({
     onFilterToggle(false);
   };
 
-  // ✅ FIXED: Delete multiple tickets with API call and refetch
   const handleDeleteApplications = async (selectedRowIds: Set<number>) => {
     try {
       const idsToDelete = Array.from(selectedRowIds)
@@ -442,11 +388,11 @@ export default function HostTicketTable({
         )
         .filter(Boolean) as string[];
 
-      console.log("🔴 Deleting multiple tickets:", idsToDelete);
+      console.log("🔴 Deleting multiple super-admin tickets:", idsToDelete);
 
       // Call the API to delete tickets
       await supportApi.deleteMultipleTickets(idsToDelete);
-      console.log("🟢 Multiple tickets deleted successfully");
+      console.log("🟢 Multiple super-admin tickets deleted successfully");
 
       // Clear selected rows
       setSelectedRows(new Set());
@@ -454,13 +400,13 @@ export default function HostTicketTable({
       // Refetch tickets to get updated data from server
       await fetchTickets();
     } catch (error) {
-      console.error("🔴 Error deleting multiple tickets:", error);
+      console.error("🔴 Error deleting multiple super-admin tickets:", error);
     } finally {
       setIsModalOpen(false);
     }
   };
 
-  // ✅ FIXED: Delete single ticket with API call and refetch
+  // Delete single ticket with API call and refetch
   const handleDeleteSingleApplication = async (
     row: Record<string, string>,
     id: number
@@ -475,11 +421,11 @@ export default function HostTicketTable({
         return;
       }
 
-      console.log("🔴 Deleting single ticket:", ticketId);
+      console.log("🔴 Deleting single super-admin ticket:", ticketId);
 
-      // ✅ Call the API to delete the ticket
+      // Call the API to delete the ticket
       await supportApi.deleteTicket(ticketId);
-      console.log("🟢 Single ticket deleted successfully");
+      console.log("🟢 Single super-admin ticket deleted successfully");
 
       // Clear the row from selected rows
       setSelectedRows((prev) => {
@@ -488,10 +434,10 @@ export default function HostTicketTable({
         return newSet;
       });
 
-      // ✅ Refetch tickets to get updated data from server
+      // Refetch tickets to get updated data from server
       await fetchTickets();
     } catch (error) {
-      console.error("🔴 Error deleting single ticket:", error);
+      console.error("🔴 Error deleting single super-admin ticket:", error);
     } finally {
       setIsModalOpen(false);
       setSingleRowToDelete(null);
@@ -504,7 +450,7 @@ export default function HostTicketTable({
     setIsModalOpen(true);
   };
 
-  // Selection handlers - same pattern
+  // Selection handlers
   const handleSelectAll = (checked: boolean) => {
     const newSelected = new Set(selectedRows);
 
@@ -540,7 +486,7 @@ export default function HostTicketTable({
     }
   };
 
-  // Table control - same styling
+  // Table control
   const tableControl = {
     hover: true,
   };
@@ -561,44 +507,34 @@ export default function HostTicketTable({
     {
       label: "View Details",
       onClick: (row: Record<string, string>, index: number) => {
-        // ✅ Use index to find the original row with Ticket Id
-        const globalIndex = (currentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredCertificationData[globalIndex];
-
-        console.log(
-          "globalIndex:",
-          globalIndex,
-          "filteredCertificationData length:",
-          filteredCertificationData.length
-        );
-
+        // Use index to find the corresponding item in filteredCertificationData
+        const originalRow = filteredCertificationData[index];
         if (originalRow) {
           onViewDetails(originalRow);
         } else {
-          console.error("Could not find original row at index:", globalIndex);
+          console.error("🔴 Could not find original row for index:", index);
         }
       },
     },
     {
       label: "Delete Ticket",
       onClick: (row: Record<string, string>, index: number) => {
-        // ✅ Use index to find the original row with Ticket Id
-        const globalIndex = (currentPage - 1) * itemsPerPage + index;
-        const originalRow = filteredCertificationData[globalIndex];
-
+        // Use index to find the corresponding item in filteredCertificationData
+        const originalRow = filteredCertificationData[index];
         if (originalRow) {
           openDeleteSingleModal(row, originalRow.id);
         } else {
-          console.error("Could not find original row at index:", globalIndex);
+          console.error("🔴 Could not find original row for index:", index);
         }
       },
     },
   ];
+
   // Loading state
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <p className="text-white">Loading host tickets...</p>
+        <p className="text-white">Loading super-admin tickets...</p>
       </div>
     );
   }
@@ -624,17 +560,11 @@ export default function HostTicketTable({
           control={tableControl}
           showDeleteButton={true}
           onDeleteSingle={(row, index) => {
-            // ✅ Use index to find the original row
-            const globalIndex = (currentPage - 1) * itemsPerPage + index;
-            const originalRow = filteredCertificationData[globalIndex];
-
+            const originalRow = filteredCertificationData[index];
             if (originalRow) {
               openDeleteSingleModal(row, originalRow.id);
             } else {
-              console.error(
-                "Could not find original row at index:",
-                globalIndex
-              );
+              console.error("🔴 Could not find original row for index:", index);
             }
           }}
           showPagination={true}
@@ -673,30 +603,17 @@ export default function HostTicketTable({
           showActionColumn={true}
           disableClientSidePagination={true}
           onFirstColumnClick={(row: Record<string, string>, index: number) => {
-            // ✅ Use index to find the original row with Ticket Id
-            const globalIndex = (currentPage - 1) * itemsPerPage + index;
-            const originalRow = filteredCertificationData[globalIndex];
-
-            console.log(
-              "globalIndex:",
-              globalIndex,
-              "filteredCertificationData length:",
-              filteredCertificationData.length
-            );
-
+            const originalRow = filteredCertificationData[index];
             if (originalRow) {
               onViewDetails(originalRow);
             } else {
-              console.error(
-                "Could not find original row at index:",
-                globalIndex
-              );
+              console.error(" Could not find original row for index:", index);
             }
           }}
         />
       </div>
 
-      {/* FilterDrawer with same structure as HelpSupport */}
+      {/* FilterDrawer with updated structure */}
       <FilterDrawer
         isOpen={isFilterOpen}
         onClose={handleCloseFilter}
@@ -707,22 +624,15 @@ export default function HostTicketTable({
         buttonLabel="Apply Filter"
         onApply={handleApplyFilter}
         filterValues={{
-          subject: tempFilters.subject,
-          property: tempFilters.property,
+          category: tempFilters.category,
           status: tempFilters.status,
           submittedDate: submittedDate,
         }}
         onFilterChange={(newValues) => {
-          if (newValues.subject !== undefined) {
+          if (newValues.category !== undefined) {
             setTempFilters((prev) => ({
               ...prev,
-              subject: newValues.subject as string,
-            }));
-          }
-          if (newValues.property !== undefined) {
-            setTempFilters((prev) => ({
-              ...prev,
-              property: newValues.property as string,
+              category: newValues.category as string,
             }));
           }
           if (newValues.status !== undefined) {
@@ -736,16 +646,21 @@ export default function HostTicketTable({
           }
         }}
         dropdownStates={{
-          subject: subjectDropdownOpen,
-          property: propertyDropdownOpen,
+          category: categoryDropdownOpen,
           status: statusDropdownOpen,
         }}
         onDropdownToggle={(key, value) => {
-          if (key === "subject") setSubjectDropdownOpen(value);
-          if (key === "property") setPropertyDropdownOpen(value);
+          if (key === "category") setCategoryDropdownOpen(value);
           if (key === "status") setStatusDropdownOpen(value);
         }}
         fields={[
+          {
+            label: "Issue Type",
+            key: "category",
+            type: "dropdown",
+            placeholder: "Select issue type",
+            options: allCategories,
+          },
           {
             label: "Status",
             key: "status",

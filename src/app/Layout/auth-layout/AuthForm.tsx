@@ -518,7 +518,7 @@ const AuthForm: React.FC<AuthFormProps> = ({
           muted
           loop
           playsInline
-          className="absolute inset-0 w-full h-full object-cover z-0 opacity-100"
+          className="absolute inset-0 w-full h-full object-cover z-0 "
         />
 
         {/* Gradient array background */}

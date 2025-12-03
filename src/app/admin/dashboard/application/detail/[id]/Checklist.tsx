@@ -10,10 +10,13 @@ interface ChecklistProps {
   onRejectClick: () => void;
 }
 
-export default function Checklist({ notes, application, onRejectClick }: ChecklistProps) {
+export default function Checklist({
+  notes,
+  application,
+  onRejectClick,
+}: ChecklistProps) {
   const [isApproving, setIsApproving] = useState(false);
 
-  // Convert complianceChecklist object to array format for display
   const checklist = application.complianceChecklist
     ? Object.entries(application.complianceChecklist).map(
         ([name, completed]) => ({
@@ -30,22 +33,27 @@ export default function Checklist({ notes, application, onRejectClick }: Checkli
     const typeMap: Record<string, string> = {
       OTHER: "Other",
       ID: "Identification",
+      ID_DOCUMENT: "Identification", // Added this
       PROPERTY_DEED: "Property Deed",
       INSURANCE: "Insurance",
+      INSURANCE_CERTIFICATE: "Insurance Certificate", // Added this
       LICENSE: "License",
       PERMIT: "Permit",
+      SAFETY_PERMIT: "Safety Permit", // Added this
     };
 
-    return typeMap[documentType] || documentType;
+    return typeMap[documentType] || documentType.replace(/_/g, " ");
   };
 
   const getDocumentImage = (document: Document): string => {
     const fileName = document.fileName.toLowerCase();
 
+    // For images, return the URL directly
     if (fileName.match(/\.(jpg|jpeg|png|gif|bmp|webp)$/)) {
       return document.url || "/images/id.png";
     }
 
+    // For PDFs, we'll return a PDF icon but show preview differently
     if (fileName.endsWith(".pdf")) {
       return "/images/pdf-icon.svg";
     }
@@ -53,8 +61,38 @@ export default function Checklist({ notes, application, onRejectClick }: Checkli
     return "/images/doc-icon.svg";
   };
 
+  // Add this new function to check if it's a PDF
+  const isPdfDocument = (document: Document): boolean => {
+    return document.fileName.toLowerCase().endsWith(".pdf");
+  };
+
   const getFileName = (filePath: string): string => {
-    return filePath.split("/").pop() || "Unknown file";
+    // Handle both full URLs and file paths
+    const parts = filePath.split("/");
+    const fileName = parts.pop() || filePath;
+
+    // Clean up timestamp prefixes if present
+    return fileName.replace(/^\d{4}-\d{2}-\d{2}T\d{2}-\d{2}-\d{2}-\d{3}Z-/, "");
+  };
+
+  const isImageFile = (fileName: string): boolean => {
+    const imageExtensions = [
+      ".jpg",
+      ".jpeg",
+      ".png",
+      ".gif",
+      ".bmp",
+      ".webp",
+      ".svg",
+    ];
+    const lowerFileName = fileName.toLowerCase();
+    return imageExtensions.some((ext) => lowerFileName.endsWith(ext));
+  };
+
+  const handleDocumentClick = (document: Document) => {
+    if (document.url) {
+      window.open(document.url, "_blank", "noopener,noreferrer");
+    }
   };
 
   const handleApprove = async () => {
@@ -71,12 +109,16 @@ export default function Checklist({ notes, application, onRejectClick }: Checkli
         toast.success(`Application approved successfully!`);
         window.location.reload();
       } else {
-        const errorMessage = response.message || `Failed to approve application`;
+        const errorMessage =
+          response.message || `Failed to approve application`;
         toast.error(errorMessage);
       }
     } catch (error) {
       console.error(`Error approving application:`, error);
-      const errorMessage = error instanceof Error ? error.message : `Failed to approve application`;
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : `Failed to approve application`;
       toast.error(errorMessage);
     } finally {
       setIsApproving(false);
@@ -116,19 +158,34 @@ export default function Checklist({ notes, application, onRejectClick }: Checkli
                   key={document.id}
                   className="flex p-3 bg-[#121315] rounded-lg w-full items-center gap-5"
                 >
-                  <Image
-                    src={getDocumentImage(document)}
-                    alt="Document"
-                    width={100}
-                    height={60}
-                    className="object-cover"
-                  />
+                  {isPdfDocument(document) ? (
+                    // For PDFs, show an embed/iframe preview
+                    <div className="relative w-[100px] h-[60px] bg-gray-800 rounded overflow-hidden">
+                      <iframe
+                        src={document.url}
+                        title="PDF Preview"
+                        className="w-full h-full"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 flex items-center justify-center bg-black/50">
+                      </div>
+                    </div>
+                  ) : (
+                    // For images, use Next.js Image component
+                    <Image
+                      src={getDocumentImage(document)}
+                      alt="Document"
+                      width={100}
+                      height={60}
+                      className="object-cover h-[60px]"
+                    />
+                  )}
                   <div>
-                    <h3 className="font-medium text-[12px] sm:text-[18px] leading-[16px] sm:leading-[22px] text-white xl:w-[353px]">
+                    <h3 className="font-medium text-[12px] sm:text-[18px] leading-4 sm:leading-[22px] text-white xl:w-[353px]">
                       {getDocumentTypeDisplayName(document.documentType)}{" "}
                       Document
                     </h3>
-                    <h4 className="text-white/60 font-medium text-[16px] leading-[20px] pt-2">
+                    <h4 className="text-white/60 font-medium text-[16px] leading-5 pt-2">
                       {getFileName(document.fileName)}
                     </h4>
                     <p className="text-white/40 text-sm">

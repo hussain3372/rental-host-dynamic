@@ -14,7 +14,7 @@ type ViewMode = "hosts" | "admins";
 type TableRowData = Record<string, string | number>;
 type DropdownStates = {
   "Listed Properties": boolean;
-  "status": boolean;
+  status: boolean;
 };
 
 // Match the UsersResponse data structure exactly
@@ -60,9 +60,9 @@ interface PaginationData {
 // Normalize status for display (convert API status to display format)
 const normalizeStatus = (status: string): string => {
   const statusMap: Record<string, string> = {
-    'ACTIVE': 'Active',
-    'SUSPENDED': 'Suspended',
-    'PENDING_VERIFICATION': 'Pending Verification'
+    ACTIVE: "Active",
+    SUSPENDED: "Suspended",
+    PENDING_VERIFICATION: "Pending Verification",
   };
   return statusMap[status] || status;
 };
@@ -70,9 +70,9 @@ const normalizeStatus = (status: string): string => {
 // Convert display status to API status
 const getApiStatus = (displayStatus: string): string => {
   const statusMap: Record<string, string> = {
-    'Active': 'ACTIVE',
-    'Suspended': 'SUSPENDED',
-    'Pending Verification': 'PENDING_VERIFICATION'
+    Active: "ACTIVE",
+    Suspended: "SUSPENDED",
+    "Pending Verification": "PENDING_VERIFICATION",
   };
   return statusMap[displayStatus] || displayStatus;
 };
@@ -81,29 +81,35 @@ export default function Applications() {
   const [viewMode, setViewMode] = useState<ViewMode>("hosts");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  
+
   // PAGINATION STATE (From Inspiration)
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage] = useState(10); // Changed from dynamic to fixed like inspiration
-  
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
-  const [singleRowToDelete, setSingleRowToDelete] = useState<{ row: TableRowData; id: number } | null>(null);
+  const [singleRowToDelete, setSingleRowToDelete] = useState<{
+    row: TableRowData;
+    id: number;
+  } | null>(null);
   const [modalType, setModalType] = useState<"single" | "multiple">("multiple");
   const [isAddAdminDrawerOpen, setIsAddAdminDrawerOpen] = useState(false);
-  
+
   // NEW: Edit drawer state
   const [isEditDrawerOpen, setIsEditDrawerOpen] = useState(false);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [editingUserData, setEditingUserData] = useState<UserData | null>(null);
-  
-  const [dropdownStates, setDropdownStates] = useState({ property: false, status: false });
+
+  const [dropdownStates, setDropdownStates] = useState({
+    property: false,
+    status: false,
+  });
   const [isLoading, setIsLoading] = useState(false);
-  
+
   // API data state for both hosts and admins
   const [hostsData, setHostsData] = useState<UserData[]>([]);
   const [adminsData, setAdminsData] = useState<UserData[]>([]);
-  
+
   // PAGINATION STATE (From Inspiration)
   const [paginationData, setPaginationData] = useState<PaginationData>({
     total: 0,
@@ -117,101 +123,129 @@ export default function Applications() {
   });
 
   const tableControls = {
-    hover : true
-  }
+    hover: true,
+  };
 
   // Temporary filter states (before Apply is clicked)
   const [tempCertificationFilters, setTempCertificationFilters] = useState({
-    "Listed Properties": "", 
-    status: "", 
+    "Listed Properties": "",
+    status: "",
   });
 
   const [tempAdminFilters, setTempAdminFilters] = useState({
-    status: "", 
+    status: "",
   });
 
   // Applied filter states (after Apply is clicked)
-  const [appliedCertificationFilters, setAppliedCertificationFilters] = useState({
-    "Listed Properties": "", 
-    status: "", 
-  });
+  const [appliedCertificationFilters, setAppliedCertificationFilters] =
+    useState({
+      "Listed Properties": "",
+      status: "",
+    });
 
   const [appliedAdminFilters, setAppliedAdminFilters] = useState({
-    status: "", 
+    status: "",
   });
 
   // HAS ACTIVE FILTERS LOGIC (From Inspiration)
   // HAS ACTIVE FILTERS LOGIC (From Inspiration) - FIXED
 
-
-
   // Fetch data based on view mode (UPDATED with pagination logic from inspiration)
   // Fetch data based on view mode (FIXED)
-// Fetch data based on view mode (FIXED - handle empty data properly)
-const fetchData = useCallback(async (params?: GetUsersParams) => {
-  setIsLoading(true);
-  try {
-    let response;
-    
-    const queryParams: GetUsersParams = {
-      page: currentPage,
-      limit: itemsPerPage
-    };
+  // Fetch data based on view mode (FIXED - handle empty data properly)
+  const fetchData = useCallback(
+    async (params?: GetUsersParams) => {
+      setIsLoading(true);
+      try {
+        let response;
 
-    // SEARCH LOGIC
-    if (searchTerm.trim() && searchTerm.trim().length >= 3) {
-      queryParams.search = searchTerm.trim();
-    }
+        const queryParams: GetUsersParams = {
+          page: currentPage,
+          limit: itemsPerPage,
+        };
 
-    // Add filter params
-    if (viewMode === "hosts") {
-      if (appliedCertificationFilters.status) {
-        queryParams.status = getApiStatus(appliedCertificationFilters.status);
-      }
-      if (appliedCertificationFilters["Listed Properties"]) {
-        const [min, max] = appliedCertificationFilters["Listed Properties"].split("-").map(Number);
-        if (!isNaN(min)) queryParams.minListedProperties = min;
-        if (!isNaN(max)) queryParams.maxListedProperties = max;
-      }
-    } else {
-      if (appliedAdminFilters.status) {
-        queryParams.status = getApiStatus(appliedAdminFilters.status);
-      }
-    }
+        // SEARCH LOGIC
+        if (searchTerm.trim() && searchTerm.trim().length >= 3) {
+          queryParams.search = searchTerm.trim();
+        }
 
-    // Add existing params
-    if (params) {
-      Object.assign(queryParams, params);
-    }
-    
-    if (viewMode === "hosts") {
-      response = await managementApi.getUsers(queryParams);
-    } else {
-      response = await managementApi.getAdmins(queryParams);
-    }
-    
-    if (response.data) {
-      // Set data based on view mode
-      if (viewMode === "hosts") {
-        setHostsData(response.data.data || []);
-      } else {
-        setAdminsData(response.data.data || []);
-      }
-      
-      // SET PAGINATION DATA - ensure we handle empty data properly
-      if (response.data.pagination) {
-        setPaginationData({
-          total: response.data.pagination.total || 0,
-          pageSize: response.data.pagination.limit || itemsPerPage,
-          currentPage: response.data.pagination.page || 1,
-          totalPages: response.data.pagination.totalPages || 1,
-          nextPage: response.data.pagination.page < response.data.pagination.totalPages ? response.data.pagination.page + 1 : null,
-          prevPage: response.data.pagination.page > 1 ? response.data.pagination.page - 1 : null,
-          hasNextPage: response.data.pagination.page < response.data.pagination.totalPages,
-          hasPrevPage: response.data.pagination.page > 1,
-        });
-      } else {
-        // If no pagination data, set defaults for empty state
+        // Add filter params
+        if (viewMode === "hosts") {
+          if (appliedCertificationFilters.status) {
+            queryParams.status = getApiStatus(
+              appliedCertificationFilters.status
+            );
+          }
+          if (appliedCertificationFilters["Listed Properties"]) {
+            const [min, max] = appliedCertificationFilters["Listed Properties"]
+              .split("-")
+              .map(Number);
+            if (!isNaN(min)) queryParams.minListedProperties = min;
+            if (!isNaN(max)) queryParams.maxListedProperties = max;
+          }
+        } else {
+          if (appliedAdminFilters.status) {
+            queryParams.status = getApiStatus(appliedAdminFilters.status);
+          }
+        }
+
+        // Add existing params
+        if (params) {
+          Object.assign(queryParams, params);
+        }
+
+        if (viewMode === "hosts") {
+          response = await managementApi.getUsers(queryParams);
+        } else {
+          response = await managementApi.getAdmins(queryParams);
+        }
+
+        if (response.data) {
+          // Set data based on view mode
+          if (viewMode === "hosts") {
+            setHostsData(response.data.data || []);
+          } else {
+            setAdminsData(response.data.data || []);
+          }
+
+          // SET PAGINATION DATA - ensure we handle empty data properly
+          if (response.data.pagination) {
+            setPaginationData({
+              total: response.data.pagination.total || 0,
+              pageSize: response.data.pagination.limit || itemsPerPage,
+              currentPage: response.data.pagination.page || 1,
+              totalPages: response.data.pagination.totalPages || 1,
+              nextPage:
+                response.data.pagination.page <
+                response.data.pagination.totalPages
+                  ? response.data.pagination.page + 1
+                  : null,
+              prevPage:
+                response.data.pagination.page > 1
+                  ? response.data.pagination.page - 1
+                  : null,
+              hasNextPage:
+                response.data.pagination.page <
+                response.data.pagination.totalPages,
+              hasPrevPage: response.data.pagination.page > 1,
+            });
+          } else {
+            // If no pagination data, set defaults for empty state
+            setPaginationData({
+              total: 0,
+              pageSize: itemsPerPage,
+              currentPage: 1,
+              totalPages: 1,
+              nextPage: null,
+              prevPage: null,
+              hasNextPage: false,
+              hasPrevPage: false,
+            });
+          }
+        }
+      } catch (error) {
+        console.error(`Error fetching ${viewMode}:`, error);
+        // SET EMPTY PAGINATION ON ERROR
         setPaginationData({
           total: 0,
           pageSize: itemsPerPage,
@@ -222,31 +256,25 @@ const fetchData = useCallback(async (params?: GetUsersParams) => {
           hasNextPage: false,
           hasPrevPage: false,
         });
+        // Also clear the data
+        if (viewMode === "hosts") {
+          setHostsData([]);
+        } else {
+          setAdminsData([]);
+        }
+      } finally {
+        setIsLoading(false);
       }
-    }
-  } catch (error) {
-    console.error(`Error fetching ${viewMode}:`, error);
-    // SET EMPTY PAGINATION ON ERROR
-    setPaginationData({
-      total: 0,
-      pageSize: itemsPerPage,
-      currentPage: 1,
-      totalPages: 1,
-      nextPage: null,
-      prevPage: null,
-      hasNextPage: false,
-      hasPrevPage: false,
-    });
-    // Also clear the data
-    if (viewMode === "hosts") {
-      setHostsData([]);
-    } else {
-      setAdminsData([]);
-    }
-  } finally {
-    setIsLoading(false);
-  }
-}, [viewMode, currentPage, itemsPerPage, searchTerm, appliedCertificationFilters, appliedAdminFilters]);
+    },
+    [
+      viewMode,
+      currentPage,
+      itemsPerPage,
+      searchTerm,
+      appliedCertificationFilters,
+      appliedAdminFilters,
+    ]
+  );
 
   // Delete user/admin API call
   const deleteItem = async (itemId: number) => {
@@ -266,8 +294,8 @@ const fetchData = useCallback(async (params?: GetUsersParams) => {
   // NEW: Function to open edit drawer
   const openEditDrawer = (userId: number) => {
     const currentData = viewMode === "hosts" ? hostsData : adminsData;
-    const userToEdit = currentData.find(user => user.id === userId);
-    
+    const userToEdit = currentData.find((user) => user.id === userId);
+
     if (userToEdit) {
       setEditingUserId(userId);
       setEditingUserData(userToEdit);
@@ -283,13 +311,13 @@ const fetchData = useCallback(async (params?: GetUsersParams) => {
       } else {
         await managementApi.updateAdmin(editingUserId!, updatedData);
       }
-      
+
       // Refresh data after successful update
       fetchData();
       setIsEditDrawerOpen(false);
       setEditingUserId(null);
       setEditingUserData(null);
-      
+
       return true;
     } catch (error) {
       console.error(`Error updating ${viewMode.slice(0, -1)}:`, error);
@@ -305,43 +333,56 @@ const fetchData = useCallback(async (params?: GetUsersParams) => {
   };
 
   // Convert API data to table format (COMPLETELY REMOVE ID from table data)
-  const convertToTableData = useCallback((users: UserData[]): TableRowData[] => {
-    if (viewMode === "hosts") {
-      return users.map(user => ({
-        "Host Name": user.name,
-        "Email": user.email,
-        "Listed Properties": user._count.applications,
-        "Certified Properties": user._count.certifications,
-        "Account Created": new Date(user.createdAt).toLocaleDateString('en-US', { 
-          month: 'short', 
-          day: '2-digit', 
-          year: 'numeric' 
-        }),
-        "Status": normalizeStatus(user.status),
-      }));
-    } else {
-      return users.map(user => ({
-        "Admin Name": user.name,
-        "Email": user.email,
-        "Status": normalizeStatus(user.status),
-      }));
-    }
-  }, [viewMode]);
+  const convertToTableData = useCallback(
+    (users: UserData[]): TableRowData[] => {
+      if (viewMode === "hosts") {
+        return users.map((user) => ({
+          "Host Name": user.name,
+          Email: user.email,
+          "Listed Properties": user._count.applications,
+          "Certified Properties": user._count.certifications,
+          "Account Created": new Date(user.createdAt).toLocaleDateString(
+            "en-US",
+            {
+              month: "short",
+              day: "2-digit",
+              year: "numeric",
+            }
+          ),
+          Status: normalizeStatus(user.status),
+        }));
+      } else {
+        return users.map((user) => ({
+          "Admin Name": user.name,
+          Email: user.email,
+          Status: normalizeStatus(user.status),
+        }));
+      }
+    },
+    [viewMode]
+  );
 
   // Handle search and applied filter changes (UPDATED with pagination logic)
   // Handle search and applied filter changes (FIXED)
-// Single useEffect for all data fetching
-useEffect(() => {
-  const timeoutId = setTimeout(() => {
-    // Don't fetch any data if search term has 1-3 characters
-    if (searchTerm && searchTerm.length <= 3) {
-      return;
-    }
-    fetchData();
-  }, 500); // Debounce search
+  // Single useEffect for all data fetching
+  useEffect(() => {
+    const timeoutId = setTimeout(() => {
+      // Don't fetch any data if search term has 1-3 characters
+      if (searchTerm && searchTerm.length <= 3) {
+        return;
+      }
+      fetchData();
+    }, 500); // Debounce search
 
-  return () => clearTimeout(timeoutId);
-}, [searchTerm, appliedCertificationFilters, appliedAdminFilters, viewMode, currentPage, fetchData]);
+    return () => clearTimeout(timeoutId);
+  }, [
+    searchTerm,
+    appliedCertificationFilters,
+    appliedAdminFilters,
+    viewMode,
+    currentPage,
+    fetchData,
+  ]);
 
   // RESET TO PAGE 1 WHEN FILTERS CHANGE (From Inspiration)
   useEffect(() => {
@@ -364,14 +405,14 @@ useEffect(() => {
   };
 
   const handleDeleteApplications = async (selectedRowIds: Set<string>) => {
-    const idsToDelete = Array.from(selectedRowIds).map(id => parseInt(id));
-    
+    const idsToDelete = Array.from(selectedRowIds).map((id) => parseInt(id));
+
     // Delete from API
-    const deletePromises = idsToDelete.map(id => deleteItem(id));
+    const deletePromises = idsToDelete.map((id) => deleteItem(id));
     const results = await Promise.all(deletePromises);
-    
+
     // Refresh the data after deletion
-    if (results.every(result => result)) {
+    if (results.every((result) => result)) {
       fetchData();
     }
 
@@ -379,7 +420,10 @@ useEffect(() => {
     setSelectedRows(new Set());
   };
 
-  const handleDeleteSingleApplication = async (row: TableRowData, id: number) => {
+  const handleDeleteSingleApplication = async (
+    row: TableRowData,
+    id: number
+  ) => {
     const success = await deleteItem(id);
     if (success) {
       fetchData(); // Refresh data
@@ -410,26 +454,29 @@ useEffect(() => {
     if (modalType === "multiple") {
       handleDeleteApplications(selectedRows);
     } else if (singleRowToDelete) {
-      handleDeleteSingleApplication(singleRowToDelete.row, singleRowToDelete.id);
+      handleDeleteSingleApplication(
+        singleRowToDelete.row,
+        singleRowToDelete.id
+      );
     }
   };
 
   const handleResetFilter = () => {
     if (viewMode === "hosts") {
-      setTempCertificationFilters({ 
-        "Listed Properties": "", 
-        status: "", 
+      setTempCertificationFilters({
+        "Listed Properties": "",
+        status: "",
       });
-      setAppliedCertificationFilters({ 
-        "Listed Properties": "", 
-        status: "", 
+      setAppliedCertificationFilters({
+        "Listed Properties": "",
+        status: "",
       });
     } else {
-      setTempAdminFilters({ 
-        status: "", 
+      setTempAdminFilters({
+        status: "",
       });
-      setAppliedAdminFilters({ 
-        status: "", 
+      setAppliedAdminFilters({
+        status: "",
       });
     }
     setSearchTerm("");
@@ -438,9 +485,12 @@ useEffect(() => {
 
   const handleApplyFilter = () => {
     if (viewMode === "hosts") {
-      setAppliedCertificationFilters(prev => ({...prev, ...tempCertificationFilters}));
+      setAppliedCertificationFilters((prev) => ({
+        ...prev,
+        ...tempCertificationFilters,
+      }));
     } else {
-      setAppliedAdminFilters(prev => ({...prev, ...tempAdminFilters}));
+      setAppliedAdminFilters((prev) => ({ ...prev, ...tempAdminFilters }));
     }
     setCurrentPage(1); // Reset to page 1 when filters are applied (From Inspiration)
     setIsFilterOpen(false);
@@ -457,7 +507,7 @@ useEffect(() => {
   }, [viewMode, hostsData, adminsData]);
 
   const handleSelectAll = (checked: boolean) => {
-    const rowIds = currentApiData.map(item => item.id.toString());
+    const rowIds = currentApiData.map((item) => item.id.toString());
     setSelectedRows(new Set(checked ? rowIds : []));
   };
 
@@ -471,40 +521,43 @@ useEffect(() => {
     setSelectedRows(newSelected);
   };
 
-  const isAllDisplayedSelected = currentData.length > 0 && 
-    currentApiData.every(item => selectedRows.has(item.id.toString()));
-  const isSomeDisplayedSelected = currentApiData.some(item => selectedRows.has(item.id.toString())) && !isAllDisplayedSelected;
+  const isAllDisplayedSelected =
+    currentData.length > 0 &&
+    currentApiData.every((item) => selectedRows.has(item.id.toString()));
+  const isSomeDisplayedSelected =
+    currentApiData.some((item) => selectedRows.has(item.id.toString())) &&
+    !isAllDisplayedSelected;
 
   const getRowIds = () => {
-    return currentApiData.map(item => item.id.toString());
+    return currentApiData.map((item) => item.id.toString());
   };
 
   const getFilterFields = () => {
     if (viewMode === "hosts") {
       return [
-        { 
-          label: "Listed Properties", 
-          key: "Listed Properties", 
-          type: "dropdown" as const, 
-          placeholder: "Select Properties", 
-          options: ["0-50", "50-100", "100-200"] 
+        {
+          label: "Listed Properties",
+          key: "Listed Properties",
+          type: "dropdown" as const,
+          placeholder: "Select Properties",
+          options: ["0-50", "50-100", "100-200"],
         },
-        { 
-          label: "Status", 
-          key: "status", 
-          type: "dropdown" as const, 
-          placeholder: "Select status", 
-          options: ["Active", "Suspended", "Pending Verification"] 
+        {
+          label: "Status",
+          key: "status",
+          type: "dropdown" as const,
+          placeholder: "Select status",
+          options: ["Active", "Suspended", "Pending Verification"],
         },
       ];
     } else {
       return [
-        { 
-          label: "Status", 
-          key: "status", 
-          type: "dropdown" as const, 
-          placeholder: "Select Status", 
-          options: ["Active", "Suspended", "Pending Verification"] 
+        {
+          label: "Status",
+          key: "status",
+          type: "dropdown" as const,
+          placeholder: "Select Status",
+          options: ["Active", "Suspended", "Pending Verification"],
         },
       ];
     }
@@ -522,7 +575,10 @@ useEffect(() => {
       label: "View Details",
       onClick: (row: TableRowData, index: number) => {
         const originalId = currentApiData[index].id;
-        window.location.href = `/super-admin/dashboard/user-management/${viewMode.slice(0, -1)}/detail/${originalId}`;
+        window.location.href = `/super-admin/dashboard/user-management/${viewMode.slice(
+          0,
+          -1
+        )}/detail/${originalId}`;
       },
     },
     // NEW: Add Edit option to dropdown
@@ -543,9 +599,9 @@ useEffect(() => {
   ];
 
   const handleDropdownToggle = (key: string, value: boolean) => {
-    setDropdownStates(prev => ({
+    setDropdownStates((prev) => ({
       ...prev,
-      [key === "Listed Properties" ? "property" : "status"]: value
+      [key === "Listed Properties" ? "property" : "status"]: value,
     }));
   };
 
@@ -553,12 +609,12 @@ useEffect(() => {
     if (viewMode === "hosts") {
       return {
         "Listed Properties": dropdownStates.property,
-        "status": dropdownStates.status,
+        status: dropdownStates.status,
       };
     } else {
       return {
         "Listed Properties": false, // Always include all properties for consistent type
-        "status": dropdownStates.status,
+        status: dropdownStates.status,
       };
     }
   };
@@ -575,7 +631,9 @@ useEffect(() => {
           }}
           onConfirm={handleModalConfirm}
           title={`Confirm ${viewMode === "hosts" ? "Host" : "Admin"} Deletion`}
-          description={`Deleting this ${viewMode === "hosts" ? "Host" : "Admin"} means it will no longer appear in your ${viewMode}.`}
+          description={`Deleting this ${
+            viewMode === "hosts" ? "Host" : "Admin"
+          } means it will no longer appear in your ${viewMode}.`}
           image="/images/delete-modal.png"
           confirmText="Delete"
         />
@@ -601,9 +659,12 @@ useEffect(() => {
 
       <div className="flex flex-col sm:flex-row mb-6 sm:mb-0 justify-center sm:justify-between items-start">
         <div>
-          <h2 className="font-semibold text-[20px] leading-[20px]">User Management</h2>
+          <h2 className="font-semibold text-[20px] leading-[20px]">
+            User Management
+          </h2>
           <p className="font-regular text-[16px] leading-5 mb-[22px] pt-2 text-[#FFFFFF99]">
-            View, manage, and control all hosts and admins on the platform with ease.
+            View, manage, and control all hosts and admins on the platform with
+            ease.
           </p>
         </div>
         {viewMode === "admins" && (
@@ -616,10 +677,17 @@ useEffect(() => {
         )}
       </div>
 
-      <Tabs selectedIndex={viewMode === "hosts" ? 0 : 1} onSelect={(index) => setViewMode(index === 0 ? "hosts" : "admins")}>
+      <Tabs
+        selectedIndex={viewMode === "hosts" ? 0 : 1}
+        onSelect={(index) => setViewMode(index === 0 ? "hosts" : "admins")}
+      >
         <TabList className="inline-flex p-[6px] rounded-xl bg-[#121315] space-x-4 mb-6 border-0">
-          <Tab className="px-4 py-2 text-[14px] cursor-pointer font-medium transition-colors text-[#FFFFFFCC] border-0 outline-none">Hosts</Tab>
-          <Tab className="px-4 py-2 text-[14px] cursor-pointer font-medium transition-colors text-[#FFFFFFCC] border-0 outline-none">Admins</Tab>
+          <Tab className="px-4 py-2 text-[14px] cursor-pointer font-medium transition-colors text-[#FFFFFFCC] border-0 outline-none">
+            Hosts
+          </Tab>
+          <Tab className="px-4 py-2 text-[14px] cursor-pointer font-medium transition-colors text-[#FFFFFFCC] border-0 outline-none">
+            Admins
+          </Tab>
         </TabList>
 
         <TabPanel>
@@ -652,6 +720,13 @@ useEffect(() => {
               isDeleteAllDisabled={selectedRows.size === 0}
               isLoading={isLoading}
               disableClientSidePagination={true} // Added from inspiration
+              onFirstColumnClick={(row: TableRowData, index: number) => {
+                const originalId = currentApiData[index].id;
+                window.location.href = `/super-admin/dashboard/user-management/${viewMode.slice(
+                  0,
+                  -1
+                )}/detail/${originalId}`;
+              }}
             />
           </div>
         </TabPanel>
@@ -695,17 +770,22 @@ useEffect(() => {
         isOpen={isFilterOpen}
         onClose={() => setIsFilterOpen(false)}
         title="Apply Filter"
-        description={`Refine ${viewMode} listings to find the right ${viewMode.slice(0, -1)} faster.`}
+        description={`Refine ${viewMode} listings to find the right ${viewMode.slice(
+          0,
+          -1
+        )} faster.`}
         resetLabel="Reset"
         onReset={handleResetFilter}
         buttonLabel="Apply Filter"
         onApply={handleApplyFilter}
-        filterValues={viewMode === "hosts" ? tempCertificationFilters : tempAdminFilters}
+        filterValues={
+          viewMode === "hosts" ? tempCertificationFilters : tempAdminFilters
+        }
         onFilterChange={(filters) => {
           if (viewMode === "hosts") {
-            setTempCertificationFilters(prev => ({ ...prev, ...filters }));
+            setTempCertificationFilters((prev) => ({ ...prev, ...filters }));
           } else {
-            setTempAdminFilters(prev => ({ ...prev, ...filters }));
+            setTempAdminFilters((prev) => ({ ...prev, ...filters }));
           }
         }}
         dropdownStates={getDropdownStates()}

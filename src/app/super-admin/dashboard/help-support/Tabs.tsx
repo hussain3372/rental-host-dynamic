@@ -7,12 +7,13 @@ interface TabsProps {
 
 const Tabs: React.FC<TabsProps> = ({ activeTab, setActiveTab }) => {
   const tabs = [
-    { id: "tickets", label: "Tickets" },
+    { id: "tickets", label: "Admin Tickets" },
+    { id: "hostTickets", label: "Host Tickets" },
     { id: "announcements", label: "Announcements" },
   ];
 
   return (
-    <div className="flex p-[6px] items-center gap-[20px] rounded-[12px]  w-full max-w-[270px]">
+    <div className="flex p-[6px] items-center gap-[20px] rounded-[12px]  w-full max-w-[570px]">
       {tabs.map((tab) => (
         <button
           key={tab.id}

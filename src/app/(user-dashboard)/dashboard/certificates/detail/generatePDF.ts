@@ -257,7 +257,7 @@ export const generateCertificatePDF = async (certificate: CertificateData) => {
     doc.rect(0, pageHeight - 15, pageWidth, 15, "F");
     doc.setFontSize(11);
     doc.setTextColor(255, 255, 255);
-    doc.text("www.staysafe.com", pageWidth / 2, pageHeight - 7, { align: "center" });
+    doc.text("www.rentalhost.com", pageWidth / 2, pageHeight - 7, { align: "center" });
 
     // Save PDF
     const fileName = `${certificate.property_name || "certificate"}_${certificate.id || "report"}.pdf`;

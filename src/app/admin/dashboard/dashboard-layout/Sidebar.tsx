@@ -30,42 +30,39 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
   const router = useRouter();
 
   const handleLogout = async () => {
-      
+    // Clear client-side storage
+    localStorage.clear();
+    sessionStorage.clear();
 
-      // Clear client-side storage
-      localStorage.clear();
-      sessionStorage.clear();
-
-      // Function to delete a specific cookie
-      const deleteCookie = (name: string) => {
-        // Standard deletion
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-        // Try with SameSite
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax;`;
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict;`;
-        // Try with domain
-        document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=localhost;`;
-      };
-
-      // Delete specific application cookies
-      deleteCookie('adminAccessToken');
-      deleteCookie('refreshToken');
-      deleteCookie('next-auth.session-token');
-      deleteCookie('next-auth.csrf-token');
-      deleteCookie('next-auth.callback-url');
-
-      // Create a logout URL that clears Google session and redirects back
-      const returnUrl = `${window.location.origin}/admin/auth/login`;
-      
-      // Open Google logout in a hidden iframe to clear Google cookies
-     
-
-      // Wait a moment for Google logout, then redirect
-      setTimeout(() => {
-        window.location.href = returnUrl;
-      }, 1000);
-      router.push('/admin/auth/login')
+    // Function to delete a specific cookie
+    const deleteCookie = (name: string) => {
+      // Standard deletion
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      // Try with SameSite
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax;`;
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Strict;`;
+      // Try with domain
+      document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=localhost;`;
     };
+
+    // Delete specific application cookies
+    deleteCookie("adminAccessToken");
+    deleteCookie("refreshToken");
+    deleteCookie("next-auth.session-token");
+    deleteCookie("next-auth.csrf-token");
+    deleteCookie("next-auth.callback-url");
+
+    // Create a logout URL that clears Google session and redirects back
+    const returnUrl = `${window.location.origin}/admin/auth/login`;
+
+    // Open Google logout in a hidden iframe to clear Google cookies
+
+    // Wait a moment for Google logout, then redirect
+    setTimeout(() => {
+      window.location.href = returnUrl;
+    }, 1000);
+    router.push("/admin/auth/login");
+  };
 
   const toggleCollapse = () => {
     if (window.innerWidth < 1024) {
@@ -618,7 +615,9 @@ export function Sidebar({ onCollapseChange }: SidebarProps) {
               </svg>
 
               <p
-                className={`font-normal text-[16px] leading-[20px] group-hover:text-[#eefb75] ${isCollapsed ? "hidden" : "block"}`}
+                className={`font-normal text-[16px] leading-[20px] group-hover:text-[#eefb75] ${
+                  isCollapsed ? "hidden" : "block"
+                }`}
               >
                 Logout
               </p>

@@ -323,7 +323,6 @@ export default function MyTicketsTable({
     setSelectedRows(newSelected);
   };
 
-  // Handle confirmation from modal
   const handleModalConfirm = () => {
     if (modalType === "multiple" && selectedRows.size > 0) {
       handleDeleteApplications(selectedRows);
@@ -335,19 +334,14 @@ export default function MyTicketsTable({
     }
   };
 
-  // Table control
   const tableControl = {
     hover: true,
   };
 
-  // Reset pagination when filters change
   useEffect(() => {
     onPageChange(1);
   }, [searchTerm, appliedFilters, onPageChange]);
 
-  // ✅ FIXED: Enhanced reset filter function like Applications table
-  // ✅ FIXED: Enhanced reset filter function
-  // ✅ FIXED: Enhanced reset filter function
   const handleResetFilter = () => {
     const resetFilters = {
       status: "",
@@ -359,11 +353,8 @@ export default function MyTicketsTable({
     setSubmittedDate(null); // Reset the date state too
     onFilterToggle(false);
 
-    // Trigger refetch without filters
     fetchTickets();
   };
-  // ✅ FIXED: Enhanced apply filter function like Applications table
-  // ✅ FIXED: Enhanced apply filter function
   const handleApplyFilter = () => {
     const dateString = formatDateForAPI(submittedDate);
 
@@ -376,7 +367,6 @@ export default function MyTicketsTable({
     setAppliedFilters(filtersToApply);
     onFilterToggle(false);
 
-    // Trigger API call with the correct parameter name
     fetchTickets();
   };
 
@@ -386,17 +376,13 @@ export default function MyTicketsTable({
       ...filters,
     }));
 
-    // Handle date separately since it's stored in separate state
     if (filters.submittedDate !== undefined) {
       setSubmittedDate(filters.submittedDate as Date | null);
     }
   };
-  // ✅ FIXED: Enhanced close filter function like Applications table
-  // ✅ FIXED: Enhanced close filter function
   const handleCloseFilter = () => {
     setTempFilters(appliedFilters);
 
-    // Sync the date picker with applied filters
     if (appliedFilters.submittedDate) {
       setSubmittedDate(new Date(appliedFilters.submittedDate));
     } else {
@@ -506,6 +492,19 @@ export default function MyTicketsTable({
           isDeleteAllDisabled={selectedRows.size < 2}
           showActionColumn={true}
           disableClientSidePagination={true}
+          onFirstColumnClick={(row: Record<string, string>, index: number) => {
+            const globalIndex = (currentPage - 1) * itemsPerPage + index;
+            const originalRow = filteredCertificationData[globalIndex];
+
+            if (originalRow) {
+              onViewDetails(originalRow);
+            } else {
+              console.error(
+                "Could not find original row at index:",
+                globalIndex
+              );
+            }
+          }}
         />
       </div>
 

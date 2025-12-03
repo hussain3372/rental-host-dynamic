@@ -511,7 +511,6 @@ export default function HelpSupport() {
 
   const tableControl = {
     hover: true,
-    
   };
 
   useEffect(() => {
@@ -650,6 +649,18 @@ export default function HelpSupport() {
           }}
           showPagination={true}
           clickable={false}
+          onFirstColumnClick={async (
+            row: Record<string, string>,
+            index: number
+          ) => {
+            const globalIndex = (currentPage - 1) * itemsPerPage + index;
+            const originalRow = filteredCertificationData[globalIndex];
+            const ticketId = originalRow["Ticket Id"];
+
+            console.log("🟡 Opening ticket with ID:", ticketId);
+
+            await handleViewDetails(ticketId);
+          }}
           selectedRows={selectedRows}
           setSelectedRows={setSelectedRows}
           onSelectAll={handleSelectAll}
@@ -685,7 +696,6 @@ export default function HelpSupport() {
           disableClientSidePagination={true}
         />
       </div>
-
       <FilterDrawer
         isOpen={isFilterOpen}
         onClose={handleCloseFilter}

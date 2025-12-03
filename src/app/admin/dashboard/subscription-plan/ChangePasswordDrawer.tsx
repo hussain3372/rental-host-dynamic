@@ -16,8 +16,10 @@ export default function ChangePasswordDrawer({
 }: ChangePasswordDrawerProps) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
@@ -25,8 +27,8 @@ export default function ChangePasswordDrawer({
   const handlePasswordUpdate = async () => {
     setError(null);
 
-    if (!currentPassword || !newPassword) {
-      setError("Both fields are required.");
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setError("All fields are required.");
       return;
     }
 
@@ -35,10 +37,14 @@ export default function ChangePasswordDrawer({
       return;
     }
 
-    // ✅ Password pattern check (Uppercase + Special character)
     const passwordPattern = /^(?=.*[A-Z])(?=.*[!@#$%^&*]).+$/;
     if (!passwordPattern.test(newPassword)) {
       setError("Password must contain at least one uppercase letter and one special character.");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      setError("Confirm password does not match the new password.");
       return;
     }
 
@@ -54,13 +60,14 @@ export default function ChangePasswordDrawer({
         setIsSuccessModalOpen(true);
         setCurrentPassword("");
         setNewPassword("");
+        setConfirmPassword("");
         if (onSave) onSave(currentPassword, newPassword); 
       } else {
         setError(data.message || "Failed to change password. Please try again.");
       }
     } catch (err) {
       console.error("Password change error:", err);
-      setError("Password must contain at least one uppercase letter and one special character.");
+      setError("Something went wrong while updating your password.");
     } finally {
       setLoading(false);
     }
@@ -114,6 +121,28 @@ export default function ChangePasswordDrawer({
             onClick={() => setShowNew(!showNew)}
           >
             {showNew ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
+
+        {/* Confirm Password */}
+        <div className="relative">
+          <label className="block text-[14px] mb-[10px]">Confirm new password</label>
+          <input
+            type={showConfirm ? "text" : "password"}
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className={`w-full p-3 pr-10 rounded-xl border ${
+              error && confirmPassword !== newPassword ? "border-red-500" : "border-[#404040]"
+            } bg-gradient-to-b from-[#202020] to-[#101010]
+              text-[14px] text-white placeholder:text-white/40 focus:outline-none focus:border-[#EFFC76]`}
+          />
+          <button
+            type="button"
+            className="absolute right-3 top-[46px] text-gray-400"
+            onClick={() => setShowConfirm(!showConfirm)}
+          >
+            {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
           </button>
         </div>
 

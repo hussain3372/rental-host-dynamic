@@ -8,11 +8,14 @@ import {
   useElements,
 } from "@stripe/react-stripe-js";
 
-import { StripeCardElementChangeEvent } from '@stripe/stripe-js';
+import { StripeCardElementChangeEvent } from "@stripe/stripe-js";
 import Image from "next/image";
 import toast from "react-hot-toast";
 import { application } from "@/app/api/Host/application";
-import type { PaymentResponseReal , Data } from "@/app/api/Host/application/types";
+import type {
+  PaymentResponseReal,
+  Data,
+} from "@/app/api/Host/application/types";
 
 // Initialize Stripe with your publishable key
 const stripePromise = loadStripe(
@@ -39,7 +42,7 @@ interface CardElementOptions {
     base: {
       fontSize: string;
       color: string;
-      '::placeholder': {
+      "::placeholder": {
         color: string;
       };
       backgroundColor: string;
@@ -82,9 +85,11 @@ const CheckoutForm: React.FC<{
       const stored: string | null = localStorage.getItem("applicationData");
       const applicationData: Data | null = stored ? JSON.parse(stored) : null;
       const applicationId: string | undefined = applicationData?.id;
-      
+
       if (!applicationId) {
-        throw new Error("No application found. Please complete previous steps first.");
+        throw new Error(
+          "No application found. Please complete previous steps first."
+        );
       }
 
       // 2️⃣ Create payment intent on your backend
@@ -98,8 +103,10 @@ const CheckoutForm: React.FC<{
       console.log("💰 Payment intent response:", response);
 
       // Type guard for PaymentResponseReal
-      const isPaymentResponseReal = (obj: unknown): obj is PaymentResponseReal => {
-        return typeof obj === 'object' && obj !== null && 'clientSecret' in obj;
+      const isPaymentResponseReal = (
+        obj: unknown
+      ): obj is PaymentResponseReal => {
+        return typeof obj === "object" && obj !== null && "clientSecret" in obj;
       };
 
       if (!isPaymentResponseReal(response)) {
@@ -118,9 +125,10 @@ const CheckoutForm: React.FC<{
         throw new Error("Card element not found");
       }
 
-      const { error: stripeError, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-        payment_method: { card: cardElement },
-      });
+      const { error: stripeError, paymentIntent } =
+        await stripe.confirmCardPayment(clientSecret, {
+          payment_method: { card: cardElement },
+        });
 
       if (stripeError) {
         const errorMsg: string = stripeError.message || "Payment failed";
@@ -128,13 +136,13 @@ const CheckoutForm: React.FC<{
         toast.error(errorMsg);
       } else if (paymentIntent?.status === "succeeded") {
         console.log("✅ Stripe payment succeeded:", paymentIntent);
-        
+
         // 4️⃣ Fetch fresh application data to get updated payment status
         console.log("🔄 Fetching updated application data...");
-        
+
         // Wait a moment for backend to process
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        
+        await new Promise((resolve) => setTimeout(resolve, 1000));
+
         // The parent component should handle the success and refresh
         toast.success("Payment processed successfully!");
         onSuccess();
@@ -143,7 +151,8 @@ const CheckoutForm: React.FC<{
       }
     } catch (error: unknown) {
       console.error("❌ Payment error:", error);
-      const message: string = error instanceof Error ? error.message : "Payment failed";
+      const message: string =
+        error instanceof Error ? error.message : "Payment failed";
       setErrorMessage(message);
       toast.error(message);
     } finally {
@@ -156,7 +165,7 @@ const CheckoutForm: React.FC<{
       base: {
         fontSize: "16px",
         color: "#ffffff",
-        '::placeholder': {
+        "::placeholder": {
           color: "rgba(255, 255, 255, 0.4)",
         },
         backgroundColor: "transparent",
@@ -173,9 +182,9 @@ const CheckoutForm: React.FC<{
         <label className="block font-medium leading-[18px] text-white text-sm mb-3">
           Card Details
         </label>
-        <div className="w-full p-4 bg-gradient-to-b from-[#202020] to-[#101010] border border-[#4a4a4a] rounded-lg">
-          <CardElement 
-            options={cardElementOptions} 
+        <div className="w-full p-4 bg-linear-to-b from-[#202020] to-[#101010] border border-[#4a4a4a] rounded-lg">
+          <CardElement
+            options={cardElementOptions}
             onChange={handleCardChange}
           />
         </div>
@@ -192,14 +201,14 @@ const CheckoutForm: React.FC<{
           type="button"
           onClick={onClose}
           disabled={isProcessing}
-          className="flex-1 px-6 py-3 text-[16px] bg-gradient-to-b from-[#202020] to-[#101010] border border-[#4a4a4a] text-white font-semibold rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
+          className="flex-1 px-6 py-3 text-[16px] bg-linear-to-b from-[#202020] to-[#101010] border border-[#4a4a4a] text-white font-semibold rounded-md hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
           Cancel
         </button>
         <button
           type="submit"
           disabled={!stripe || isProcessing || !isCardComplete}
-          className="flex-1 px-6 py-3 text-[16px] bg-gradient-to-b from-[#EFFC76] to-[#d4e05c] text-black font-semibold rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+          className="flex-1 px-6 py-3 text-[16px] bg-linear-to-b from-[#EFFC76] to-[#d4e05c] text-black font-semibold rounded-md hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
         >
           {isProcessing ? (
             <span className="flex items-center justify-center gap-2">
@@ -226,7 +235,7 @@ export default function StripePaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
-      <div className="relative w-full max-w-md bg-gradient-to-b from-[#1a1a1a] to-[#0a0a0a] border border-[#4a4a4a] rounded-xl shadow-2xl">
+      <div className="relative w-full max-w-md bg-linear-to-b from-[#1a1a1a] to-[#0a0a0a] border border-[#4a4a4a] rounded-xl shadow-2xl">
         {/* Close button */}
         <button
           onClick={onClose}

@@ -8,6 +8,7 @@ import React, {
   DragEvent,
 } from "react";
 import Image from "next/image";
+import toast from "react-hot-toast";
 
 type DocumentKey =
   | "governmentId"
@@ -63,7 +64,6 @@ export default function Step3({ errors, onFieldChange }: Step3Props) {
     safetyPermits: null,
     insuranceCertificate: null,
   });
-  
 
   const fileInputRefs: Record<
     DocumentKey,
@@ -107,29 +107,34 @@ export default function Step3({ errors, onFieldChange }: Step3Props) {
   ];
 
   // In your Step3 component, add this useEffect to verify documents are loaded
-useEffect(() => {
-  const stored = localStorage.getItem("applicationData");
-  if (!stored) return;
+  useEffect(() => {
+    const stored = localStorage.getItem("applicationData");
+    if (!stored) return;
 
-  try {
-    const appData = JSON.parse(stored);
-    console.log("🔍 Current application documents:", appData.documents);
+    try {
+      const appData = JSON.parse(stored);
+      console.log("🔍 Current application documents:", appData.documents);
 
-    // If documents exist in application data but not in local state, sync them
-    if (appData.documents && appData.documents.length > 0) {
-      console.log("📄 Documents found in application data:", appData.documents.length);
-      
-      // Verify we have the expected 4 documents
-      if (appData.documents.length < 4) {
-        console.warn(`⚠️ Only ${appData.documents.length} documents found, expected 4`);
+      // If documents exist in application data but not in local state, sync them
+      if (appData.documents && appData.documents.length > 0) {
+        console.log(
+          "📄 Documents found in application data:",
+          appData.documents.length
+        );
+
+        // Verify we have the expected 4 documents
+        if (appData.documents.length < 4) {
+          console.warn(
+            `⚠️ Only ${appData.documents.length} documents found, expected 4`
+          );
+        }
+      } else {
+        console.warn("⚠️ No documents found in application data");
       }
-    } else {
-      console.warn("⚠️ No documents found in application data");
+    } catch (err) {
+      console.error("Error checking application documents:", err);
     }
-  } catch (err) {
-    console.error("Error checking application documents:", err);
-  }
-}, []);
+  }, []);
 
   // helper to map documentType → key
   // const getKeyByDocumentType = (docType: string): DocumentKey | null => {
@@ -154,6 +159,13 @@ useEffect(() => {
   ) => {
     if (!selectedFile) return;
 
+    // ⭐ FILE SIZE VALIDATION — MAX 5MB
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (selectedFile.size > maxSize) {
+      toast.error(`File size exceeds 5MB limit`);
+      return;
+    }
+
     const docInfo = documentType.find((d) => d.key === docType);
     if (!docInfo) return;
 
@@ -165,6 +177,7 @@ useEffect(() => {
     };
 
     const url = URL.createObjectURL(selectedFile);
+
     setFiles((prev) => ({ ...prev, [docType]: fileData }));
     setPreviewUrls((prev) => ({ ...prev, [docType]: url }));
 
@@ -172,7 +185,7 @@ useEffect(() => {
     const allFiles = Object.values(updatedFiles).filter(Boolean) as FileData[];
     onFieldChange("photos", allFiles);
 
-    // 🟢 Persist updated docs to localStorage
+    // 🟢 Persist to localStorage
     const stored = localStorage.getItem("applicationData");
     if (stored) {
       const appData = JSON.parse(stored);
@@ -247,7 +260,7 @@ useEffect(() => {
     return (
       <div>
         <div
-          className={`border-2 border-dashed rounded-lg bg-gradient-to-b from-[#202020] to-[#101010] h-[200px] cursor-pointer relative ${
+          className={`border-2 border-dashed rounded-lg bg-linear-to-b from-[#202020] to-[#101010] h-[200px] cursor-pointer relative ${
             hasError ? "border-red-500" : "border-[#effc76]"
           }`}
           onDrop={(e) => handleDrop(e, doc.key)}
@@ -291,7 +304,7 @@ useEffect(() => {
                 {doc.title}
               </h4>
               {doc.description && (
-                <p className="text-white/60 text-xs leading-[16px]">
+                <p className="text-white/60 text-xs leading-4">
                   {doc.description}
                 </p>
               )}

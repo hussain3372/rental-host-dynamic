@@ -10,6 +10,7 @@ import { Modal } from "@/app/shared/Modal";
 import AddAnnouncementsDrawer from "./NewAnnouncement";
 import { Ticket as ApiTicket } from "@/app/api/Admin/support/types";
 import { supportApi } from "@/app/api/super-admin/support";
+import HostTickets from "./HostTickets";
 interface CertificationData {
   id: number;
   "Ticket Id": string;
@@ -102,6 +103,19 @@ export default function HelpSupport() {
       case "tickets":
         return (
           <Ticket
+            searchTerm={searchTerm}
+            onSearchChange={setSearchTerm}
+            currentPage={currentPage}
+            onPageChange={setCurrentPage}
+            itemsPerPage={itemsPerPage}
+            isFilterOpen={isFilterOpen}
+            onFilterToggle={setIsFilterOpen}
+            onViewDetails={handleViewDetails}
+          />
+        );
+      case "hostTickets":
+        return (
+          <HostTickets
             searchTerm={searchTerm}
             onSearchChange={setSearchTerm}
             currentPage={currentPage}

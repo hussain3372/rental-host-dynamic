@@ -4,8 +4,7 @@ import Cookies from "js-cookie";
 import {
   GetTicketsResponse,
   ImageUploadResponse,
-      Ticket,
-
+  Ticket,
 } from "@/app/api/Admin/support/types";
 
 const token = Cookies.get("superAdminAccessToken");
@@ -15,16 +14,22 @@ const getAuthHeaders = () => ({
   Authorization: `Bearer ${token}`,
 });
 
-export const uploadImage = async (file: File): Promise<ApiResponse<ImageUploadResponse>> => {
+export const uploadImage = async (
+  file: File
+): Promise<ApiResponse<ImageUploadResponse>> => {
   const formData = new FormData();
   formData.append("image", file);
 
-  return apiClient.post<ImageUploadResponse>("/applications/image-upload", formData, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-      // Let the browser set Content-Type with boundary for FormData
-    },
-  });
+  return apiClient.post<ImageUploadResponse>(
+    "/applications/image-upload",
+    formData,
+    {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        // Let the browser set Content-Type with boundary for FormData
+      },
+    }
+  );
 };
 
 // Announcement types
@@ -62,8 +67,8 @@ interface UpdateAnnouncementPayload {
 }
 
 export const supportApi = {
-  // Get super-admin Tickets (super-admin-specific endpoint)
-  getsuperAdminTickets: async (
+  // Get Admin Tickets (for super-admin to view admin tickets separately)
+  getAdminTickets: async (
     page: number = 1,
     limit: number = 10,
     search?: string,
@@ -81,7 +86,33 @@ export const supportApi = {
     if (createdAt) params.append("createdAt", createdAt);
 
     return apiClient.get<GetTicketsResponse>(
-      `/support/super-admin/tickets?${params.toString()}`,
+      `/support/super-admin/tickets/admin?${params.toString()}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+  },
+
+  // Get Host Tickets (for super-admin to view host tickets separately)
+  getHostTickets: async (
+    page: number = 1,
+    limit: number = 10,
+    search?: string,
+    category?: string,
+    status?: string,
+    createdAt?: string
+  ): Promise<ApiResponse<GetTicketsResponse>> => {
+    const params = new URLSearchParams();
+    params.append("page", page.toString());
+    params.append("limit", limit.toString());
+
+    if (search) params.append("search", search);
+    if (category) params.append("category", category);
+    if (status) params.append("status", status);
+    if (createdAt) params.append("createdAt", createdAt);
+
+    return apiClient.get<GetTicketsResponse>(
+      `/support/super-admin/tickets/host?${params.toString()}`,
       {
         headers: getAuthHeaders(),
       }
@@ -106,11 +137,11 @@ export const supportApi = {
   },
 
   // ✅ Get Announcements
-  getAnnouncements: async (
-   
-  ): Promise<ApiResponse<GetAnnouncementsResponse>> => {
+  getAnnouncements: async (): Promise<
+    ApiResponse<GetAnnouncementsResponse>
+  > => {
     const params = new URLSearchParams();
-   
+
     return apiClient.get<GetAnnouncementsResponse>(
       `/support/super-admin/announcements?${params.toString()}`,
       {
@@ -123,19 +154,28 @@ export const supportApi = {
   createAnnouncement: async (
     payload: CreateAnnouncementPayload
   ): Promise<ApiResponse<Announcement>> => {
-    return apiClient.post<Announcement>("/support/super-admin/announcements", payload, {
-      headers: getAuthHeaders(),
-    });
+    return apiClient.post<Announcement>(
+      "/support/super-admin/announcements",
+      payload,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
   },
 
   // ✅ Delete Announcement
-  deleteAnnouncement: async (announcementId: string): Promise<ApiResponse<void>> => {
-    return apiClient.delete<void>(`/support/super-admin/announcements/${announcementId}`, {
-      headers: getAuthHeaders(),
-    });
+  deleteAnnouncement: async (
+    announcementId: string
+  ): Promise<ApiResponse<void>> => {
+    return apiClient.delete<void>(
+      `/support/super-admin/announcements/${announcementId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
   },
 
-   updateAnnouncement: async (
+  updateAnnouncement: async (
     announcementId: string,
     payload: UpdateAnnouncementPayload
   ): Promise<ApiResponse<Announcement>> => {
@@ -148,32 +188,31 @@ export const supportApi = {
     );
   },
 
-    getTicketById: async (ticketId: string): Promise<ApiResponse<Ticket>> => {
-        const response = await apiClient.get<Ticket>(
-            `/support/tickets/${ticketId}`,
-            {
-                headers: getAuthHeaders(),
-            }
-        );
-        return response;
-    },
+  getTicketById: async (ticketId: string): Promise<ApiResponse<Ticket>> => {
+    const response = await apiClient.get<Ticket>(
+      `/support/tickets/${ticketId}`,
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+    return response;
+  },
 
   // ✅ Resolve Ticket
-    resolveTicket: async (
-        ticketId: string,
-        resolution: string
-    ): Promise<ApiResponse<Ticket>> => {
-        return apiClient.put<Ticket>(
-            `/support/super-admin/tickets/${ticketId}/resolve`,
-            {
-                status: "RESOLVED",
-                resolution,
-                resolvedAt: new Date().toISOString()
-            },
-            {
-                headers: getAuthHeaders(),
-            }
-        );
-    },
-  
+  resolveTicket: async (
+    ticketId: string,
+    resolution: string
+  ): Promise<ApiResponse<Ticket>> => {
+    return apiClient.put<Ticket>(
+      `/support/super-admin/tickets/${ticketId}/resolve`,
+      {
+        status: "RESOLVED",
+        resolution,
+        resolvedAt: new Date().toISOString(),
+      },
+      {
+        headers: getAuthHeaders(),
+      }
+    );
+  },
 };

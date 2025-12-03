@@ -16,10 +16,12 @@ export default function ChangePasswordDrawer({
 }: ChangePasswordDrawerProps) {
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [errorField, setErrorField] = useState<"current" | "new" | null>(null);
+  const [errorField, setErrorField] = useState<"current" | "new" | "confirm" | null>(null);
   const [loading, setLoading] = useState(false);
   const [isSuccessModalOpen, setIsSuccessModalOpen] = useState(false);
 
@@ -29,9 +31,9 @@ export default function ChangePasswordDrawer({
     setError(null);
     setErrorField(null);
 
-    if (!currentPassword || !newPassword) {
-      setError("Both fields are required.");
-      setErrorField(!currentPassword ? "current" : "new");
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      setError("All fields are required.");
+      setErrorField(!currentPassword ? "current" : !newPassword ? "new" : "confirm");
       return;
     }
 
@@ -47,6 +49,12 @@ export default function ChangePasswordDrawer({
       return;
     }
 
+    if (newPassword !== confirmPassword) {
+      setError("Confirm password does not match the new password.");
+      setErrorField("confirm");
+      return;
+    }
+
     try {
       setLoading(true);
       const response = await setting.changePassword({
@@ -59,6 +67,7 @@ export default function ChangePasswordDrawer({
         setIsSuccessModalOpen(true);
         setCurrentPassword("");
         setNewPassword("");
+        setConfirmPassword("");
         if (onSave) onSave(currentPassword, newPassword);
       } else {
         setError(data.message || "Failed to change password. Please try again.");
@@ -77,7 +86,7 @@ export default function ChangePasswordDrawer({
       <div className="space-y-5">
         <h2 className="text-[20px] font-medium">Change Password</h2>
 
-        {/* Current Password Field */}
+        {/* Current Password */}
         <div className="relative">
           <label className="block text-[14px] mb-[10px]">Current password</label>
           <input
@@ -98,7 +107,7 @@ export default function ChangePasswordDrawer({
           </button>
         </div>
 
-        {/* New Password Field */}
+        {/* New Password */}
         <div className="relative">
           <label className="block text-[14px] mb-[10px]">New password</label>
           <input
@@ -119,7 +128,28 @@ export default function ChangePasswordDrawer({
           </button>
         </div>
 
-        {/* Error Message */}
+        {/* Confirm Password */}
+        <div className="relative">
+          <label className="block text-[14px] mb-[10px]">Confirm new password</label>
+          <input
+            type={showConfirm ? "text" : "password"}
+            placeholder="Confirm new password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            className={`w-full p-3 pr-10 rounded-xl border bg-gradient-to-b from-[#202020] to-[#101010]
+              text-[14px] text-white placeholder:text-white/40 focus:outline-none
+              ${errorField === "confirm" ? "border-red-500" : "border-[#404040] focus:border-[#EFFC76]"}`}
+          />
+          <button
+            type="button"
+            className="absolute right-3 top-[46px] text-gray-400"
+            onClick={() => setShowConfirm(!showConfirm)}
+          >
+            {showConfirm ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        </div>
+
+        {/* Error */}
         {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
       </div>
 

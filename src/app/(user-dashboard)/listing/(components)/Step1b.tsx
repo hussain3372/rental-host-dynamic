@@ -25,19 +25,29 @@ export default function Step1b({
   const [images, setImages] = useState<File[]>(formData.images || []);
 
   const handleUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    
     if (!e.target.files || e.target.files.length === 0) return;
 
     const newFiles = Array.from(e.target.files);
+
+    // ---- VALIDATION: CHECK EACH FILE SIZE LIMIT (5MB) ----
+    for (const file of newFiles) {
+      const fileSizeMB = file.size / (1024 * 1024);
+
+      if (fileSizeMB > 5) {
+        toast.error(`Plz upload images smaller than 5MB`);
+        return; // stop entire upload batch
+      }
+    }
+
+    // ---- LIMIT TOTAL IMAGES = 5 ----
     const updatedFiles = [...images, ...newFiles];
     if (updatedFiles.length > 5) {
       toast.error("Maximum 5 images allowed");
       return;
     }
 
+    // SAVE FILES
     setImages(updatedFiles);
-
-    // ✅ Allow updating images even if currentStep = PROPERTY_DETAIL
     onFieldChange("images", updatedFiles);
     onImagesUploaded?.(true);
   };

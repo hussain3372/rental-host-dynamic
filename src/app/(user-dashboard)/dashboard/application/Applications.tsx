@@ -407,8 +407,8 @@ export default function Applications() {
               hover: true,
             }}
             showPagination={true}
-            clickable={true}
-            onRowClick={(row: Record<string, string>) => {
+            clickable={false}
+            onFirstColumnClick={(row: Record<string, string>) => {
               if (row.id) {
                 window.location.href = `/dashboard/application/detail/${row.id}`;
               }
@@ -426,7 +426,6 @@ export default function Applications() {
           />
         </form>
       </div>
-
       <FilterDrawer
         isOpen={isFilterOpen}
         onClose={handleCloseFilter}

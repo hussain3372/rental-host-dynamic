@@ -68,7 +68,8 @@ interface TableProps<T> {
   disableClientSidePagination?: boolean;
   showSearch?: boolean;
   noWrapHeader?: boolean;
-   noSearchPadding?: boolean;
+  noSearchPadding?: boolean;
+  onFirstColumnClick?: (row: T, index: number) => void;
 }
 
 export function Table<T extends Record<string, unknown>>({
@@ -101,6 +102,7 @@ export function Table<T extends Record<string, unknown>>({
   showActionColumn = false,
   disableClientSidePagination = false,
   showSearch = true,
+  onFirstColumnClick,
 }: TableProps<T>) {
   const [displayData, setDisplayData] = useState<T[]>(data);
   const [activeSortDropdown, setActiveSortDropdown] = useState<string | null>(
@@ -155,7 +157,16 @@ export function Table<T extends Record<string, unknown>>({
     }
     return String(value ?? "");
   };
-
+  const handleFirstColumnClick = (
+    row: T,
+    index: number,
+    e: React.MouseEvent
+  ) => {
+    e.stopPropagation(); // Prevent row click from firing
+    if (onFirstColumnClick) {
+      onFirstColumnClick(row, index);
+    }
+  };
   const generateRowCSS = useCallback(() => {
     let css = "";
 
@@ -241,112 +252,116 @@ export function Table<T extends Record<string, unknown>>({
     : data;
 
   const renderPaginationButtons = () => {
-  const buttons = [];
-  const maxVisiblePages = 5;
+    const buttons = [];
+    const maxVisiblePages = 5;
 
-  buttons.push(
-    <button
-      key="prev"
-      onClick={() => onPageChange(currentPage - 1)}
-      disabled={currentPage === 1}
-      className="w-8 h-8 flex items-center p-[13px] justify-center text-gray-400 hover:text-white transition-colors border border-gray-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
-    >
-      <Image src="/images/arrow-left.svg" height={14} width={14} alt="Back" />
-    </button>
-  );
-
-  let startPage = 1;
-  let endPage = totalPages;
-
-  if (totalPages > maxVisiblePages) {
-    const halfVisible = Math.floor(maxVisiblePages / 2);
-
-    if (currentPage <= halfVisible + 1) {
-      endPage = maxVisiblePages;
-    } else if (currentPage >= totalPages - halfVisible) {
-      startPage = totalPages - maxVisiblePages + 1;
-    } else {
-      startPage = currentPage - halfVisible;
-      endPage = currentPage + halfVisible;
-    }
-  }
-
-  if (startPage > 1) {
     buttons.push(
       <button
-        key={1}
-        onClick={() => onPageChange(1)}
-        className="w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-colors border cursor-pointer text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white"
+        key="prev"
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        className="w-8 h-8 flex items-center p-[13px] justify-center text-gray-400 hover:text-white transition-colors border border-gray-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
       >
-        1
+        <Image src="/images/arrow-left.svg" height={14} width={14} alt="Back" />
       </button>
     );
 
-    if (startPage > 2) {
+    let startPage = 1;
+    let endPage = totalPages;
+
+    if (totalPages > maxVisiblePages) {
+      const halfVisible = Math.floor(maxVisiblePages / 2);
+
+      if (currentPage <= halfVisible + 1) {
+        endPage = maxVisiblePages;
+      } else if (currentPage >= totalPages - halfVisible) {
+        startPage = totalPages - maxVisiblePages + 1;
+      } else {
+        startPage = currentPage - halfVisible;
+        endPage = currentPage + halfVisible;
+      }
+    }
+
+    if (startPage > 1) {
       buttons.push(
-        <span
-          key="ellipsis-start"
-          className="w-8 h-8 flex items-center justify-center text-white opacity-40 select-none"
+        <button
+          key={1}
+          onClick={() => onPageChange(1)}
+          className="w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-colors border cursor-pointer text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white"
         >
-          •••
-        </span>
+          1
+        </button>
       );
+
+      if (startPage > 2) {
+        buttons.push(
+          <span
+            key="ellipsis-start"
+            className="w-8 h-8 flex items-center justify-center text-white opacity-40 select-none"
+          >
+            •••
+          </span>
+        );
+      }
     }
-  }
 
-  for (let i = startPage; i <= endPage; i++) {
-    buttons.push(
-      <button
-        key={i}
-        onClick={() => onPageChange(i)}
-        className={`w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-all duration-200 border cursor-pointer ${
-          currentPage === i
-            ? "bg-[#EFFC76] text-black font-semibold border-[#EFFC76] scale-110 shadow-lg"
-            : "text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white hover:scale-105"
-        }`}
-      >
-        {i}
-      </button>
-    );
-  }
-
-  if (endPage < totalPages) {
-    if (endPage < totalPages - 1) {
+    for (let i = startPage; i <= endPage; i++) {
       buttons.push(
-        <span
-          key="ellipsis-end"
-          className="w-8 h-8 flex items-center justify-center text-white opacity-40 select-none"
+        <button
+          key={i}
+          onClick={() => onPageChange(i)}
+          className={`w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-all duration-200 border cursor-pointer ${
+            currentPage === i
+              ? "bg-[#EFFC76] text-black font-semibold border-[#EFFC76] scale-110 shadow-lg"
+              : "text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white hover:scale-105"
+          }`}
         >
-          •••
-        </span>
+          {i}
+        </button>
       );
     }
 
+    if (endPage < totalPages) {
+      if (endPage < totalPages - 1) {
+        buttons.push(
+          <span
+            key="ellipsis-end"
+            className="w-8 h-8 flex items-center justify-center text-white opacity-40 select-none"
+          >
+            •••
+          </span>
+        );
+      }
+
+      buttons.push(
+        <button
+          key={totalPages}
+          onClick={() => onPageChange(totalPages)}
+          className="w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-colors border cursor-pointer text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white"
+        >
+          {totalPages}
+        </button>
+      );
+    }
+
     buttons.push(
       <button
-        key={totalPages}
-        onClick={() => onPageChange(totalPages)}
-        className="w-8 h-8 flex items-center justify-center rounded text-sm leading-[18px] transition-colors border cursor-pointer text-white opacity-60 border-gray-600 hover:opacity-100 hover:border-white"
+        key="next"
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors border border-gray-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 p-[13px]"
       >
-        {totalPages}
+        <Image
+          src="/images/arrow-right.svg"
+          height={14}
+          width={14}
+          alt="Next"
+        />
       </button>
     );
-  }
 
-  buttons.push(
-    <button
-      key="next"
-      onClick={() => onPageChange(currentPage + 1)}
-      disabled={currentPage === totalPages}
-      className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-white transition-colors border border-gray-600 rounded cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 p-[13px]"
-    >
-      <Image src="/images/arrow-right.svg" height={14} width={14} alt="Next" />
-    </button>
-  );
-
-  return buttons;
-};
-
+    return buttons;
+  };
 
   // ✅ Remove only the exact "ID" column (case-insensitive)
   const keys =
@@ -401,7 +416,6 @@ export function Table<T extends Record<string, unknown>>({
     <div style={{ marginBottom: 15 }}>
       <div className="bg-[#121315] rounded-lg relative z-[10] overflow-hidden">
         <div className="flex flex-col sm:flex-row justify-between lg:items-center pt-5 px-5">
-      
           <h2 className="text-white text-[16px] font-semibold leading-[20px]">
             {title}
           </h2>
@@ -622,7 +636,6 @@ export function Table<T extends Record<string, unknown>>({
                 )}
 
                 <tbody className="!bg-transparent table-container overflow-auto">
-                  {/* ✅ ADDED: Show empty state when no data */}
                   {displayData.length === 0 ? (
                     <tr>
                       <td
@@ -684,9 +697,14 @@ export function Table<T extends Record<string, unknown>>({
                           </td>
                         )}
 
-                        {keys.map((key) => (
+                        {keys.map((key, keyIndex) => (
                           <td
                             key={key}
+                            onClick={
+                              keyIndex === 0 && onFirstColumnClick
+                                ? (e) => handleFirstColumnClick(row, idx, e)
+                                : undefined
+                            }
                             style={{
                               padding: paddingSize,
                               fontWeight: 400,
@@ -697,7 +715,21 @@ export function Table<T extends Record<string, unknown>>({
                               overflow: "hidden",
                               textOverflow: "ellipsis",
                               maxWidth: "150px",
+                              ...(keyIndex === 0 && onFirstColumnClick
+                                ? {
+                                    cursor: "pointer",
+                                    textDecoration: "underline",
+                                    textDecorationColor: "[#EFFC76]",
+                                    textUnderlineOffset: "3px",
+                                    transition: "all 0.2s ease",
+                                  }
+                                : {}),
                             }}
+                            className={
+                              keyIndex === 0 && onFirstColumnClick
+                                ? "hover:text-[#EFFC76] hover:underline"
+                                : ""
+                            }
                           >
                             {renderCellContent(key, row[key])}
                           </td>
