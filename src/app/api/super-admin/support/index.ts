@@ -198,6 +198,36 @@ export const supportApi = {
     return response;
   },
 
+  pendingTicket: async (
+      ticketId: string,
+      resolution: string
+    ): Promise<ApiResponse<Ticket>> => {
+      return apiClient.put<Ticket>(
+        `/support/admin/tickets/${ticketId}/in-progress`,
+        {
+          status: "PENDING",
+          resolution,
+          resolvedAt: new Date().toISOString(),
+        },
+        {
+          headers: getAuthHeaders(),
+        }
+      );
+    },
+
+      closeTicket: async (ticketId: string): Promise<ApiResponse<Ticket>> => {
+        return apiClient.put<Ticket>(
+          `/support/tickets/${ticketId}/close`,
+          {
+            status: "CLOSED",
+            closedAt: new Date().toISOString(),
+          },
+          {
+            headers: getAuthHeaders(),
+          }
+        );
+      },
+
   // ✅ Resolve Ticket
   resolveTicket: async (
     ticketId: string,

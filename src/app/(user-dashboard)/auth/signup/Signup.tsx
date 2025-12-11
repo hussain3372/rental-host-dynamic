@@ -22,8 +22,6 @@ interface SignUpResponseData {
   email: string;
 }
 
-type SignupResponse = ApiResponse<SignUpResponseData>;
-
 interface FormData {
   firstName?: string;
   lastName?: string;
@@ -52,46 +50,53 @@ export default function Signup() {
     }
   };
 
-  const handleSignup = async (formData: FormData) => {
-    try {
-      setLoading(true);
+ const handleSignup = async (formData: FormData) => {
+  try {
+    setLoading(true);
 
-      if (!formData.firstName || !formData.lastName) {
-        toast.error("First name and last name are required");
-        return;
-      }
-
-      const payload = {
-        email: formData.email,
-        password: formData.password,
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-      };
-
-      const response = await auth.createUser(payload);
-      const data = response as unknown as SignupResponse;
-
-      if (data.success) {
-        toast.success(data.message || "Account created successfully!");
-        router.push("/auth/verifying");
-      } else {
-        if (data.errors && data.errors.length > 0) {
-          const firstError = data.errors[0];
-          const errorField = Object.keys(firstError)[0];
-          const errorMessage =
-            firstError[errorField as keyof typeof firstError];
-          toast.error(String(errorMessage));
-        } else {
-          toast.error(data.message || "Something went wrong");
-        }
-      }
-    } catch (error) {
-      console.error("Signup error:", error);
-      toast.error("Network error. Please try again.");
-    } finally {
-      setLoading(false);
+    if (!formData.firstName || !formData.lastName) {
+      toast.error("First name and last name are required");
+      return;
     }
-  };
+
+    const payload = {
+      email: formData.email,
+      password: formData.password,
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+    };
+
+    const response = await auth.createUser(payload);
+    const data = response as unknown as Record<string, unknown>;
+
+    if (data.success) {
+      toast.success((data.message as string) || "Account created successfully!");
+      router.push("/auth/verifying");
+    } else {
+      // Try different error structures
+      if (data.error && typeof data.error === 'object' && 'message' in data.error) {
+        toast.error(String(data.error.message));
+      } else if (Array.isArray(data.errors) && data.errors.length > 0) {
+        const firstError = data.errors[0];
+        if (typeof firstError === 'string') {
+          toast.error(firstError);
+        } else if (typeof firstError === 'object' && firstError !== null) {
+          const errorField = Object.keys(firstError)[0];
+          toast.error(String((firstError as Record<string, unknown>)[errorField]));
+        }
+      } else if (data.message && typeof data.message === 'string') {
+        toast.error(data.message);
+      } else {
+        toast.error("Something went wrong");
+      }
+    }
+  } catch (error) {
+    console.error("Signup error:", error);
+    toast.error("Network error. Please try again.");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div>

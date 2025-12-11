@@ -33,7 +33,7 @@ const PropositionsCard: React.FC<PropositionsCardProps> = ({
           height={iconHeight}
         />
       )}
-      <span className="text-[19px] sm:text-[20px] leading-[16px] sm:leading-[24px] font-normal text-start ">{text}</span>
+      <span className="text-[19px] sm:text-[20px] leading-[21px] sm:leading-6 font-normal text-start ">{text}</span>
     </div>
   );
 };

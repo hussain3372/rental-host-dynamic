@@ -227,15 +227,19 @@ export default function Step3({ errors, onFieldChange }: Step3Props) {
       );
     }
 
-    if (fileType === "application/pdf" || /\.pdf$/i.test(file.name)) {
-      return (
-        <iframe
-          src={previewUrl}
-          title="PDF Preview"
-          className="w-full h-full rounded"
-        />
-      );
-    }
+      if (fileType === "application/pdf" || /\.pdf$/i.test(file.name) ) {
+        return (
+          <iframe
+            src={previewUrl}
+            title="PDF Preview"
+            className="w-full h-full rounded"
+          />
+        );
+      }
+
+      
+
+      
 
     return (
       <div className="w-full h-full flex flex-col items-center justify-center bg-gray-800 rounded">
@@ -253,72 +257,74 @@ export default function Step3({ errors, onFieldChange }: Step3Props) {
   };
 
   const renderUploadCard = (doc: DocumentInfo) => {
-    const file = files[doc.key];
-    const previewUrl = previewUrls[doc.key];
-    const hasError = errors.photos && !file;
+  const file = files[doc.key];
+  const previewUrl = previewUrls[doc.key];
+  const hasError = errors.photos && !file;
 
-    return (
-      <div>
-        <div
-          className={`border-2 border-dashed rounded-lg bg-linear-to-b from-[#202020] to-[#101010] h-[200px] cursor-pointer relative ${
-            hasError ? "border-red-500" : "border-[#effc76]"
-          }`}
-          onDrop={(e) => handleDrop(e, doc.key)}
-          onDragOver={handleDragOver}
-          onClick={() => fileInputRefs[doc.key].current?.click()}
-        >
-          <input
-            ref={fileInputRefs[doc.key]}
-            type="file"
-            className="hidden"
-            accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
-            onChange={(e) => handleFileSelect(doc.key, e.target.files?.[0])}
-          />
+  return (
+    <div>
+      <div
+        className={`border-2 border-dashed rounded-lg bg-linear-to-b from-[#202020] to-[#101010] h-[200px] cursor-pointer relative ${
+          hasError ? "border-red-500" : "border-[#effc76]"
+        }`}
+        onDrop={(e) => handleDrop(e, doc.key)}
+        onDragOver={handleDragOver}
+        onClick={() => fileInputRefs[doc.key].current?.click()}
+      >
+        <input
+          ref={fileInputRefs[doc.key]}
+          type="file"
+          className="hidden"
+          accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.bmp"
+          onChange={(e) => handleFileSelect(doc.key, e.target.files?.[0])}
+        />
 
-          {file ? (
-            <div className="relative w-full h-full">
-              {renderPreview(doc.key, previewUrl, file)}
-              <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition">
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    fileInputRefs[doc.key].current?.click();
-                  }}
-                  className="text-[#EFFC76] text-[14px] font-medium underline"
-                >
-                  Replace Document
-                </button>
-              </div>
+        {file ? (
+          <div className="relative w-full h-full">
+            {renderPreview(doc.key, previewUrl, file)}
+            <div className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition">
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  fileInputRefs[doc.key].current?.click();
+                }}
+                className="text-[#EFFC76] text-[14px] font-medium underline"
+              >
+                Replace Document
+              </button>
             </div>
-          ) : (
-            <div className="text-center h-full flex flex-col justify-center">
-              <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center">
-                <Image
-                  src="/images/upload2.svg"
-                  alt="Upload docs"
-                  width={40}
-                  height={40}
-                />
-              </div>
-              <h4 className="text-white font-regular text-[16px] mb-2">
-                {doc.title}
-              </h4>
-              {doc.description && (
-                <p className="text-white/60 text-xs leading-4">
-                  {doc.description}
-                </p>
-              )}
+          </div>
+        ) : (
+          <div className="text-center h-full flex flex-col justify-center">
+            <div className="w-12 h-12 mx-auto mb-4 flex items-center justify-center">
+              <Image
+                src="/images/upload2.svg"
+                alt="Upload docs"
+                width={40}
+                height={40}
+              />
             </div>
-          )}
-        </div>
-
-        {hasError && (
-          <p className="text-red-500 text-xs mt-2">{doc.title} is required</p>
+            <h4 className="text-white font-regular text-[16px] mb-2">
+              {doc.title}
+            </h4>
+            {doc.description && (
+              <p className="text-white/60 text-xs leading-4">
+                {doc.description}
+              </p>
+            )}
+          </div>
         )}
       </div>
-    );
-  };
 
+      {/* Helper text */}
+    
+
+      {hasError && (
+        <p className="text-red-500 text-xs mt-2">{doc.title} is required</p>
+      )}
+    </div>
+  );
+};
   return (
     <div>
       <h3 className="font-bold text-[20px] sm:text-[28px] mb-3">

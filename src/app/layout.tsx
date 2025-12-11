@@ -36,14 +36,14 @@ export default function RootLayout({ children }: RootLayoutProps) {
         <Toaster
           position="top-right"
           toastOptions={{
-            duration: 4000,
+            duration: 1000,
             style: {
               background: "white",
               color: "black",
               zIndex:"9000000000"
             },
             success: {
-              duration: 3000,
+              duration: 1000,
             },
           }}
         />

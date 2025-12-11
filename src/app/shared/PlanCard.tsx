@@ -159,6 +159,7 @@ interface PricingCardProps {
   isProfessionalPlan?: boolean;
   /** Enable professional glow effect */
   professionalGlow?: boolean;
+  featureWhiteSpace?: string;
 }
 
 const PricingCard: React.FC<PricingCardProps> = ({
@@ -249,6 +250,7 @@ const PricingCard: React.FC<PricingCardProps> = ({
   hoverTransition = "all 0.3s ease",
   hoverOverlay = true,
   overlayGradient = "bg-gradient-to-b from-[#EFFC76]/10 to-transparent opacity-30",
+  featureWhiteSpace = "whitespace-normal lg:whitespace-nowrap",
 
   // Special effects defaults
   isProfessionalPlan = false,
@@ -304,7 +306,7 @@ const PricingCard: React.FC<PricingCardProps> = ({
       )}
 
       {/* Header */}
-      <div className="relative z-10">
+      <div className="relative z-10 flex flex-col">
         <h3
           className={`${titleClass} ${titleWeight} ${titleColor} ${titleClasses}`}
         >
@@ -353,32 +355,33 @@ const PricingCard: React.FC<PricingCardProps> = ({
         ></div>
       )}
 
-      {/* Features */}
-      <ul className={`${featureSpacing} text-sm relative z-10 max-w-[312px]`}>
-        {features.map((feature, idx) => (
-          <li
-            key={idx}
-            className={`flex items-center ${featureSize} ${featureWeight} ${featureColor} ${featureClasses} ${featureIconSpacing} ${
-              featureHoverEffect
-                ? "transition-transform duration-300 hover:translate-x-1"
-                : ""
-            }`}
-          >
-            {showFeatureIcons && (
-              <Image
-                width={featureIconWidth}
-                height={featureIconHeight}
-                src={checkIconSrc}
-                alt="check"
-                className="mt-1"
-              />
-            )}
-            <span className="flex-1 whitespace-normal lg:whitespace-nowrap">
-              {feature}
-            </span>
-          </li>
-        ))}
-      </ul>
+     {/* Features wrapper with flex-grow */}
+<div className="flex-grow relative z-10">
+  <ul className={`${featureSpacing} text-sm max-w-[312px]`}>
+    {features.map((feature, idx) => (
+      <li
+        key={idx}
+        className={`flex items-center ${featureSize} ${featureWeight} ${featureColor} ${featureClasses} ${featureIconSpacing} ${
+          featureHoverEffect
+            ? "transition-transform duration-300 hover:translate-x-1"
+            : ""
+        }`}
+      >
+        {showFeatureIcons && (
+          <Image
+            width={featureIconWidth}
+            height={featureIconHeight}
+            src={checkIconSrc}
+            alt="check"
+            className="mt-1"
+          />
+        )}
+        <span className={`flex-1 ${featureWhiteSpace}`}>{feature}</span>
+      </li>
+    ))}
+  </ul>
+</div>
+
     </div>
   );
 };

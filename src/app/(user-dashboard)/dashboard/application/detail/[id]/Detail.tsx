@@ -3,6 +3,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useRef, useState, useEffect } from "react";
 import { ApplicationData } from "@/app/api/Host/application/types";
+import { useParams } from "next/navigation"; // Add this import
 import TicketDrawer from "../EditDrawer";
 
 interface DetailProps {
@@ -10,7 +11,6 @@ interface DetailProps {
     onApplicationUpdate: () => void; // Add this prop
 
 }
-
 export default function ApplicationDetail({ application,onApplicationUpdate  }: DetailProps) {
   const thumbnailsContainerRef = useRef<HTMLDivElement>(null);
   const [thumbnailsHeight, setThumbnailsHeight] = useState(0);
@@ -25,6 +25,12 @@ export default function ApplicationDetail({ application,onApplicationUpdate  }: 
     onApplicationUpdate()
   }
   
+  const params = useParams();
+  
+  // Get the ID from params instead of application prop
+  const applicationId = params.id; // or params.applicationId depending on your route structure
+
+  console.log('Application id' ,applicationId )
 
   useEffect(() => {
     const updateHeight = () => {
@@ -193,7 +199,7 @@ export default function ApplicationDetail({ application,onApplicationUpdate  }: 
     </div>
     {
       showDrawer && (
-        <TicketDrawer onClose={closeDrawer}  applicationId={application.id} />
+        <TicketDrawer onClose={closeDrawer}  applicationId={applicationId as string}  />
       )
     }
     </>

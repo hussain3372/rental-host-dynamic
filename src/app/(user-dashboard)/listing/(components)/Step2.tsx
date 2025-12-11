@@ -90,7 +90,9 @@ const Step2 = forwardRef<Step2Ref, Step2Props>(
           },
         };
 
-        const response = await application.updateStep(payload);
+
+
+        const response = await application.updateStep("COMPLIANCE_CHECKLIST", payload);
         const isSuccess =
           response?.data?.success === true || response?.success === true;
 

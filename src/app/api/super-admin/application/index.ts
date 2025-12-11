@@ -209,13 +209,17 @@ export const application = {
     return response;
   },
 
-  getAdmins: async (): Promise<ApiResponse<UsersResponse>> => {
+ getAdmins: async (page: number = 1, limit: number = 10): Promise<ApiResponse<UsersResponse>> => {
     const url = `/super-admin/admins`;
     const token = getToken();
     return apiClient.get<UsersResponse>(url, {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
+      },
+      params: {
+        page,
+        limit
       },
       requiresAuth: false,
     });

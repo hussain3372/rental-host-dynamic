@@ -147,9 +147,70 @@ const Searchsection: React.FC<SearchsectionProps> = ({
   CustomDateInput.displayName = "CustomDateInput";
 
   return (
-    <div className="text-white container-class w-full">
-      {/* ... (rest of your JSX remains the same) */}
-      <div className="relative z-10 flex flex-col items-center justify-center">
+    <div className="relative w-full min-h-[685px] sm:min-h-[585px] flex flex-col items-center justify-center text-center overflow-hidden">
+      {/* Gradient/Background Images - Same as HeroSection */}
+      <div className="inset-0 hidden sm:block pointer-events-none">
+        <Image
+          src="/images/gar1.png"
+          alt="gradient"
+          width={400}
+          height={902}
+          className="absolute top-0 left-12 !h-[585px] !w-[400px]"
+        />
+        <Image
+          src="/images/gar2.png"
+          alt="gradient"
+          width={350}
+          height={902}
+          className="absolute top-0 left-[30%] !h-[585px] -translate-x-1/2"
+        />
+        <Image
+          src="/images/gar3.png"
+          alt="gradient"
+          width={300}
+          height={902}
+          className="absolute top-0 left-1/2 !h-[585px] -translate-x-1/2"
+        />
+        <Image
+          src="/images/gar4.png"
+          alt="gradient"
+          width={350}
+          height={902}
+          className="absolute top-0 right-[30%] !h-[585px] translate-x-1/2"
+        />
+        <Image
+          src="/images/gar5.png"
+          alt="gradient"
+          width={400}
+          height={902}
+          className="absolute top-0 right-12 !h-[585px] !w-[400px]"
+        />
+      </div>
+
+      {/* Background Overlay Pattern - Same as HeroSection */}
+      <div className="absolute inset-0 opacity-10">
+        <div
+          className="absolute inset-0"
+          style={{
+            backgroundImage: `radial-gradient(circle at 1px 1px, rgba(255,255,255,0.15) 1px, transparent 0)`,
+            backgroundSize: "50px 50px",
+          }}
+        ></div>
+      </div>
+
+      {/* Central Background Image - Same as HeroSection */}
+      <div className="inset-0 hidden sm:block z-10 overflow-hidden">
+        <Image
+          src="/images/search-bg.png"
+          alt="Background"
+          className="inset-0 absolute !top-2"
+          fill
+          style={{ transform: "translateY(-7px)" }}
+        />
+      </div>
+
+      {/* Search Content */}
+      <div className="relative z-20 flex flex-col items-center justify-center px-4 w-full">
         <div className="text-center bg-gradient-to-r from-white/40 via-white to-white/40 bg-clip-text">
           <h1 className="text-[32px] sm:text-[40px] md:text-[52px] text-transparent font-medium leading-[60px] mt-[52px] mb-4 sm:mb-[40px] w-full max-w-[835px]">
             Trusted Certification for Growth
@@ -171,7 +232,7 @@ const Searchsection: React.FC<SearchsectionProps> = ({
           />
           <div className="w-full lg:w-auto flex justify-end">
             <Button
-              text="Search Certified Host"
+              text="Find a Verified Stay"
               onClick={handleSearchClick}
               className="w-full sm:w-auto shadow-2xl h-[52px]"
             />

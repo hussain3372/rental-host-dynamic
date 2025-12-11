@@ -27,8 +27,6 @@ interface PropertyDetails {
   propertyType: string;
 }
 
-
-
 interface Document {
   id: string;
   documentType: string;
@@ -194,110 +192,30 @@ export default function ReviewSubmission() {
     setDocIndex((prev) => (prev === documents.length - 1 ? 0 : prev + 1));
 
   const handleUpdateApplicationWithImages = async (images: string[]) => {
-  try {
-    setIsSubmitting(true);
+    try {
+      setIsSubmitting(true);
 
-    const updatePayload: UpdatePayload = {
-      propertyDetails: {
-        propertyName: propertyDetails.name,
-        address: propertyDetails.address,
-        propertyType: propertyDetails.type,
-        ownership: propertyDetails.ownership,
-        description: description,
-        images: images, // Use the images parameter directly
-      }
-    };
+      const updatePayload: UpdatePayload = {
+        propertyDetails: {
+          propertyName: propertyDetails.name,
+          address: propertyDetails.address,
+          propertyType: propertyDetails.type,
+          ownership: propertyDetails.ownership,
+          description: description,
+          images: images, // Use the images parameter directly
+        },
+      };
 
-    console.log("📤 Update payload with NEW images:", updatePayload);
+      console.log("📤 Update payload with NEW images:", updatePayload);
 
-    const response = await application.updateApplication(
-      updatePayload as never
-    );
+      const response = await application.updateApplication(
+        updatePayload as never
+      );
 
-    if (response.success) {
-      toast.success("Images updated successfully!");
-      
-      // Update localStorage with new data
-      const stored = localStorage.getItem("applicationData");
-      if (stored) {
-        const storedData = JSON.parse(stored);
-        const updatedData = {
-          ...storedData,
-          propertyDetails: {
-            ...storedData.propertyDetails,
-            images: images
-          }
-        };
-        localStorage.setItem("applicationData", JSON.stringify(updatedData));
-      }
-    } else {
-      throw new Error(response.message || "Failed to update application");
-    }
-  } catch (error) {
-    console.error("Update application error:", error);
-    toast.error((error as Error).message || "Failed to update application");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      if (response.success) {
+        toast.success("Images updated successfully!");
 
-const handleImageUpload = async (files: FileList | null) => {
-  if (!files || files.length === 0) return;
-
-  try {
-    setUploadingImages(true);
-    const formData = new FormData();
-    Array.from(files).forEach((file) => {
-      formData.append("images", file);
-    });
-
-    console.log("📤 Uploading images to API...");
-    
-    const response = await application.uploadImage(formData);
-    console.log("📥 Upload API Response:", response);
-
-    if (response.success && response.data) {
-      console.log("🔍 Response data structure:", response.data);
-      
-      let uploadedUrls: string[] = [];
-
-      interface UploadedFile {
-        url: string;
-        key: string;
-        name: string;
-      }
-
-      if (response.data.uploaded && Array.isArray(response.data.uploaded)) {
-        console.log("📁 Found uploaded array with items:", response.data.uploaded.length);
-        
-        uploadedUrls = response.data.uploaded
-          .map((item: UploadedFile) => {
-            if (item.url && typeof item.url === 'string') {
-              console.log("📸 Found URL:", item.url);
-              return item.url;
-            }
-            return "";
-          })
-          .filter((url: string) => {
-            const isValid = url && url.startsWith('http');
-            if (!isValid && url) {
-              console.warn("⚠️ Invalid URL format:", url);
-            }
-            return isValid;
-          });
-      } else {
-        console.warn("❌ No uploaded array found in response data");
-      }
-
-      console.log("🎯 Final extracted URLs:", uploadedUrls);
-
-      if (uploadedUrls.length > 0) {
-        const newImages = [...propertyImages, ...uploadedUrls];
-        console.log("🆕 New images array:", newImages);
-        
-        setPropertyImages(newImages);
-        
-        // Update localStorage immediately
+        // Update localStorage with new data
         const stored = localStorage.getItem("applicationData");
         if (stored) {
           const storedData = JSON.parse(stored);
@@ -305,32 +223,129 @@ const handleImageUpload = async (files: FileList | null) => {
             ...storedData,
             propertyDetails: {
               ...storedData.propertyDetails,
-              images: newImages
-            }
+              images: images,
+            },
           };
           localStorage.setItem("applicationData", JSON.stringify(updatedData));
         }
-        
-        toast.success(`${uploadedUrls.length} image(s) uploaded successfully`);
-        
-        // ✅ FIX: Call update with the new images directly
-        await handleUpdateApplicationWithImages(newImages);
-        
       } else {
-        console.warn("❌ No valid URLs found in upload response.");
-        toast.error("Upload successful but no image URLs received.");
+        throw new Error(response.message || "Failed to update application");
       }
-    } else {
-      console.error("❌ Upload failed:", response.message);
-      throw new Error(response.message || "Upload failed");
+    } catch (error) {
+      console.error("Update application error:", error);
+      toast.error((error as Error).message || "Failed to update application");
+    } finally {
+      setIsSubmitting(false);
     }
-  } catch (error) {
-    console.error("💥 Image upload error:", error);
-    toast.error("Failed to upload images");
-  } finally {
-    setUploadingImages(false);
-  }
-};
+  };
+
+  const handleImageUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+
+    try {
+      setUploadingImages(true);
+      const formData = new FormData();
+      Array.from(files).forEach((file) => {
+        formData.append("images", file);
+      });
+
+      console.log("📤 Uploading images to API...");
+
+      const stored = localStorage.getItem("applicationData");
+const storedData = stored ? JSON.parse(stored) : null;
+const applicationId = storedData?.id;
+
+if (!applicationId) {
+  toast.error("Application ID not found");
+  return;
+}
+
+const response = await application.uploadImage(applicationId, formData);
+
+      console.log("📥 Upload API Response:", response);
+
+      if (response.success && response.data) {
+        console.log("🔍 Response data structure:", response.data);
+
+        let uploadedUrls: string[] = [];
+
+        interface UploadedFile {
+          url: string;
+          key: string;
+          name: string;
+        }
+
+        if (response.data.uploaded && Array.isArray(response.data.uploaded)) {
+          console.log(
+            "📁 Found uploaded array with items:",
+            response.data.uploaded.length
+          );
+
+          uploadedUrls = response.data.uploaded
+            .map((item: UploadedFile) => {
+              if (item.url && typeof item.url === "string") {
+                console.log("📸 Found URL:", item.url);
+                return item.url;
+              }
+              return "";
+            })
+            .filter((url: string) => {
+              const isValid = url && url.startsWith("http");
+              if (!isValid && url) {
+                console.warn("⚠️ Invalid URL format:", url);
+              }
+              return isValid;
+            });
+        } else {
+          console.warn("❌ No uploaded array found in response data");
+        }
+
+        console.log("🎯 Final extracted URLs:", uploadedUrls);
+
+        if (uploadedUrls.length > 0) {
+          const newImages = [...propertyImages, ...uploadedUrls];
+          console.log("🆕 New images array:", newImages);
+
+          setPropertyImages(newImages);
+
+          // Update localStorage immediately
+          const stored = localStorage.getItem("applicationData");
+          if (stored) {
+            const storedData = JSON.parse(stored);
+            const updatedData = {
+              ...storedData,
+              propertyDetails: {
+                ...storedData.propertyDetails,
+                images: newImages,
+              },
+            };
+            localStorage.setItem(
+              "applicationData",
+              JSON.stringify(updatedData)
+            );
+          }
+
+          toast.success(
+            `${uploadedUrls.length} image(s) uploaded successfully`
+          );
+
+          // ✅ FIX: Call update with the new images directly
+          await handleUpdateApplicationWithImages(newImages);
+        } else {
+          console.warn("❌ No valid URLs found in upload response.");
+          toast.error("Upload successful but no image URLs received.");
+        }
+      } else {
+        console.error("❌ Upload failed:", response.message);
+        throw new Error(response.message || "Upload failed");
+      }
+    } catch (error) {
+      console.error("💥 Image upload error:", error);
+      toast.error("Failed to upload images");
+    } finally {
+      setUploadingImages(false);
+    }
+  };
 
   //   const handleDocumentUpload = async (files: FileList | null, documentType: string) => {
   //     if (!files || files.length === 0) return;
@@ -392,73 +407,73 @@ const handleImageUpload = async (files: FileList | null) => {
     toast.success("Document removed");
   };
 
-const handleUpdateApplication = async () => {
-  try {
-    setIsSubmitting(true);
+  const handleUpdateApplication = async () => {
+    try {
+      setIsSubmitting(true);
 
-    const updatePayload: UpdatePayload = {};
+      const updatePayload: UpdatePayload = {};
 
-    // Handle property details updates
-    if (editing === "property" || editing === "photos") {
-      updatePayload.propertyDetails = {
-        propertyName: propertyDetails.name,
-        address: propertyDetails.address,
-        propertyType: propertyDetails.type,
-        ownership: propertyDetails.ownership,
-        description: description,
-        images: propertyImages, // This is crucial - include the image URLs
-      };
-    }
-
-    // Handle compliance updates
-    if (editing === "compliance") {
-      const complianceObj: { [key: string]: boolean } = {};
-      compliance.forEach((item) => {
-        complianceObj[item] = true;
-      });
-      updatePayload.complianceChecklist = complianceObj;
-    }
-
-    console.log("📤 Update payload with images:", {
-      ...updatePayload,
-      propertyDetails: {
-        ...updatePayload.propertyDetails,
-        images: propertyImages // Log images for debugging
-      }
-    });
-
-    const response = await application.updateApplication(
-      updatePayload as never
-    );
-
-    if (response.success) {
-      toast.success("Application updated successfully!");
-      setEditing(null);
-      
-      // Update localStorage with new data
-      const stored = localStorage.getItem("applicationData");
-      if (stored) {
-        const storedData = JSON.parse(stored);
-        const updatedData = {
-          ...storedData,
-          propertyDetails: {
-            ...storedData.propertyDetails,
-            ...updatePayload.propertyDetails,
-            images: propertyImages // Ensure images are persisted
-          }
+      // Handle property details updates
+      if (editing === "property" || editing === "photos") {
+        updatePayload.propertyDetails = {
+          propertyName: propertyDetails.name,
+          address: propertyDetails.address,
+          propertyType: propertyDetails.type,
+          ownership: propertyDetails.ownership,
+          description: description,
+          images: propertyImages, // This is crucial - include the image URLs
         };
-        localStorage.setItem("applicationData", JSON.stringify(updatedData));
       }
-    } else {
-      throw new Error(response.message || "Failed to update application");
+
+      // Handle compliance updates
+      if (editing === "compliance") {
+        const complianceObj: { [key: string]: boolean } = {};
+        compliance.forEach((item) => {
+          complianceObj[item] = true;
+        });
+        updatePayload.complianceChecklist = complianceObj;
+      }
+
+      console.log("📤 Update payload with images:", {
+        ...updatePayload,
+        propertyDetails: {
+          ...updatePayload.propertyDetails,
+          images: propertyImages, // Log images for debugging
+        },
+      });
+
+      const response = await application.updateApplication(
+        updatePayload as never
+      );
+
+      if (response.success) {
+        toast.success("Application updated successfully!");
+        setEditing(null);
+
+        // Update localStorage with new data
+        const stored = localStorage.getItem("applicationData");
+        if (stored) {
+          const storedData = JSON.parse(stored);
+          const updatedData = {
+            ...storedData,
+            propertyDetails: {
+              ...storedData.propertyDetails,
+              ...updatePayload.propertyDetails,
+              images: propertyImages, // Ensure images are persisted
+            },
+          };
+          localStorage.setItem("applicationData", JSON.stringify(updatedData));
+        }
+      } else {
+        throw new Error(response.message || "Failed to update application");
+      }
+    } catch (error) {
+      console.error("Update application error:", error);
+      toast.error((error as Error).message || "Failed to update application");
+    } finally {
+      setIsSubmitting(false);
     }
-  } catch (error) {
-    console.error("Update application error:", error);
-    toast.error((error as Error).message || "Failed to update application");
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   const handleSave = () => {
     handleUpdateApplication();
@@ -495,17 +510,17 @@ const handleUpdateApplication = async () => {
 
   return (
     <div className="mx-auto text-white">
-      <h2 className="text-[28px] leading-[32px] font-bold mb-3">
+      <h2 className="text-[28px] leading-8 font-bold mb-3">
         Review Your Submission
       </h2>
-      <p className="text-white/60 text-[16px] leading-[20px] mb-10 max-w-[573px] w-full">
+      <p className="text-white/60 text-[16px] leading-5 mb-10 max-w-[573px] w-full">
         Please review the details below before proceeding. You can go back and
         edit if needed.
       </p>
 
       {/* Property Details */}
       <div className="border bg-[#121315] border-[#2e2f31] rounded-xl mb-6 p-5">
-        <div className="flex justify-between items-center border-b border-b-[#2e2f31] pb-3 mb-[28px]">
+        <div className="flex justify-between items-center border-b border-b-[#2e2f31] pb-3 mb-7">
           <h3 className="font-semibold">Property Details</h3>
           {editing === "property" ? (
             <div className="flex gap-3">
@@ -708,50 +723,50 @@ const handleUpdateApplication = async () => {
           )}
 
           <div className="flex gap-3 flex-wrap">
-  {propertyImages.length > 0 ? (
-    propertyImages.map((src, i) => (
-      <div key={i} className="relative cursor-pointer group">
-        <div className="w-[120px] h-[120px] rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center border border-[#2e2f31]">
-          <Image
-            src={src}
-            alt={`Property ${i + 1}`}
-            width={120}
-            height={120}
-            className="rounded-lg object-cover w-full h-full"
-            onError={(e) => {
-              console.error(`❌ Failed to load image: ${src}`);
-              e.currentTarget.src = '/images/placeholder-image.jpg'; // Add a fallback
-            }}
-            onLoad={() => console.log(`✅ Image loaded: ${src}`)}
-          />
-        </div>
-        <div
-          onClick={() => openPropertyPreview(i)}
-          className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 
+            {propertyImages.length > 0 ? (
+              propertyImages.map((src, i) => (
+                <div key={i} className="relative cursor-pointer group">
+                  <div className="w-[120px] h-[120px] rounded-lg overflow-hidden bg-gray-800 flex items-center justify-center border border-[#2e2f31]">
+                    <Image
+                      src={src}
+                      alt={`Property ${i + 1}`}
+                      width={120}
+                      height={120}
+                      className="rounded-lg object-cover w-full h-full"
+                      onError={(e) => {
+                        console.error(`❌ Failed to load image: ${src}`);
+                        e.currentTarget.src = "/images/placeholder-image.jpg"; // Add a fallback
+                      }}
+                      onLoad={() => console.log(`✅ Image loaded: ${src}`)}
+                    />
+                  </div>
+                  <div
+                    onClick={() => openPropertyPreview(i)}
+                    className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 
            flex items-center justify-center transition-opacity cursor-pointer"
-        >
-          <Eye className="text-white w-8 h-8" />
-        </div>
-        {editing === "photos" && (
-          <button
-            onClick={() => removeImage(i)}
-            className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <Trash2 size={14} className="text-white" />
-          </button>
-        )}
-      </div>
-    ))
-  ) : (
-    <div className="text-white/60 text-center py-8">
-      <Upload size={32} className="mx-auto mb-2 opacity-50" />
-      <p>No property images uploaded</p>
-      {editing === "photos" && (
-        <p className="text-sm mt-1">Upload images to see them here</p>
-      )}
-    </div>
-  )}
-</div>
+                  >
+                    <Eye className="text-white w-8 h-8" />
+                  </div>
+                  {editing === "photos" && (
+                    <button
+                      onClick={() => removeImage(i)}
+                      className="absolute -top-2 -right-2 bg-red-500 rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <Trash2 size={14} className="text-white" />
+                    </button>
+                  )}
+                </div>
+              ))
+            ) : (
+              <div className="text-white/60 text-center py-8">
+                <Upload size={32} className="mx-auto mb-2 opacity-50" />
+                <p>No property images uploaded</p>
+                {editing === "photos" && (
+                  <p className="text-sm mt-1">Upload images to see them here</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -876,7 +891,7 @@ const handleUpdateApplication = async () => {
             {compliance.map((item, idx) => (
               <span
                 key={idx}
-                className="rounded-md bg-gradient-to-b from-[#202020] to-[#101010] p-[15px] border border-[#353535] md:min-w-[357px] text-sm"
+                className="rounded-md bg-linear-to-b from-[#202020] to-[#101010] p-[15px] border border-[#353535] md:min-w-[357px] text-sm"
               >
                 {item}
               </span>
@@ -897,7 +912,7 @@ const handleUpdateApplication = async () => {
             return (
               <div key={doc.id} className="flex flex-col">
                 {/* Document Title */}
-                <div className="min-h-[40px] flex items-start mb-1">
+                <div className="min-h-10 flex items-start mb-1">
                   <p className="text-sm text-white/60 line-clamp-2">
                     {documentTypeMap[doc.documentType] || doc.documentType}
                   </p>

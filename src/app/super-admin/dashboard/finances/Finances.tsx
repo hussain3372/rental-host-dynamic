@@ -376,6 +376,7 @@ export default function Finances() {
         setSelectedTransaction(originalRow);
         setRefundOpen(true);
       },
+    
     },
     {
       label: "Delete Transaction",

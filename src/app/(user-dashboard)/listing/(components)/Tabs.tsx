@@ -264,146 +264,171 @@
       return Object.keys(newErrors).length === 0;
     };
 
-    const uploadFiles = async (files: File[]): Promise<string[]> => {
-      if (files.length === 0) return [];
+   const uploadFiles = async (files: File[]): Promise<string[]> => {
+  if (files.length === 0) return [];
 
-      try {
-        const uploadFormData = new FormData();
-        files.forEach((file) => {
-          uploadFormData.append(`images`, file);
-        });
-
-        const response = await application.uploadImage(uploadFormData);
-
-        if (!response.data) {
-          throw new Error("No response data received from server");
-        }
-
-        let uploadedUrls: string[] = [];
-
-        if (Array.isArray(response.data)) {
-          uploadedUrls = response.data
-            .map((item) => {
-              if (typeof item === "string") return item;
-              if (item && typeof item === "object" && "url" in item)
-                return String(item.url);
-              if (item && typeof item === "object" && "path" in item)
-                return String(item.path);
-              if (item && typeof item === "object" && "key" in item)
-                return String(item.key);
-              return "";
-            })
-            .filter(Boolean);
-        } else {
-          const data = response.data as {
-            uploaded?: unknown[];
-            files?: unknown[];
-            images?: unknown[];
-          };
-          const items = data.uploaded || data.files || data.images;
-
-          if (items && Array.isArray(items)) {
-            uploadedUrls = items
-              .map((item) => {
-                if (typeof item === "string") return item;
-                if (item && typeof item === "object" && "url" in item)
-                  return String(item.url);
-                if (item && typeof item === "object" && "path" in item)
-                  return String(item.path);
-                if (item && typeof item === "object" && "key" in item)
-                  return String(item.key);
-                return "";
-              })
-              .filter(Boolean);
-          }
-        }
-
-        if (uploadedUrls.length === 0) {
-          throw new Error("No valid image URLs received from server");
-        }
-
-        if (uploadedUrls.length !== files.length) {
-          console.warn(
-            `Uploaded ${uploadedUrls.length} URLs but expected ${files.length}`
-          );
-        }
-
-        return uploadedUrls;
-      } catch (error) {
-        console.error("Image upload error:", error);
-        throw new Error(
-          error instanceof Error
-            ? `Failed to upload images: ${error.message}`
-            : "Failed to upload images due to server error"
-        );
-      }
-    };
-
-    const uploadDocuments = async (
-      files: FileData[]
-    ): Promise<UploadedDocument[]> => {
-      if (files.length === 0) return [];
-
-      try {
-        const formData = new FormData();
-
-        files.forEach((fileData) => {
-          formData.append("files", fileData.file);
-          formData.append("documentType", fileData.documentType);
-          formData.append("originalNames", fileData.originalName);
-        });
-
-        const response = await application.uploadDocuments(formData);
-
-        if (!response.data) {
-          const err = new Error("No response data received from document upload");
-          toast.error(`Failed to upload documents: ${err.message}`);
-          return [];
-        }
-
-        const uploadedDocs = Array.isArray(response.data) ? response.data : [];
-
-        setUploadedDocuments(uploadedDocs);
-        return uploadedDocs;
-      } catch (error: unknown) {
-        console.error("Document upload error:", error);
-
-        // Narrow the error into the expected shape rather than using `any`.
-        const err = error as {
-          response?: { status?: number; data?: { message?: string } } | undefined;
-        };
-
-        // ✅ Handle 413 error (Content Too Large)
-        if (err?.response?.status === 413) {
-          toast.error("File size too large. Maximum allowed size is 10 MB.");
-          return [];
-        }
-
-        // ✅ Handle other errors
-        const backendMessage =
-          err?.response?.data?.message ||
-          (error instanceof Error ? error.message : undefined);
-
-        toast.error(
-          backendMessage
-            ? `Failed to upload documents: ${backendMessage}`
-            : "Failed to upload documents due to server error"
-        );
-
-        throw new Error(
-          backendMessage ||
-            (error instanceof Error
-              ? error.message
-              : "Failed to upload documents")
-        );
-      }
-    };
-
-    const handleDraft = ()=>{
-      toast.success('Data drafted successfully')
-      router.push('/dashboard/application')
+  try {
+    // Get applicationId from localStorage
+    const stored = localStorage.getItem("applicationData");
+    const localApplicationData = stored ? JSON.parse(stored) : null;
+    
+    if (!localApplicationData?.id) {
+      throw new Error("No application found. Please complete step 1 first.");
     }
 
+    const applicationId = localApplicationData.id;
+
+    const uploadFormData = new FormData();
+    files.forEach((file) => {
+      uploadFormData.append(`images`, file);
+    });
+
+    // PASS applicationId AS FIRST PARAMETER
+    const response = await application.uploadImage(applicationId, uploadFormData);
+
+    if (!response.data) {
+      throw new Error("No response data received from server");
+    }
+
+    let uploadedUrls: string[] = [];
+
+    if (Array.isArray(response.data)) {
+      uploadedUrls = response.data
+        .map((item) => {
+          if (typeof item === "string") return item;
+          if (item && typeof item === "object" && "url" in item)
+            return String(item.url);
+          if (item && typeof item === "object" && "path" in item)
+            return String(item.path);
+          if (item && typeof item === "object" && "key" in item)
+            return String(item.key);
+          return "";
+        })
+        .filter(Boolean);
+    } else {
+      const data = response.data as {
+        uploaded?: unknown[];
+        files?: unknown[];
+        images?: unknown[];
+      };
+      const items = data.uploaded || data.files || data.images;
+
+      if (items && Array.isArray(items)) {
+        uploadedUrls = items
+          .map((item) => {
+            if (typeof item === "string") return item;
+            if (item && typeof item === "object" && "url" in item)
+              return String(item.url);
+            if (item && typeof item === "object" && "path" in item)
+              return String(item.path);
+            if (item && typeof item === "object" && "key" in item)
+              return String(item.key);
+            return "";
+          })
+          .filter(Boolean);
+      }
+    }
+
+    if (uploadedUrls.length === 0) {
+      throw new Error("No valid image URLs received from server");
+    }
+
+    if (uploadedUrls.length !== files.length) {
+      console.warn(
+        `Uploaded ${uploadedUrls.length} URLs but expected ${files.length}`
+      );
+    }
+
+    return uploadedUrls;
+  } catch (error) {
+    console.error("Image upload error:", error);
+    throw new Error(
+      error instanceof Error
+        ? `Failed to upload images: ${error.message}`
+        : "Failed to upload images due to server error"
+    );
+  }
+};
+
+  const uploadDocuments = async (
+  files: FileData[]
+): Promise<UploadedDocument[]> => {
+  if (files.length === 0) return [];
+
+  try {
+    // Get applicationId from localStorage
+    const stored = localStorage.getItem("applicationData");
+    const localApplicationData = stored ? JSON.parse(stored) : null;
+    
+    if (!localApplicationData?.id) {
+      throw new Error("No application found. Please complete step 1 first.");
+    }
+
+    const applicationId = localApplicationData.id;
+
+    const formData = new FormData();
+
+    files.forEach((fileData) => {
+      formData.append("files", fileData.file);
+      formData.append("documentType", fileData.documentType);
+      formData.append("originalNames", fileData.originalName);
+    });
+
+    // PASS applicationId AS FIRST PARAMETER
+    const response = await application.uploadDocuments(applicationId, formData);
+
+    if (!response.data) {
+      const err = new Error("No response data received from document upload");
+      toast.error(`Failed to upload documents: ${err.message}`);
+      return [];
+    }
+
+    const uploadedDocs = Array.isArray(response.data) ? response.data : [];
+
+    setUploadedDocuments(uploadedDocs);
+    return uploadedDocs;
+  } catch (error: unknown) {
+    console.error("Document upload error:", error);
+
+    // Narrow the error into the expected shape rather than using `any`.
+    const err = error as {
+      response?: { status?: number; data?: { message?: string } } | undefined;
+    };
+
+    // ✅ Handle 413 error (Content Too Large)
+    if (err?.response?.status === 413) {
+      toast.error("File size too large. Maximum allowed size is 10 MB.");
+      return [];
+    }
+
+    // ✅ Handle other errors
+    const backendMessage =
+      err?.response?.data?.message ||
+      (error instanceof Error ? error.message : undefined);
+
+    toast.error(
+      backendMessage
+        ? `Failed to upload documents: ${backendMessage}`
+        : "Failed to upload documents due to server error"
+    );
+
+    throw new Error(
+      backendMessage ||
+        (error instanceof Error
+          ? error.message
+          : "Failed to upload documents")
+    );
+  }
+};
+
+   const handleDraft = async () => {
+  toast.success('Data drafted successfully');
+  
+  // Wait for toast to appear, then redirect
+  setTimeout(() => {
+    router.push('/dashboard/application');
+  }, 1000); // 1 second delay
+}
     const getAllPreviousStepData = async (excludeDocuments = false) => {
       const appData = await fetchApplicationData();
 
@@ -440,60 +465,62 @@
     };
 
     const updateApplicationStep = async (
-      stepName: string,
-      stepData: object
-    ): Promise<boolean> => {
-      const stored = localStorage.getItem("applicationData");
-      const localApplicationData = stored ? JSON.parse(stored) : null;
+  stepName: string,
+  stepData: object
+): Promise<boolean> => {
+  const stored = localStorage.getItem("applicationData");
+  const localApplicationData = stored ? JSON.parse(stored) : null;
 
-      if (!localApplicationData?.id) {
-        toast.error("Please complete step 1a first");
-        return false;
-      }
+  if (!localApplicationData?.id) {
+    toast.error("Please complete step 1a first");
+    return false;
+  }
 
-      let updatePayload: { step: string; data: object } = {
+  const applicationId = localApplicationData.id; // Get the ID
+
+  let updatePayload: { step: string; data: object } = {
+    step: stepName,
+    data: stepData,
+  };
+
+  // Merge previous step data if needed
+  if (stepName === "COMPLIANCE_CHECKLIST" || stepName === "DOCUMENT_UPLOAD") {
+    const previousData = await getAllPreviousStepData(
+      stepName === "DOCUMENT_UPLOAD"
+    );
+    if (previousData) {
+      updatePayload = {
         step: stepName,
-        data: stepData,
+        data: {
+          ...previousData,
+          ...stepData,
+        },
       };
+    }
+  }
 
-      // Merge previous step data if needed
-      if (stepName === "COMPLIANCE_CHECKLIST" || stepName === "DOCUMENT_UPLOAD") {
-        const previousData = await getAllPreviousStepData(
-          stepName === "DOCUMENT_UPLOAD"
-        );
-        if (previousData) {
-          updatePayload = {
-            step: stepName,
-            data: {
-              ...previousData,
-              ...stepData,
-            },
-          };
-        }
-      }
+  console.log("📤 Update Payload for step:", stepName, updatePayload);
 
-      console.log("📤 Update Payload for step:", stepName, updatePayload);
+  // API call - PASS applicationId AS FIRST PARAMETER
+  const updateResponse = await application.updateStep(applicationId, updatePayload);
 
-      // API call
-      const updateResponse = await application.updateStep(updatePayload);
+  if (updateResponse.success) {
+    const updatedApplication = updateResponse.data.data; // assuming backend returns updated application
 
-      if (updateResponse.success) {
-        const updatedApplication = updateResponse.data.data; // assuming backend returns updated application
+    // ✅ Update localStorage to keep latest application data
+    localStorage.setItem(
+      "applicationData",
+      JSON.stringify(updatedApplication)
+    );
 
-        // ✅ Update localStorage to keep latest application data
-        localStorage.setItem(
-          "applicationData",
-          JSON.stringify(updatedApplication)
-        );
-
-        await fetchApplicationData(); // optional revalidation if you want to sync fresh API data
-        toast.success(`Step ${stepName} updated successfully!`);
-        return true;
-      } else {
-        const errorMsg = updateResponse.message || "Step update failed";
-        throw new Error(errorMsg);
-      }
-    };
+    await fetchApplicationData(); // optional revalidation if you want to sync fresh API data
+    toast.success(`Step ${stepName} updated successfully!`);
+    return true;
+  } else {
+    const errorMsg = updateResponse.message || "Step update failed";
+    throw new Error(errorMsg);
+  }
+};
 
     const handleStep1bUpdate = async (): Promise<boolean> => {
       if (formData.images.length < 3) {
@@ -758,52 +785,54 @@
     }
   };
 
-    const handleSubmitApplication = async (): Promise<boolean> => {
-      const toastId = toast.loading("Submitting your application...");
+  const handleSubmitApplication = async (): Promise<boolean> => {
+  const toastId = toast.loading("Submitting your application...");
+  
+  try {
+    const stored = localStorage.getItem("applicationData");
+    const localApplicationData = stored ? JSON.parse(stored) : null;
+
+    if (!localApplicationData?.id) {
+      throw new Error(
+        "No application data found. Please complete all previous steps."
+      );
+    }
+
+    const applicationId = localApplicationData.id;
+
+    console.log("📤 Submitting application with ID:", applicationId);
+
+    // PASS applicationId AS PARAMETER
+    const response = await application.submitApplication(applicationId);
+
+    if (response.success) {
+      toast.success("Application submitted successfully!", { id: toastId });
       
-      try {
-        const stored = localStorage.getItem("applicationData");
-        const localApplicationData = stored ? JSON.parse(stored) : null;
-
-        if (!localApplicationData?.id) {
-          throw new Error(
-            "No application data found. Please complete all previous steps."
-          );
+      // Give toast time to display before redirect
+      setTimeout(() => {
+        if (response.data) {
+          localStorage.setItem("submissionData", JSON.stringify(response.data));
         }
 
-        console.log(
-          "📤 Submitting application with ID:",
-          localApplicationData.id
-        );
-
-        const response = await application.submitApplication();
-
-        if (response.success) {
-          toast.success("Application submitted successfully!", { id: toastId });
-
-          if (response.data) {
-            localStorage.setItem("submissionData", JSON.stringify(response.data));
-          }
-
-          localStorage.removeItem("applicationData");
-          // localStorage.removeItem("propertyType");
-          setCurrentApplicationData(null);
-          setUploadedDocuments([]);
-          router.push("/dashboard/application");
-          return true;
-        } else {
-          const errorMsg = response.message || "Submission failed";
-          throw new Error(errorMsg);
-        }
-      } catch (error) {
-        console.error("Application submission error:", error);
-        toast.error((error as Error).message || "Failed to submit application", {
-          id: toastId,
-        });
-        return false;
-      }
-    };
-
+        localStorage.removeItem("applicationData");
+        setCurrentApplicationData(null);
+        setUploadedDocuments([]);
+        router.push("/dashboard/application");
+      }, 1500); // 1.5 seconds delay for toast to show
+      
+      return true;
+    } else {
+      const errorMsg = response.message || "Submission failed";
+      throw new Error(errorMsg);
+    }
+  } catch (error) {
+    console.error("Application submission error:", error);
+    toast.error((error as Error).message || "Failed to submit application", {
+      id: toastId,
+    });
+    return false;
+  }
+};
   const handleNextClick = async (): Promise<void> => {
     if (isLoading) return;
 

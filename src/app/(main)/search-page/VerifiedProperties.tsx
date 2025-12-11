@@ -52,7 +52,7 @@ export const VerifiedProperties: React.FC<VerifiedPropertiesProps> = ({
   }
 
   return (
-    <div className="container-class bg-[#121315] text-white py-[40px] px-[20px] sm:py-[60px] sm:px-[40px] md:py-[70px] md:px-[80px] lg:py-[100px] lg:px-[120px]">
+    <div className="container-class bg-[#121315] text-white  px-[20px]  sm:px-[40px]  md:px-[80px] sm:pb-20 pb-9">
       {properties.length === 0 ? (
         <div className="flex flex-col items-center justify-center text-center">
           <Image
@@ -82,7 +82,7 @@ export const VerifiedProperties: React.FC<VerifiedPropertiesProps> = ({
             />
           </div>
 
-          <h2 className="text-[48px] leading-[57.6px] font-medium mt-6">
+          <h2 className=" text-[32px] sm:text-[48px] leading-[40px] sm:leading-[57.6px] font-medium mt-6">
             Your Verified Property Results
           </h2>
 

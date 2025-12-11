@@ -11,6 +11,7 @@ type PropertyItem = {
   title: string;
   address: string;
   image: string;
+  issuedAt?: string | null;
 };
 
 const CertifiedProperties = () => {
@@ -56,6 +57,7 @@ const CertifiedProperties = () => {
               title: item.property?.name || "Unnamed Property",
               address: item.property?.address || "",
               image: item.property?.images?.[0] || "/images/empty.png",
+              issuedAt: item.issuedAt || null,
             })
           );
           setProperties(mapped);
@@ -98,7 +100,7 @@ const CertifiedProperties = () => {
         <div className="flex items-center gap-2 mb-4">
           <BlackButton
             text="Certified Properties"
-            iconSrc="/images/how-it-works.png"
+            iconSrc="/images/value.png"
             iconWidth={32}
             iconHeight={32}
             className="w-[259px] mb-5 sm:mb-10"
@@ -190,6 +192,7 @@ const CertifiedProperties = () => {
                     id={property.id}
                     title={property.title}
                     address={property.address}
+                    date={property.issuedAt}
                   />
                 )}
               </div>
@@ -203,49 +206,124 @@ const CertifiedProperties = () => {
 
 export default CertifiedProperties;
 
+// const CardFooter = ({
+//   title,
+//   address,
+//   id,
+// }: {
+//   title: string;
+//   address: string;
+//   id: string;
+// }) => {
+//   return (
+//     <div className="flex justify-between items-center mt-4 cursor-pointer">
+//       <div>
+//         <h3 className="font-medium sm:text-[28px] text-[22px] sm:leading-[32px] leading-6">
+//           {title}
+//         </h3>
+//         {address && (
+//           <p className="sm:text-[24px] text-[16px] sm:leading-[24px] leading-4 mt-2 text-[#FFFFFFCC]">
+//             {address}
+//           </p>
+//         )}
+//       </div>
+
+//       {/* Arrow animation */}
+//       {/* <Link
+//         href={`/property-detail/${id}`}
+//         key={id}
+//         className="relative w-[32px] h-[32px] overflow-hidden mt-[-12px]"
+//       >
+//         <Image
+//           src="/images/stash_arrow-up-light1.png"
+//           alt="Arrow"
+//           width={24}
+//           height={24}
+//           className="absolute inset-0 transition-all duration-500 ease-in-out group-hover:translate-x-6 group-hover:opacity-0"
+//         />
+//         <Image
+//           src="/images/yellow-arrow-right.svg"
+//           alt="Arrow Hover"
+//           width={32}
+//           height={32}
+//           className="absolute inset-0 -translate-x-6 mt-[-6px] opacity-0 transition-all duration-500 ease-in-out group-hover:translate-x-0 group-hover:opacity-100"
+//         />
+//       </Link> */}
+//     </div>
+//   );
+// };
+
+// ... (Keep existing imports and code above CardFooter)
+
 const CardFooter = ({
   title,
   address,
   id,
+  date,
 }: {
   title: string;
   address: string;
   id: string;
+  date?: string | null;
 }) => {
+  // Placeholder data for the four tags
+  const tags = [
+    "Fire-safe heating",
+    "CO protection",
+    "Safe walkways",
+    "Family-ready layoutf",
+  ];
+  const formattedDate = date ? new Date(date).toLocaleDateString() : "No Date";
+
+  const locationIconSrc = "/images/location.svg";
+  const calendarIconSrc = "/images/date-icon.svg";
+
   return (
-    <div className="flex justify-between items-center mt-4 cursor-pointer">
-      <div>
-        <h3 className="font-medium sm:text-[28px] text-[22px] sm:leading-[32px] leading-6">
-          {title}
-        </h3>
-        {address && (
-          <p className="sm:text-[24px] text-[16px] sm:leading-[24px] leading-4 mt-2 text-[#FFFFFFCC]">
-            {address}
-          </p>
-        )}
+    <div className="flex flex-col mt-6 cursor-pointer">
+      {/* Property Name/Title (Existing) */}
+      <h3 className="font-medium sm:text-[28px] text-[22px] sm:leading-[32px] leading-6">
+        {title}
+      </h3>
+
+      {/* 4 Tags Section */}
+      <div className="flex flex-wrap gap-2 mt-8">
+        {tags.map((tag, index) => (
+          <span
+            key={index}
+            className="text-[#EFFC76]  bg-[#2D2D2D] px-3 py-2 text-[18px] leading-[22px] font-normal rounded-[100px]"
+          >
+            {tag}
+          </span>
+        ))}
       </div>
 
-      {/* Arrow animation */}
-      <Link
-        href={`/property-detail/${id}`}
-        key={id}
-        className="relative w-[32px] h-[32px] overflow-hidden mt-[-12px]"
-      >
-        <Image
-          src="/images/stash_arrow-up-light1.png"
-          alt="Arrow"
-          width={24}
-          height={24}
-          className="absolute inset-0 transition-all duration-500 ease-in-out group-hover:translate-x-6 group-hover:opacity-0"
-        />
-        <Image
-          src="/images/yellow-arrow-right.svg"
-          alt="Arrow Hover"
-          width={32}
-          height={32}
-          className="absolute inset-0 -translate-x-6 mt-[-6px] opacity-0 transition-all duration-500 ease-in-out group-hover:translate-x-0 group-hover:opacity-100"
-        />
-      </Link>
+      <div className="flex items-center justify-between sm:justify-start gap-8 mt-6">
+        <div className="flex items-center gap-2">
+          <Image
+            src={locationIconSrc}
+            alt="Location"
+            width={28}
+            height={28}
+            className=""
+          />
+          <p className="sm:text-[18px] text-[14px] leading-6 text-[#FFFFFFCC]">
+            {address || "Unknown Location"}
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Image
+            src={calendarIconSrc}
+            alt="Date"
+            width={28}
+            height={28}
+            className=""
+          />
+          <p className="sm:text-[18px] text-[14px] leading-6 text-[#FFFFFFCC]">
+            {formattedDate}
+          </p>
+        </div>
+      </div>
     </div>
   );
 };

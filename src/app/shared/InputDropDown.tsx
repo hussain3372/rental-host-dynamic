@@ -38,7 +38,7 @@ const Dropdown: React.FC<DropdownProps> = ({
     <div
       ref={dropdownRef}
       onClick={(e) => e.stopPropagation()} // 🧱 stops bubbling to parent (prevents card click)
-      className="flex flex-col absolute items-start gap-1.5 w-full rounded-xl 
+      className="flex flex-col absolute items-start gap-1.5 w-full max-h-[50vh] overflow-y-auto rounded-xl 
                  border border-white/5 
                  bg-[radial-gradient(75%_81%_at_50%_18.4%,#202020_0%,#101010_100%)] 
                  shadow-[inset_0_0_0_1px_rgba(255,255,255,0.08),0_4px_12px_rgba(0,0,0,0.4)]

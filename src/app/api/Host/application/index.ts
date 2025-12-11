@@ -163,55 +163,57 @@ export const application = {
     });
   },
 
-  uploadImage: async (
-    payload: FormData
-  ): Promise<ApiResponse<FileUploadResponse>> => {
-    const token = getToken();
-    const stored = localStorage.getItem("applicationData");
-    const id = stored ? JSON.parse(stored).id : null;
-    return apiClient.post<FileUploadResponse>(
-      `/applications/${id}/upload-images`,
-      payload,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-  },
+ uploadImage: async (
+  applicationId: string, // Add this parameter
+  payload: FormData
+): Promise<ApiResponse<FileUploadResponse>> => {
+  const token = getToken();
+  // Remove localStorage code
+  return apiClient.post<FileUploadResponse>(
+    `/applications/${applicationId}/upload-images`, // Use the parameter
+    payload,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+},
 
   uploadDocuments: async (
-    payload: FormData
-  ): Promise<ApiResponse<{ documents: UploadedDocument[] }>> => {
-    const token = getToken();
-    const stored = localStorage.getItem("applicationData");
-    const id = stored ? JSON.parse(stored).id : null;
-    return apiClient.post<{ documents: UploadedDocument[] }>(
-      `/documents/upload/${id}`,
-      payload,
-      {
-        headers: {
-          "Content-Type": "multipart/form-data",
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-  },
+  applicationId: string, // Add this parameter
+  payload: FormData
+): Promise<ApiResponse<{ documents: UploadedDocument[] }>> => {
+  const token = getToken();
+  return apiClient.post<{ documents: UploadedDocument[] }>(
+    `/documents/upload/${applicationId}`, // Use the parameter
+    payload,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+        Authorization: `Bearer ${token}`,
+      },
+    }
+  );
+},
 
   updateStep: async (
-    payload: UpdatePayload
-  ): Promise<ApiResponse<UpdateResponse>> => {
-    const token = getToken();
-    const stored = localStorage.getItem("applicationData");
-    const id = stored ? JSON.parse(stored).id : null;
-    return apiClient.put<UpdateResponse>(`/applications/${id}/step`, payload, {
+  applicationId: string, // Add this parameter
+  payload: UpdatePayload
+): Promise<ApiResponse<UpdateResponse>> => {
+  const token = getToken();
+  return apiClient.put<UpdateResponse>(
+    `/applications/${applicationId}/step`, // Use the parameter
+    payload,
+    {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-    });
-  },
+    }
+  );
+},
 
   getCheckList: async (): Promise<ApiResponse<CheckListApiResponse>> => {
     const token = getToken();
@@ -286,82 +288,88 @@ export const application = {
     }
   },
 
-  mockPay: async (): Promise<ApiResponse<PaymentResponse>> => {
-    const token = getToken();
+  mockPay: async (
+  applicationId: string // Add this optional parameter
+): Promise<ApiResponse<PaymentResponse>> => {
+  const token = getToken();
+  
+  // Use parameter if provided, otherwise fallback to localStorage
+  let appId = applicationId;
+  if (!appId) {
     const stored = localStorage.getItem("applicationData");
-    const applicationId = stored ? JSON.parse(stored).id : null;
-    if (!applicationId) {
-      throw new Error(
-        "Application ID not found. Please complete Step 1 first."
-      );
-    }
-    const payload: PaymentPayload = {
-      amount: 1000,
-      currency: "AED",
-      applicationId: applicationId,
-    };
-    return apiClient.post<PaymentResponse>(`/payments/mock-pay`, payload, {
+    appId = stored ? JSON.parse(stored).id : null;
+  }
+  
+  // if (!appId) {
+  //   throw new Error("Application ID is required");
+  // }
+  
+  const payload: PaymentPayload = {
+    amount: 1000,
+    currency: "AED",
+    applicationId: appId,
+  };
+  
+  return apiClient.post<PaymentResponse>(`/payments/mock-pay`, payload, {
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+  });
+},
+
+ createPayment: async (
+  payload: CreatePaymentPayload,
+  applicationId: string // Add this optional parameter
+): Promise<PaymentResponse> => {
+  const token = getToken();
+  
+  // Use parameter if provided, otherwise fallback to localStorage
+  let appId = applicationId;
+  if (!appId) {
+    const stored = localStorage.getItem("applicationData");
+    appId = stored ? JSON.parse(stored).id : null;
+  }
+  
+  // if (!appId) {
+  //   throw new Error("Application ID is required");
+  // }
+  
+  // attach applicationId dynamically
+  const finalPayload = {
+    ...payload,
+    applicationId: appId,
+  };
+
+  const response = await apiClient.post<PaymentResponseReal>(
+    `/payments/create-intent`,
+    finalPayload,
+    {
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-    });
-  },
-
-  createPayment: async (
-    payload: CreatePaymentPayload
-  ): Promise<PaymentResponse> => {
-    const token = getToken();
-    const stored = localStorage.getItem("applicationData");
-    const applicationId = stored ? JSON.parse(stored).id : null;
-
-    if (!applicationId) {
-      throw new Error(
-        "Application ID not found. Please complete Step 1 first."
-      );
     }
+  );
 
-    // attach applicationId dynamically
-    const finalPayload = {
-      ...payload,
-      applicationId,
-    };
+  return response.data;
+},
 
-    const response = await apiClient.post<PaymentResponseReal>(
-      `/payments/create-intent`,
-      finalPayload,
-      {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-
-    return response.data;
-  },
-
-  submitApplication: async (): Promise<ApiResponse<SubmitResponse>> => {
-    const token = getToken();
-    const stored = localStorage.getItem("applicationData");
-    const id = stored ? JSON.parse(stored).id : null;
-    if (!id) {
-      throw new Error(
-        "Application ID not found. Please complete all previous steps."
-      );
+  submitApplication: async (
+  applicationId: string // Add this parameter
+): Promise<ApiResponse<SubmitResponse>> => {
+  const token = getToken();
+  return apiClient.post<SubmitResponse>(
+    `/applications/${applicationId}/submit`, // Use the parameter
+    undefined,
+    {
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
     }
-    console.log(`Submitting application with ID: ${id}`);
-    return apiClient.post<SubmitResponse>(
-      `applications/${id}/submit`,
-      undefined,
-      {
-        headers: {
-          "Content-Type": "application /json",
-          Authorization: `Bearer ${token}`,
-        },
-      }
-    );
-  },
+  );
+},
 
   updateApplication: async (
     payload: ApiPayload

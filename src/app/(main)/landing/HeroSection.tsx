@@ -20,12 +20,12 @@ const HeroSection = () => {
     }
   };
 
-  const handleKeyPress = (event:React.KeyboardEvent)=>{
-    if (event.key === 'Enter') {
+  const handleKeyPress = (event: React.KeyboardEvent) => {
+    if (event.key === "Enter") {
       event.preventDefault();
       handleSearchClick();
     }
-  }
+  };
 
   const [isMobile, setIsMobile] = useState(false);
 
@@ -118,7 +118,7 @@ const HeroSection = () => {
       {/* Main Content */}
       <div className="relative z-10 flex flex-col items-center justify-center py-[14px] ">
         {/* Trust Badge */}
-        <div className="mb-8 sm:mb-12 flex flex-wrap items-center justify-center gap-2 bg-[#121315] rounded-full py-2 px-4 sm:px-[12px] border border-gray-700">
+        <div className="mb-8 sm:mb-12 flex flex-wrap items-center justify-center gap-2 bg-[#121315] rounded-full py-2 px-4 sm:px-[12px] border border-gray-700 mt-[120px]">
           <div className="flex -space-x-4">
             <Image
               src="/images/hero1.png"
@@ -157,11 +157,13 @@ const HeroSection = () => {
 
         {/* Heading */}
         <div className="text-center mb-8 bg-gradient-to-r from-white/40 via-white to-white/40 bg-clip-text">
-          <h1 className="text-[32px] sm:text-[40px] md:text-[56px] text-transparent font-medium leading-tight mb-4 sm:mb-6 w-full max-w-[835px] ">
-            Build Trust. Get Certified. Grow Your Hosting Business.
+          <h1 className="text-[32px] sm:text-[40px] md:text-[56px] text-transparent font-medium sm:leading-[68px] leading-[56px] mb-4 sm:mb-6 w-full max-w-[835px] ">
+            Trust. Comfort. Verified{" "}
           </h1>
-          <p className="text-white opacity-60 text-[16px] sm:text-[20px] md:text-[24px] leading-[26px] sm:leading-[30px] md:leading-[32px] mx-auto w-full max-w-[716px] font-normal px-3 sm:px-[0px]">
-            Experience the perfect blend of credibility, trust, and recognition.
+          <p className="text-white opacity-60 text-[16px] sm:text-[20px] md:text-[24px] leading-[26px] sm:leading-[30px] md:leading-[32px] mx-auto w-full max-w-[833px] font-normal px-3 sm:px-[0px]">
+            A professional Safety & Comfort Assessment designed to help guests
+            book with confidence and help hosts stand out. Not a code
+            inspection. Not a checklist. Justpeace of mind.{" "}
           </p>
         </div>
 
@@ -203,9 +205,14 @@ const HeroSection = () => {
   "
           >
             <Button
-              text="Search Certified Host"
+              text="Find a Verified Stay"
               onClick={handleSearchClick}
-              className="w-full md:w-auto h-[44px]"
+              className="w-full md:w-auto h-[44px] 
+              "
+               textSize="text-[18px]"
+                 textLeading="leading-[22px]"
+
+               
             />
           </div>
         </div>

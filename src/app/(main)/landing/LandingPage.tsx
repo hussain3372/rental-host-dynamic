@@ -1,4 +1,4 @@
-'use client'
+"use client";
 import React from "react";
 import HeroSection from "./HeroSection";
 import CardSection from "./CardSection";
@@ -8,11 +8,10 @@ import Testimonial from "./Testimonial";
 import FaqSection from "./FaqSection";
 import Plans from "./Plans";
 import Unlock from "./Unlock";
-
+import VerificationSection from "./VerificationSection";
 
 const LandingPage = () => {
   return (
-
     <div>
       <section id="home">
         <HeroSection />
@@ -23,12 +22,15 @@ const LandingPage = () => {
           <CardSection />
         </section>
       </div>
-      <ValuePropositionsSection />
+      <VerificationSection />
+
       <div className="scroll-smooth">
         <section id="hosts" className="scroll-mt-[120px]">
           <CertifiedProperties />
         </section>
       </div>
+      <ValuePropositionsSection />
+
       <Testimonial />
       <div className="scroll-smooth">
         <section id="plans" className="scroll-mt-[120px]">
@@ -37,7 +39,7 @@ const LandingPage = () => {
       </div>
       <FaqSection />
       <Unlock />
-    </div >
+    </div>
   );
 };
 

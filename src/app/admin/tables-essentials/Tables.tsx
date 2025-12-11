@@ -47,8 +47,11 @@ interface TableProps<T> {
   data: T[];
   control?: TableControl;
   onRowClick?: (row: T, index: number) => void;
-  dropdownItems?: { label: string; onClick: (row: T, index: number) => void }[];
-  clickable?: boolean;
+dropdownItems?: { 
+    label: string; 
+    onClick: (row: T, index: number) => void;
+    disabled?: (row: T, index: number) => boolean; // Add this
+  }[];  clickable?: boolean;
   onDeleteSingle?: (row: T, index: number) => void;
   showDeleteButton?: boolean;
   selectedRows: Set<string>;
@@ -744,37 +747,61 @@ export function Table<T extends Record<string, unknown>>({
                                 />
                               </button>
 
-                              {activeDropdown === idx && dropdownItems && (
-                                <Dropdown
-                                  isOpen={true}
-                                  onClose={() => setActiveDropdown(null)}
-                                  items={dropdownItems.map((item) => {
-                                    let disabled = false;
-                                    if (
-                                      item.label === "Delete Application" ||
-                                      item.label
-                                        .toLowerCase()
-                                        .includes("delete")
-                                    ) {
-                                      disabled = !selectedRows.has(rowId);
-                                    }
+{activeDropdown === idx && dropdownItems && (
+  <Dropdown
+    isOpen={true}
+    onClose={() => setActiveDropdown(null)}
+    items={dropdownItems.map((item) => {
+      let disabled = false;
+      
+      // Existing logic for delete options
+      if (
+        item.label === "Delete Application" ||
+        item.label.toLowerCase().includes("delete")
+      ) {
+        disabled = !selectedRows.has(rowId);
+      }
+      
+      // NEW: Add logic for refund options
+      if (
+        item.label === "Issue Refund" ||
+        item.label.toLowerCase().includes("refund")
+      ) {
+        // Check if status is REFUNDED
+        const rowData = row as Record<string, unknown>;
+        if (rowData.Status === "REFUNDED" || rowData.status === "REFUNDED") {
+          disabled = true;
+        }
+      }
+      if (
+        item.label === "Assign Admin" ||
+        item.label.toLowerCase().includes("assign")
+      ) {
+        // Check if status is REFUNDED
+        const rowData = row as Record<string, unknown>;
+        if (rowData.Status === "Approved" || rowData.status === "approved") {
+          disabled = true;
+        }
+      }
 
-                                    return {
-                                      label: item.label,
-                                      disabled,
-                                      className: disabled
-                                        ? "opacity-50 cursor-not-allowed"
-                                        : "",
-                                      onClick: () => {
-                                        if (!disabled) {
-                                          item.onClick(row, idx);
-                                          setActiveDropdown(null);
-                                        }
-                                      },
-                                    };
-                                  })}
-                                />
-                              )}
+      return {
+        label: item.label,
+        disabled,
+        className: disabled
+          ? "opacity-50 cursor-not-allowed"
+          : "",
+        onClick: () => {
+          if (!disabled) {
+            item.onClick(row, idx);
+            setActiveDropdown(null);
+          }
+        },
+      };
+    })}
+  />
+)}
+
+
                             </td>
                           )}
                         </tr>

@@ -14,7 +14,7 @@ export default function Navbar() {
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    const sections = ["home", "plans", "how-it-works", "hosts"];
+    const sections = ["home", "plans", "Services", "hosts"];
 
     const handleIntersect: IntersectionObserverCallback = (entries) => {
       let maxRatio = 0;
@@ -51,7 +51,7 @@ export default function Navbar() {
     if (typeof window === "undefined") return;
     const handleHashChange = () => {
       const hash = window.location.hash.replace("#", "");
-      if (hash && ["plans", "how-it-works", "hosts"].includes(hash)) {
+      if (hash && ["plans", "Services", "hosts"].includes(hash)) {
         setActiveSection(hash);
       } else if (pathname === "/" && !hash) {
         setActiveSection("home");
@@ -90,7 +90,7 @@ export default function Navbar() {
   return (
     <>
       <header className="fixed top-0 left-0 w-full z-50 bg-[#17181A] px-[0px] md:px-[83px] shadow-md">
-        <div className="bg-[#0A0C0B] rounded-lg relative w-full max-w-[1304px] mx-auto">
+        <div className="bg-[#0A0C0B] rounded-lg relative w-full max-w-[1258px] mx-auto">
           <nav className="mx-auto flex items-center justify-between py-[24px] px-3 sm:px-[20px]">
             {/* Mobile Menu Button */}
             <div className="flex items-center gap-3">
@@ -132,18 +132,24 @@ export default function Navbar() {
                 Home
               </Link>
               <Link
-                href="/#plans"
+                href="/pricing"
                 className={linkClasses(isSectionActive("plans"))}
-                onClick={() => handleNavClick("plans")}
               >
                 Pricing
               </Link>
               <Link
-                href="/#how-it-works"
-                className={linkClasses(isSectionActive("how-it-works"))}
-                onClick={() => handleNavClick("how-it-works")}
+                href="/services"
+                className={linkClasses(isSectionActive("Services"))}
+                onClick={() => handleNavClick("Services")}
               >
-                How It Works
+                Services
+              </Link>
+               <Link
+                href="/faq"
+                className={linkClasses(isSectionActive("faq"))}
+                onClick={() => handleNavClick("faq")}
+              >
+                FAQ
               </Link>
               <Link
                 href="/#hosts"
@@ -162,7 +168,7 @@ export default function Navbar() {
                 bg-[#fff] rounded-[8px] h-[30px] pt-[6px] pb-[6px] pl-[12px] pr-[12px] gap-[4px]
                 lg:h-[36px] lg:pt-[8px] lg:pb-[8px] lg:pl-[24px] lg:pr-[24px] lg:gap-[8px] text-black"
               >
-                Sign in
+                Get My Property Verified
               </Link>
             </div>
           </nav>
@@ -203,7 +209,7 @@ export default function Navbar() {
                     Home
                   </Link>
                   <Link
-                    href="/#plans"
+                    href="/pricing"
                     className={`block text-base px-3 py-2 transition-colors duration-300 ${
                       isSectionActive("plans")
                         ? "text-[#FFFFFF]"
@@ -217,18 +223,18 @@ export default function Navbar() {
                     Pricing
                   </Link>
                   <Link
-                    href="/#how-it-works"
+                    href="/services"
                     className={`block text-base px-3 py-2 transition-colors duration-300 ${
-                      isSectionActive("how-it-works")
+                      isSectionActive("Services")
                         ? "text-[#FFFFFF]"
                         : "text-[#FFFFFF99] hover:text-[#FFFFFF]"
                     }`}
                     onClick={() => {
-                      handleNavClick("how-it-works");
+                      handleNavClick("Services");
                       setMobileMenuOpen(false);
                     }}
                   >
-                    How It Works
+                   Services
                   </Link>
                   <Link
                     href="/#hosts"
@@ -250,7 +256,7 @@ export default function Navbar() {
           )}
         </div>
       </header>
-      <div className="h-[112px] lg:h-[112px]"></div>
+      {/* <div className="h-[112px] lg:h-[112px]"></div> */}
     </>
   );
 }

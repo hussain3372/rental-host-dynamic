@@ -1,42 +1,57 @@
 import React from "react";
 import Link from "next/link";
+import Image from "next/image";
 
 function Footer() {
+  const socialLinks = [
+    {
+      name: "Instagram",
+      href: "/coming-soon",
+      icon: "/images/instagram.svg",
+    },
+    {
+      name: "Linkedin",
+      href: "/coming-soon",
+      icon: "/images/linkedin.svg",
+    },
+    {
+      name: "Facebook",
+      href: "/coming-soon",
+      icon: "/images/facebook.svg",
+    },
+  ];
+
   const content = [
-    {
-      id: 1,
-      title: "Pages",
-      routes: [
-        { name: "Home", href: "/" },
-        { name: "How It Works", href: "/#how-it-works" },
-        { name: "About Us", href: "/" },
-        { name: "Our Hosts", href: "/#hosts" },
-      ],
-    },
-    {
-      id: 2,
-      title: "Use Cases",
-      routes: [
-        { name: "For Hosts", href: "/coming-soon" },
-        { name: "For Guests", href: "/coming-soon" },
-      ],
-    },
-    {
-      id: 3,
-      title: "Learn",
-      routes: [
-        { name: "Blog", href: "/coming-soon" },
-        { name: "Help Center", href: "/coming-soon" },
-      ],
-    },
+    // {
+    //   id: 1,
+    //   title: "Pages",
+    //   routes: [
+    //     { name: "Home", href: "/" },
+    //     { name: "How It Works", href: "/#how-it-works" },
+    //     { name: "About Us", href: "/" },
+    //     { name: "Our Hosts", href: "/#hosts" },
+    //   ],
+    // },
+    // {
+    //   id: 2,
+    //   title: "Use Cases",
+    //   routes: [
+    //     { name: "For Hosts", href: "/coming-soon" },
+    //     { name: "For Guests", href: "/coming-soon" },
+    //   ],
+    // },
+    // {
+    //   id: 3,
+    //   title: "Learn",
+    //   routes: [
+    //     { name: "Blog", href: "/coming-soon" },
+    //     { name: "Help Center", href: "/coming-soon" },
+    //   ],
+    // },
     {
       id: 4,
       title: "Socials",
-      routes: [
-        { name: "Instagram", href: "/coming-soon" },
-        { name: "Linkedin", href: "/coming-soon" },
-        { name: "Facebook", href: "/coming-soon" },
-      ],
+      routes: socialLinks,
     },
   ];
 
@@ -71,40 +86,55 @@ function Footer() {
 
         {/* CTA */}
         <div className="flex justify-center py-[72px]">
-          <Link href="/auth/signup" className="px-[40px] cursor-pointer font-semibold py-[16px] text-[#121315] text-[18px] leading-[22px] bg-[#EFFC76] hover:bg-[#eef98f] rounded-md shadow-[inset_0_4px_6px_rgba(0,0,0,0.3)]">
+          <Link
+            href="/auth/signup"
+            className="px-[40px] cursor-pointer font-semibold py-[16px] text-[#121315] text-[18px] leading-[22px] bg-[#EFFC76] hover:bg-[#eef98f] rounded-md shadow-[inset_0_4px_6px_rgba(0,0,0,0.3)]"
+          >
             Register Now
           </Link>
         </div>
+        <div className="flex flex-col items-center justify-center pt-4 pb-8">
+          <p className="font-medium text-[24px] leading-7 mb-6 text-[#FFFFFFEB] text-center">
+            Socials
+          </p>
 
-        {/* Footer Links */}
-        <div className="flex w-[250px] sm:w-full gap-[20px] px-[10px] justify-between flex-wrap">
-          {content.map((item) => (
-            <div key={item.id}>
-              <p className="font-medium text-[16px] leading-[20px] mb-[24px] text-white opacity-90">
-                {item.title}
-              </p>
-              <ul className="space-y-3">
-                {item.routes.map((route, index) => (
-                  <li key={index}>
-                    <Link
-                      href={route.href}
-                      className="text-[14px] leading-[18px] font-medium text-[#FFFFFF99]  hover:text-white cursor-pointer transition-colors"
-                    >
-                      {route.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ))}
+          {/* SM = flex-col (center) | LG = flex-row (already OK) */}
+          <div className="flex flex-col lg:flex-row items-start  justify-center gap-4 lg:space-x-8">
+            {socialLinks.map((social, index) => (
+              <Link
+                key={index}
+                href={social.href}
+                className="flex items-center cursor-pointer space-x-2"
+              >
+                <div className="w-8 h-8 md:w-9 md:h-9 flex items-center justify-center">
+                  <Image
+                    src={social.icon}
+                    alt={`${social.name} icon`}
+                    width={20}
+                    height={20}
+                    className="w-5 h-5 md:w-6 md:h-6 object-contain"
+                  />
+                </div>
+
+                <span className="text-[18px] leading-6 font-medium text-[#FFFFFF99] whitespace-nowrap">
+                  {social.name}
+                </span>
+              </Link>
+            ))}
+          </div>
         </div>
+
+        <div className="flex w-[250px] sm:w-full gap-[20px] px-[10px] justify-between flex-wrap"></div>
 
         {/* Bottom Bar */}
         <div className="flex justify-between pt-[71px] pb-[40px] px-1 sm:px-0 text-white/80">
           <p className="text-[10px] sm:text-[12px] font-medium leading-[16px] text-[#FFFFFF66]">
             2025 @ Rental Host Certification. All rights reserved.
           </p>
-          <Link href="/coming-soon" className="font-medium text-[10px] sm:text-[12px] leading-[16px] text-[#FFFFFF66] hover:text-white  transition-colors">
+          <Link
+            href="/coming-soon"
+            className="font-medium text-[10px] sm:text-[12px] leading-[16px] text-[#FFFFFF66] hover:text-white transition-colors"
+          >
             Privacy Policy
           </Link>
         </div>
